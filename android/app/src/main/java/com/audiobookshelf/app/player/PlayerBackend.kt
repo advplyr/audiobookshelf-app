@@ -94,7 +94,6 @@ class ExoV2PlayerBackend(
       playerNotificationService.clientEventEmitter = clientEventEmitter
       MediaEventManager.clientEventEmitter = clientEventEmitter
 
-      playerNotificationService.setExternalPlaybackState(null)
       SleepTimerNotificationCenter.unregister()
     }
   }

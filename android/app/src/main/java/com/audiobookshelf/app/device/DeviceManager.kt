@@ -53,7 +53,7 @@ object DeviceManager {
 
     // Initialize new sleep timer settings and shake sensitivity added in v0.9.61
     if (deviceData.deviceSettings?.autoSleepTimerStartTime == null ||
-      deviceData.deviceSettings?.autoSleepTimerEndTime == null
+                    deviceData.deviceSettings?.autoSleepTimerEndTime == null
     ) {
       deviceData.deviceSettings?.autoSleepTimerStartTime = "22:00"
       deviceData.deviceSettings?.autoSleepTimerEndTime = "06:00"
@@ -88,7 +88,7 @@ object DeviceManager {
     }
     if (deviceData.deviceSettings?.androidAutoBrowseSeriesSequenceOrder == null) {
       deviceData.deviceSettings?.androidAutoBrowseSeriesSequenceOrder =
-        AndroidAutoBrowseSeriesSequenceOrderSetting.ASC
+              AndroidAutoBrowseSeriesSequenceOrderSetting.ASC
     }
   }
 
@@ -99,8 +99,8 @@ object DeviceManager {
    */
   fun getBase64Id(id: String): String {
     return android.util.Base64.encodeToString(
-      id.toByteArray(),
-      android.util.Base64.URL_SAFE or android.util.Base64.NO_WRAP
+            id.toByteArray(),
+            android.util.Base64.URL_SAFE or android.util.Base64.NO_WRAP
     )
   }
 
@@ -155,7 +155,7 @@ object DeviceManager {
    */
   fun checkConnectivity(ctx: Context): Boolean {
     val connectivityManager =
-      ctx.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+            ctx.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
     val capabilities = connectivityManager.getNetworkCapabilities(connectivityManager.activeNetwork)
     if (capabilities != null) {
       if (capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)) {

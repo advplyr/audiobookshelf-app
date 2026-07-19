@@ -22,30 +22,30 @@ import com.google.android.gms.common.images.WebImage
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 class PlaybackSession(
-  var id: String,
-  var userId: String?,
-  var libraryItemId: String?,
-  var episodeId: String?,
-  var mediaType: String,
-  var mediaMetadata: MediaTypeMetadata,
-  var deviceInfo: DeviceInfo,
-  var chapters: List<BookChapter>,
-  var displayTitle: String?,
-  var displayAuthor: String?,
-  var coverPath: String?,
-  var duration: Double,
-  var playMethod: Int,
-  var startedAt: Long,
-  var updatedAt: Long,
-  var timeListening: Long,
-  var audioTracks: MutableList<AudioTrack>,
-  var currentTime: Double,
-  var libraryItem: LibraryItem?,
-  var localLibraryItem: LocalLibraryItem?,
-  var localEpisodeId: String?,
-  var serverConnectionConfigId: String?,
-  var serverAddress: String?,
-  var mediaPlayer: String?
+        var id: String,
+        var userId: String?,
+        var libraryItemId: String?,
+        var episodeId: String?,
+        var mediaType: String,
+        var mediaMetadata: MediaTypeMetadata,
+        var deviceInfo: DeviceInfo,
+        var chapters: List<BookChapter>,
+        var displayTitle: String?,
+        var displayAuthor: String?,
+        var coverPath: String?,
+        var duration: Double,
+        var playMethod: Int,
+        var startedAt: Long,
+        var updatedAt: Long,
+        var timeListening: Long,
+        var audioTracks: MutableList<AudioTrack>,
+        var currentTime: Double,
+        var libraryItem: LibraryItem?,
+        var localLibraryItem: LocalLibraryItem?,
+        var localEpisodeId: String?,
+        var serverConnectionConfigId: String?,
+        var serverAddress: String?,
+        var mediaPlayer: String?
 ) {
 
   @get:JsonIgnore
@@ -72,8 +72,8 @@ class PlaybackSession(
   @get:JsonIgnore
   val localMediaProgressId
     get() =
-      if (localEpisodeId.isNullOrEmpty()) localLibraryItemId
-      else "$localLibraryItemId-$localEpisodeId"
+            if (localEpisodeId.isNullOrEmpty()) localLibraryItemId
+            else "$localLibraryItemId-$localEpisodeId"
   @get:JsonIgnore
   val progress
     get() = currentTime / getTotalDuration()
@@ -164,19 +164,19 @@ class PlaybackSession(
       var coverUri = Uri.parse(localLibraryItem?.coverContentUrl.toString())
       if (coverUri.toString().startsWith("file:")) {
         coverUri =
-          FileProvider.getUriForFile(
-            ctx,
-            "${BuildConfig.APPLICATION_ID}.fileprovider",
-            coverUri.toFile()
-          )
+                FileProvider.getUriForFile(
+                        ctx,
+                        "${BuildConfig.APPLICATION_ID}.fileprovider",
+                        coverUri.toFile()
+                )
       }
 
       return coverUri
-        ?: Uri.parse("android.resource://${BuildConfig.APPLICATION_ID}/" + R.drawable.icon)
+              ?: Uri.parse("android.resource://${BuildConfig.APPLICATION_ID}/" + R.drawable.icon)
     }
 
     if (coverPath == null)
-      return Uri.parse("android.resource://${BuildConfig.APPLICATION_ID}/" + R.drawable.icon)
+            return Uri.parse("android.resource://${BuildConfig.APPLICATION_ID}/" + R.drawable.icon)
 
     // As of v2.17.0 token is not needed with cover image requests
     if (checkIsServerVersionGte("2.17.0")) {
@@ -206,33 +206,33 @@ class PlaybackSession(
     val coverUri = getCoverUri(ctx)
 
     val metadataBuilder =
-      MediaMetadataCompat.Builder()
-        .putString(MediaMetadataCompat.METADATA_KEY_TITLE, displayTitle)
-        .putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_TITLE, displayTitle)
-        .putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_SUBTITLE, displayAuthor)
-        .putString(MediaMetadataCompat.METADATA_KEY_AUTHOR, displayAuthor)
-        .putString(MediaMetadataCompat.METADATA_KEY_ARTIST, displayAuthor)
-        .putString(MediaMetadataCompat.METADATA_KEY_ALBUM, displayAuthor)
-        .putString(MediaMetadataCompat.METADATA_KEY_ALBUM_ARTIST, displayAuthor)
-        .putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_DESCRIPTION, displayAuthor)
-        .putString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID, id)
-        .putString(MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, coverUri.toString())
-        .putString(MediaMetadataCompat.METADATA_KEY_ART_URI, coverUri.toString())
-        .putString(
-          MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON_URI,
-          coverUri.toString()
-        )
+            MediaMetadataCompat.Builder()
+                    .putString(MediaMetadataCompat.METADATA_KEY_TITLE, displayTitle)
+                    .putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_TITLE, displayTitle)
+                    .putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_SUBTITLE, displayAuthor)
+                    .putString(MediaMetadataCompat.METADATA_KEY_AUTHOR, displayAuthor)
+                    .putString(MediaMetadataCompat.METADATA_KEY_ARTIST, displayAuthor)
+                    .putString(MediaMetadataCompat.METADATA_KEY_ALBUM, displayAuthor)
+                    .putString(MediaMetadataCompat.METADATA_KEY_ALBUM_ARTIST, displayAuthor)
+                    .putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_DESCRIPTION, displayAuthor)
+                    .putString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID, id)
+                    .putString(MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, coverUri.toString())
+                    .putString(MediaMetadataCompat.METADATA_KEY_ART_URI, coverUri.toString())
+                    .putString(
+                            MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON_URI,
+                            coverUri.toString()
+                    )
 
     // Local covers get bitmap
     if (localLibraryItem?.coverContentUrl != null) {
       val bitmap =
-        if (Build.VERSION.SDK_INT < 28) {
-          MediaStore.Images.Media.getBitmap(ctx.contentResolver, coverUri)
-        } else {
-          val source: ImageDecoder.Source =
-            ImageDecoder.createSource(ctx.contentResolver, coverUri)
-          ImageDecoder.decodeBitmap(source)
-        }
+              if (Build.VERSION.SDK_INT < 28) {
+                MediaStore.Images.Media.getBitmap(ctx.contentResolver, coverUri)
+              } else {
+                val source: ImageDecoder.Source =
+                        ImageDecoder.createSource(ctx.contentResolver, coverUri)
+                ImageDecoder.decodeBitmap(source)
+              }
       metadataBuilder.putBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART, bitmap)
       metadataBuilder.putBitmap(MediaMetadataCompat.METADATA_KEY_ART, bitmap)
     }
@@ -243,9 +243,9 @@ class PlaybackSession(
   @JsonIgnore
   fun getCastMediaMetadata(audioTrack: AudioTrack): MediaMetadata {
     val castMetadata =
-      MediaMetadata(
-        MediaMetadata.MEDIA_TYPE_AUDIOBOOK_CHAPTER
-      )
+            MediaMetadata(
+                    MediaMetadata.MEDIA_TYPE_AUDIOBOOK_CHAPTER
+            )
 
     // As of v2.17.0 token is not needed with cover image requests
     val coverUri = if (checkIsServerVersionGte("2.17.0")) {
@@ -261,21 +261,21 @@ class PlaybackSession(
 
     castMetadata.putString(MediaMetadata.KEY_TITLE, displayTitle ?: "")
     castMetadata.putString(
-      MediaMetadata.KEY_ARTIST,
-      displayAuthor ?: ""
+            MediaMetadata.KEY_ARTIST,
+            displayAuthor ?: ""
     )
     castMetadata.putString(
-      MediaMetadata.KEY_ALBUM_TITLE,
-      displayAuthor ?: ""
+            MediaMetadata.KEY_ALBUM_TITLE,
+            displayAuthor ?: ""
     )
     castMetadata.putString(
-      MediaMetadata.KEY_CHAPTER_TITLE,
-      audioTrack.title
+            MediaMetadata.KEY_CHAPTER_TITLE,
+            audioTrack.title
     )
 
     castMetadata.putInt(
-      MediaMetadata.KEY_TRACK_NUMBER,
-      audioTrack.index
+            MediaMetadata.KEY_TRACK_NUMBER,
+            audioTrack.index
     )
     return castMetadata
   }
@@ -287,47 +287,47 @@ class PlaybackSession(
     val mediaUri = getContentUri(audioTrack)
 
     val mediaInfo =
-      MediaInfo.Builder(mediaUri.toString())
-        .apply {
-          setContentUrl(mediaUri.toString())
-          setContentType(audioTrack.mimeType)
-          setMetadata(castMetadata)
-          setStreamType(MediaInfo.STREAM_TYPE_BUFFERED)
-        }
-        .build()
+            MediaInfo.Builder(mediaUri.toString())
+                    .apply {
+                      setContentUrl(mediaUri.toString())
+                      setContentType(audioTrack.mimeType)
+                      setMetadata(castMetadata)
+                      setStreamType(MediaInfo.STREAM_TYPE_BUFFERED)
+                    }
+                    .build()
 
     return MediaQueueItem.Builder(mediaInfo)
-      .apply { setPlaybackDuration(audioTrack.duration) }
-      .build()
+            .apply { setPlaybackDuration(audioTrack.duration) }
+            .build()
   }
 
   @JsonIgnore
   fun clone(): PlaybackSession {
     return PlaybackSession(
-      id,
-      userId,
-      libraryItemId,
-      episodeId,
-      mediaType,
-      mediaMetadata,
-      deviceInfo,
-      chapters,
-      displayTitle,
-      displayAuthor,
-      coverPath,
-      duration,
-      playMethod,
-      startedAt,
-      updatedAt,
-      timeListening,
-      audioTracks,
-      currentTime,
-      libraryItem,
-      localLibraryItem,
-      localEpisodeId,
-      serverConnectionConfigId,
-      serverAddress,
-      mediaPlayer
+            id,
+            userId,
+            libraryItemId,
+            episodeId,
+            mediaType,
+            mediaMetadata,
+            deviceInfo,
+            chapters,
+            displayTitle,
+            displayAuthor,
+            coverPath,
+            duration,
+            playMethod,
+            startedAt,
+            updatedAt,
+            timeListening,
+            audioTracks,
+            currentTime,
+            libraryItem,
+            localLibraryItem,
+            localEpisodeId,
+            serverConnectionConfigId,
+            serverAddress,
+            mediaPlayer
     )
   }
 
@@ -341,23 +341,23 @@ class PlaybackSession(
   @JsonIgnore
   fun getNewLocalMediaProgress(): LocalMediaProgress {
     return LocalMediaProgress(
-      localMediaProgressId,
-      localLibraryItemId,
-      localEpisodeId,
-      getTotalDuration(),
-      progress,
-      currentTime,
-      false,
-      null,
-      null,
-      updatedAt,
-      startedAt,
-      null,
-      serverConnectionConfigId,
-      serverAddress,
-      userId,
-      libraryItemId,
-      episodeId
+            localMediaProgressId,
+            localLibraryItemId,
+            localEpisodeId,
+            getTotalDuration(),
+            progress,
+            currentTime,
+            false,
+            null,
+            null,
+            updatedAt,
+            startedAt,
+            null,
+            serverConnectionConfigId,
+            serverAddress,
+            userId,
+            libraryItemId,
+            episodeId
     )
   }
 }

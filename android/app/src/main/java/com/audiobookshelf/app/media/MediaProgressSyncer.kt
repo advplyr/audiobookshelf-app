@@ -14,15 +14,15 @@ import java.util.*
 import kotlin.concurrent.schedule
 
 data class MediaProgressSyncData(
-  var timeListened: Long, // seconds
-  var duration: Double, // seconds
-  var currentTime: Double // seconds
+        var timeListened: Long, // seconds
+        var duration: Double, // seconds
+        var currentTime: Double // seconds
 )
 
 data class SyncResult(
-  var serverSyncAttempted: Boolean,
-  var serverSyncSuccess: Boolean?,
-  var serverSyncMessage: String?
+        var serverSyncAttempted: Boolean,
+        var serverSyncSuccess: Boolean?,
+        var serverSyncMessage: String?
 )
 
 class MediaProgressSyncer(
@@ -77,8 +77,8 @@ class MediaProgressSyncer(
     lastSyncTime = System.currentTimeMillis()
     currentPlaybackSession = playbackSession.clone()
     Log.d(
-      tag,
-      "start: init last sync time $lastSyncTime with playback session id=${currentPlaybackSession?.id}"
+            tag,
+            "start: init last sync time $lastSyncTime with playback session id=${currentPlaybackSession?.id}"
     )
 
     listeningTimerTask =
@@ -249,8 +249,8 @@ class MediaProgressSyncer(
 
     if (currentPlaybackSession?.progress?.isNaN() == true) {
       Log.e(
-        tag,
-        "Current Playback Session invalid progress ${currentPlaybackSession?.progress} | Current Time: ${currentPlaybackSession?.currentTime} | Duration: ${currentPlaybackSession?.getTotalDuration()}"
+              tag,
+              "Current Playback Session invalid progress ${currentPlaybackSession?.progress} | Current Time: ${currentPlaybackSession?.currentTime} | Duration: ${currentPlaybackSession?.getTotalDuration()}"
       )
       postCallback(cb, null)
       return
@@ -273,8 +273,8 @@ class MediaProgressSyncer(
         lastSyncTime = System.currentTimeMillis()
 
         Log.d(
-          tag,
-          "Sync local device current serverConnectionConfigId=${DeviceManager.serverConnectionConfig?.id}"
+                tag,
+                "Sync local device current serverConnectionConfigId=${DeviceManager.serverConnectionConfig?.id}"
         )
         AbsLogger.info("MediaProgressSyncer", "sync: Saved local progress (title: \"$currentDisplayTitle\") (currentTime: $currentTime) (session id: ${it.id})")
 
@@ -283,9 +283,9 @@ class MediaProgressSyncer(
         // server
         val isConnectedToSameServer = it.serverConnectionConfigId != null && DeviceManager.serverConnectionConfig?.id == it.serverConnectionConfigId
         if (hasNetworkConnection &&
-          shouldSyncServer &&
-          !it.libraryItemId.isNullOrEmpty() &&
-          isConnectedToSameServer
+                        shouldSyncServer &&
+                        !it.libraryItemId.isNullOrEmpty() &&
+                        isConnectedToSameServer
         ) {
           apiHandler.sendLocalProgressSync(it) { syncSuccess, errorMsg ->
             if (syncSuccess) {
@@ -339,7 +339,7 @@ class MediaProgressSyncer(
   private fun saveLocalProgress(playbackSession: PlaybackSession) {
     if (currentLocalMediaProgress == null) {
       val mediaProgress =
-        DeviceManager.dbManager.getLocalMediaProgress(playbackSession.localMediaProgressId)
+              DeviceManager.dbManager.getLocalMediaProgress(playbackSession.localMediaProgressId)
       if (mediaProgress == null) {
         currentLocalMediaProgress = playbackSession.getNewLocalMediaProgress()
       } else {

@@ -127,20 +127,6 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
 
   var currentPlaybackSession: PlaybackSession? = null
   private var initialPlaybackRate: Float? = null
-  interface PlaybackStateBridge {
-    fun currentPositionMs(): Long
-    fun bufferedPositionMs(): Long
-    fun durationMs(): Long
-    fun isPlaying(): Boolean
-    fun playbackState(): Int
-    fun currentMediaItemIndex(): Int
-  }
-
-  private var externalPlaybackState: PlaybackStateBridge? = null
-
-  fun setExternalPlaybackState(bridge: PlaybackStateBridge?) {
-    externalPlaybackState = bridge
-  }
 
   private var isAndroidAuto = false
 
@@ -446,19 +432,19 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
                     .build()
 
     mPlayer =
-      ExoPlayer.Builder(this)
-        .setLoadControl(customLoadControl)
-        .setSeekBackIncrementMs(deviceSettings.jumpBackwardsTimeMs)
-        .setSeekForwardIncrementMs(deviceSettings.jumpForwardTimeMs)
-        .build()
+            ExoPlayer.Builder(this)
+                    .setLoadControl(customLoadControl)
+                    .setSeekBackIncrementMs(deviceSettings.jumpBackwardsTimeMs)
+                    .setSeekForwardIncrementMs(deviceSettings.jumpForwardTimeMs)
+                    .build()
 
     mPlayer.setHandleAudioBecomingNoisy(true)
     // Note: Don't add listener directly to mPlayer - will be added below
     val audioAttributes: AudioAttributes =
-      AudioAttributes.Builder()
-        .setUsage(C.USAGE_MEDIA)
-        .setContentType(C.AUDIO_CONTENT_TYPE_SPEECH)
-        .build()
+            AudioAttributes.Builder()
+                    .setUsage(C.USAGE_MEDIA)
+                    .setContentType(C.AUDIO_CONTENT_TYPE_SPEECH)
+                    .build()
     mPlayer.setAudioAttributes(audioAttributes, true)
 
     playerNotificationManager.setPlayer(mPlayer)
@@ -598,8 +584,8 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
         val currentTrackIndex = playbackSession.getCurrentTrackIndex()
         val currentTrackTime = playbackSession.getCurrentTrackTimeMs()
         Log.d(
-          tag,
-          "currentPlayer current track index $currentTrackIndex & current track time $currentTrackTime"
+                tag,
+                "currentPlayer current track index $currentTrackIndex & current track time $currentTrackTime"
         )
         currentPlayer.seekTo(currentTrackIndex, currentTrackTime)
       } else {
@@ -607,8 +593,8 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
       }
 
       Log.d(
-        tag,
-        "Prepare complete for session ${currentPlaybackSession?.displayTitle} | ${currentPlayer.mediaItemCount}"
+              tag,
+              "Prepare complete for session ${currentPlaybackSession?.displayTitle} | ${currentPlayer.mediaItemCount}"
       )
       currentPlayer.playWhenReady = playWhenReady
       if (playWhenReady) {
@@ -838,43 +824,18 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
     remoteVolumeProvider = null
   }
 
-  private fun hasMultipleTracks(): Boolean {
-    return (currentPlaybackSession?.audioTracks?.size ?: 0) > 1
-  }
-
-  private fun currentMediaItemIndexInternal(): Int {
-    externalPlaybackState?.let { return it.currentMediaItemIndex() }
-    return try {
-      mPlayer.currentMediaItemIndex
-    } catch (_: Exception) {
-      0
-    }
-  }
-
-  private fun trackOffsetForIndex(index: Int): Long {
-    val session = currentPlaybackSession ?: return 0L
-    val safeIndex = if (session.audioTracks.isNotEmpty()) {
-      index.coerceIn(0, session.audioTracks.size - 1)
-    } else {
-      0
-    }
-    return session.getTrackStartOffsetMs(safeIndex)
-  }
-
   fun getCurrentTrackStartOffsetMs(): Long {
-    return if (hasMultipleTracks()) {
-      trackOffsetForIndex(currentMediaItemIndexInternal())
+    return if (currentPlayer.mediaItemCount > 1) {
+      val windowIndex = currentPlayer.currentMediaItemIndex
+      val currentTrackStartOffset = currentPlaybackSession?.getTrackStartOffsetMs(windowIndex) ?: 0L
+      currentTrackStartOffset
     } else {
-      0L
+      0
     }
   }
 
   fun getCurrentTime(): Long {
-    externalPlaybackState?.let { state ->
-      val offset = if (hasMultipleTracks()) trackOffsetForIndex(state.currentMediaItemIndex()) else 0L
-      return state.currentPositionMs() + offset
-    }
-    return mPlayer.currentPosition + getCurrentTrackStartOffsetMs()
+    return currentPlayer.currentPosition + getCurrentTrackStartOffsetMs()
   }
 
   override fun getCurrentTimeSeconds(): Double {
@@ -882,16 +843,12 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
   }
 
   private fun getBufferedTime(): Long {
-    externalPlaybackState?.let { state ->
-      val offset = if (hasMultipleTracks()) trackOffsetForIndex(state.currentMediaItemIndex()) else 0L
-      return state.bufferedPositionMs() + offset
-    }
-    return if (hasMultipleTracks()) {
-      val currentIndex = currentMediaItemIndexInternal()
-      val currentTrackStartOffset = currentPlaybackSession?.getTrackStartOffsetMs(currentIndex) ?: 0L
-      mPlayer.bufferedPosition + currentTrackStartOffset
+    return if (currentPlayer.mediaItemCount > 1) {
+      val windowIndex = currentPlayer.currentMediaItemIndex
+      val currentTrackStartOffset = currentPlaybackSession?.getTrackStartOffsetMs(windowIndex) ?: 0L
+      currentPlayer.bufferedPosition + currentTrackStartOffset
     } else {
-      mPlayer.bufferedPosition
+      currentPlayer.bufferedPosition
     }
   }
 
@@ -900,11 +857,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
   }
 
   override fun isPlayerActive(): Boolean {
-    return externalPlaybackState?.isPlaying() ?: mPlayer.isPlaying
-  }
-
-  fun currentPlaybackState(): Int {
-    return externalPlaybackState?.playbackState() ?: mPlayer.playbackState
+    return currentPlayer.isPlaying
   }
 
   fun getDuration(): Long {
@@ -919,7 +872,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
     val session = getCurrentPlaybackSessionCopy() ?: return
     val snapshot = session.toWidgetSnapshot(
       context = this,
-      isPlaying = mPlayer.isPlaying,
+      isPlaying = currentPlayer.isPlaying,
       isClosed = isClosedState
     )
     DeviceManager.widgetUpdater?.onPlayerChanged(snapshot)
@@ -993,7 +946,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
             Handler(Looper.getMainLooper()).post {
               seekPlayer(playbackSession.currentTimeMs)
               // Should already be playing
-              mPlayer.volume = 1F // Volume on sleep timer might have decreased this
+              currentPlayer.volume = 1F // Volume on sleep timer might have decreased this
               currentPlaybackSession?.let { mediaProgressSyncer.play(it) }
               clientEventEmitter?.onPlayingUpdate(true)
             }
@@ -1004,7 +957,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
               }
 
               // Should already be playing
-              mPlayer.volume = 1F // Volume on sleep timer might have decreased this
+              currentPlayer.volume = 1F // Volume on sleep timer might have decreased this
               mediaProgressSyncer.currentPlaybackSession?.let { playbackSession ->
                 mediaProgressSyncer.play(playbackSession)
               }
@@ -1026,7 +979,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
             )
 
             Handler(Looper.getMainLooper()).post {
-              mPlayer.pause()
+              currentPlayer.pause()
               startNewPlaybackSession()
             }
           } else {
@@ -1036,7 +989,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
                 seekBackward(seekBackTime)
               }
 
-              mPlayer.volume = 1F // Volume on sleep timer might have decreased this
+              currentPlayer.volume = 1F // Volume on sleep timer might have decreased this
               mediaProgressSyncer.currentPlaybackSession?.let { playbackSession ->
                 mediaProgressSyncer.play(playbackSession)
               }
@@ -1055,13 +1008,12 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
       Log.d(tag, "Already playing")
       return
     }
-    // Play the current media item
-    mPlayer.volume = 1F
-    mPlayer.play()
+    currentPlayer.volume = 1F
+    currentPlayer.play()
   }
 
   fun pause() {
-    mPlayer.pause()
+    currentPlayer.pause()
   }
 
   fun playPause(): Boolean {
@@ -1076,7 +1028,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
 
   fun seekPlayer(time: Long) {
     var timeToSeek = time
-    Log.d(tag, "seekPlayer mediaCount = ${mPlayer.mediaItemCount} | $timeToSeek")
+    Log.d(tag, "seekPlayer mediaCount = ${currentPlayer.mediaItemCount} | $timeToSeek")
     if (timeToSeek < 0) {
       Log.w(tag, "seekPlayer invalid time $timeToSeek - setting to 0")
       timeToSeek = 0L
@@ -1085,23 +1037,23 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
       timeToSeek = getDuration() - 2000L
     }
 
-    if (mPlayer.mediaItemCount > 1) {
+    if (currentPlayer.mediaItemCount > 1) {
       currentPlaybackSession?.currentTime = timeToSeek / 1000.0
       val newWindowIndex = currentPlaybackSession?.getCurrentTrackIndex() ?: 0
       val newTimeOffset = currentPlaybackSession?.getCurrentTrackTimeMs() ?: 0
       Log.d(tag, "seekPlayer seekTo $newWindowIndex | $newTimeOffset")
-      mPlayer.seekTo(newWindowIndex, newTimeOffset)
+      currentPlayer.seekTo(newWindowIndex, newTimeOffset)
     } else {
-      mPlayer.seekTo(timeToSeek)
+      currentPlayer.seekTo(timeToSeek)
     }
   }
 
   fun skipToPrevious() {
-    mPlayer.seekToPrevious()
+    currentPlayer.seekToPrevious()
   }
 
   fun skipToNext() {
-    mPlayer.seekToNext()
+    currentPlayer.seekToNext()
   }
 
   fun jumpForward() {
@@ -1122,7 +1074,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
 
   fun setPlaybackSpeed(speed: Float) {
     mediaManager.userSettingsPlaybackRate = speed
-    mPlayer.playbackParameters = PlaybackParameters(speed)
+    currentPlayer.setPlaybackSpeed(speed)
 
     // Refresh Android Auto actions
     mediaProgressSyncer.currentPlaybackSession?.let { setMediaSessionConnectorCustomActions(it) }
@@ -1161,8 +1113,8 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
     playbackMetrics.logSummary()
 
     try {
-      mPlayer.stop()
-      mPlayer.clearMediaItems()
+      currentPlayer.stop()
+      currentPlayer.clearMediaItems()
     } catch (e: Exception) {
       Log.e(tag, "Exception clearing player $e")
     }

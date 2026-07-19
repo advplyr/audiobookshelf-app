@@ -2,7 +2,6 @@ package com.audiobookshelf.app.data
 
 import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
-import java.util.UUID
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 data class AudioTrack(

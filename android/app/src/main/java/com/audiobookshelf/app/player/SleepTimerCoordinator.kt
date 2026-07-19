@@ -188,7 +188,7 @@ class SleepTimerCoordinator(
     if (manager != null) {
       return manager
     }
-    val newManager = SleepTimerManager(this, scope)
+    val newManager = SleepTimerManager(this)
     sleepTimerManager = newManager
     return newManager
   }

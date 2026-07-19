@@ -41,45 +41,45 @@ object MediaEventManager {
 
   fun seekEvent(playbackSession: PlaybackSession, syncResult: SyncResult?) {
     Log.i(
-      tag,
-      "Seek Event for media \"${playbackSession.displayTitle}\", currentTime=${playbackSession.currentTime}"
+            tag,
+            "Seek Event for media \"${playbackSession.displayTitle}\", currentTime=${playbackSession.currentTime}"
     )
     addPlaybackEvent("Seek", playbackSession, syncResult)
   }
 
   fun syncEvent(mediaProgress: MediaProgressWrapper, description: String) {
     Log.i(
-      tag,
-      "Sync Event for media item id \"${mediaProgress.mediaItemId}\", currentTime=${mediaProgress.currentTime}"
+            tag,
+            "Sync Event for media item id \"${mediaProgress.mediaItemId}\", currentTime=${mediaProgress.currentTime}"
     )
     addSyncEvent("Sync", mediaProgress, description)
   }
 
   private fun addSyncEvent(
-    eventName: String,
-    mediaProgress: MediaProgressWrapper,
-    description: String
+          eventName: String,
+          mediaProgress: MediaProgressWrapper,
+          description: String
   ) {
     val mediaItemHistory = getMediaItemHistoryMediaItem(mediaProgress.mediaItemId)
     if (mediaItemHistory == null) {
       Log.w(
-        tag,
-        "addSyncEvent: Media Item History not created yet for media item id ${mediaProgress.mediaItemId}"
+              tag,
+              "addSyncEvent: Media Item History not created yet for media item id ${mediaProgress.mediaItemId}"
       )
       return
     }
 
     val mediaItemEvent =
-      MediaItemEvent(
-        name = eventName,
-        type = "Sync",
-        description = description,
-        currentTime = mediaProgress.currentTime,
-        serverSyncAttempted = false,
-        serverSyncSuccess = null,
-        serverSyncMessage = null,
-        timestamp = System.currentTimeMillis()
-      )
+            MediaItemEvent(
+                    name = eventName,
+                    type = "Sync",
+                    description = description,
+                    currentTime = mediaProgress.currentTime,
+                    serverSyncAttempted = false,
+                    serverSyncSuccess = null,
+                    serverSyncMessage = null,
+                    timestamp = System.currentTimeMillis()
+            )
     mediaItemHistory.events.add(mediaItemEvent)
     DeviceManager.dbManager.saveMediaItemHistory(mediaItemHistory)
 
@@ -87,13 +87,13 @@ object MediaEventManager {
   }
 
   private fun addPlaybackEvent(
-    eventName: String,
-    playbackSession: PlaybackSession,
-    syncResult: SyncResult?
+          eventName: String,
+          playbackSession: PlaybackSession,
+          syncResult: SyncResult?
   ) {
     val mediaItemHistory =
-      getMediaItemHistoryMediaItem(playbackSession.mediaItemId)
-        ?: createMediaItemHistoryForSession(playbackSession)
+            getMediaItemHistoryMediaItem(playbackSession.mediaItemId)
+                    ?: createMediaItemHistoryForSession(playbackSession)
 
     if (shouldSkipPlaybackAfterRecentSeek(eventName)) {
       return
@@ -105,16 +105,16 @@ object MediaEventManager {
     }
 
     val mediaItemEvent =
-      MediaItemEvent(
-        name = eventName,
-        type = "Playback",
-        description = "",
-        currentTime = playbackSession.currentTime,
-        serverSyncAttempted = syncResult?.serverSyncAttempted ?: false,
-        serverSyncSuccess = syncResult?.serverSyncSuccess,
-        serverSyncMessage = syncResult?.serverSyncMessage,
-        timestamp = now
-      )
+            MediaItemEvent(
+                    name = eventName,
+                    type = "Playback",
+                    description = "",
+                    currentTime = playbackSession.currentTime,
+                    serverSyncAttempted = syncResult?.serverSyncAttempted ?: false,
+                    serverSyncSuccess = syncResult?.serverSyncSuccess,
+                    serverSyncMessage = syncResult?.serverSyncMessage,
+                    timestamp = now
+            )
     mediaItemHistory.events.add(mediaItemEvent)
     if (eventName == "Seek") {
       lastSeekTimestampMs = now
@@ -134,16 +134,16 @@ object MediaEventManager {
     val libraryItemId = playbackSession.libraryItemId ?: ""
     val episodeId: String? = playbackSession.episodeId
     return MediaItemHistory(
-      id = playbackSession.mediaItemId,
-      mediaDisplayTitle = playbackSession.displayTitle ?: "Unset",
-      libraryItemId,
-      episodeId,
-      false, // local-only items are not supported
-      playbackSession.serverConnectionConfigId,
-      playbackSession.serverAddress,
-      playbackSession.userId,
-      createdAt = System.currentTimeMillis(),
-      events = mutableListOf()
+            id = playbackSession.mediaItemId,
+            mediaDisplayTitle = playbackSession.displayTitle ?: "Unset",
+            libraryItemId,
+            episodeId,
+            false, // local-only items are not supported
+            playbackSession.serverConnectionConfigId,
+            playbackSession.serverAddress,
+            playbackSession.userId,
+            createdAt = System.currentTimeMillis(),
+            events = mutableListOf()
     )
   }
 

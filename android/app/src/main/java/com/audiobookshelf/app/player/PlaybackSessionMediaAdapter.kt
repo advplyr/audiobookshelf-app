@@ -8,7 +8,6 @@ import androidx.media3.common.MediaMetadata
 import com.audiobookshelf.app.data.*
 import com.audiobookshelf.app.device.DeviceManager
 import com.audiobookshelf.app.player.media3.coverUriToArtworkData
-import com.google.android.gms.cast.*
 
 /** HLS MIME type used by DefaultMediaSourceFactory to create HlsMediaSource */
 private const val MIME_TYPE_HLS = "application/x-mpegURL"
@@ -17,38 +16,27 @@ private const val MIME_TYPE_HLS = "application/x-mpegURL"
  * Adapter functions that produce PlayerMediaItem DTOs from a PlaybackSession.
  * Keeping conversion logic in the player package avoids leaking framework types into the data model.
  */
-fun PlaybackSession.toPlayerMediaItems(
-  ctx: Context,
-  preferServerUrisForCast: Boolean = false
-): List<PlayerMediaItem> {
+fun PlaybackSession.toPlayerMediaItems(ctx: Context): List<PlayerMediaItem> {
   val mediaItems: MutableList<PlayerMediaItem> = mutableListOf()
 
+  // Session-constant across the loop: resolve once instead of per track.
+  val coverUri = this.getCoverUri(ctx)
+
   for (audioTrack in this.audioTracks) {
-    val useServerUri =
-      preferServerUrisForCast && this.isLocal && !this.serverAddress.isNullOrBlank()
-    val mediaUri = if (useServerUri) {
-      castServerUriForTrack(audioTrack)
-    } else {
-      this.getContentUri(audioTrack)
-    }
-    val queueItem = if (useServerUri && mediaUri != null) {
-      castQueueItemWithServerUri(audioTrack, mediaUri)
-    } else {
-      this.getQueueItem(audioTrack) // Queue item used in exo player CastManager
-    }
+    val mediaUri = this.getContentUri(audioTrack)
+    val queueItem = this.getQueueItem(audioTrack) // Queue item used in exo player CastManager
     // Use HLS MIME type for transcoded sessions so DefaultMediaSourceFactory
     // creates an HlsMediaSource instead of a ProgressiveMediaSource
     val mimeType = if (this.isHLS) MIME_TYPE_HLS else audioTrack.mimeType
     val displayTitle = this.displayTitle ?: audioTrack.title
 
-    val safeUri = mediaUri ?: continue
     val playerMediaItem = PlayerMediaItem(
       mediaId = "${this.id}_${audioTrack.stableId}",
-      uri = safeUri,
+      uri = mediaUri,
       mimeType = mimeType,
       tag = queueItem,
       title = displayTitle,
-      artworkUri = this.getCoverUri(ctx),
+      artworkUri = coverUri,
       startPositionMs = audioTrack.startOffsetMs
     )
     mediaItems.add(playerMediaItem)
@@ -70,25 +58,6 @@ private fun PlaybackSession.castServerUriForTrack(audioTrack: AudioTrack): Uri? 
   return uriString.toUri()
 }
 
-private fun PlaybackSession.castQueueItemWithServerUri(
-  audioTrack: AudioTrack,
-  mediaUri: Uri
-): MediaQueueItem {
-  val mediaInfo =
-    MediaInfo.Builder(mediaUri.toString())
-      .apply {
-        setContentUrl(mediaUri.toString())
-        setContentType(audioTrack.mimeType)
-        setMetadata(getCastMediaMetadata(audioTrack))
-        setStreamType(MediaInfo.STREAM_TYPE_BUFFERED)
-      }
-      .build()
-
-  return MediaQueueItem.Builder(mediaInfo)
-    .apply { setPlaybackDuration(audioTrack.duration) }
-    .build()
-}
-
 /** Cover artwork bytes for a local item, or null for server items / unreadable covers. */
 private fun PlaybackSession.localCoverArtworkData(ctx: Context): ByteArray? {
   if (!isLocal) return null
@@ -101,30 +70,43 @@ fun PlaybackSession.toMedia3MediaItems(
   ctx: Context,
   preferServerUrisForCast: Boolean = false
 ): List<MediaItem> {
-  val playerMediaItems = toPlayerMediaItems(ctx, preferServerUrisForCast)
-
   // Decoded once per session, then reused for every track below.
   val localArtworkData = localCoverArtworkData(ctx)
 
-  return playerMediaItems.mapIndexed { index, playerMediaItem ->
-    val audioTrack = audioTracks.getOrNull(index)
-    val bookTitle = displayTitle ?: ""
-    val author = displayAuthor ?: ""
+  // Session-constant across the loop: resolve once instead of per track. getCurrentTrackIndex
+  // scans audioTracks, so hoisting it keeps the build linear rather than O(tracks^2) on books
+  // with many files. The Media3 flavor drives its own Cast queue transport, so we build
+  // MediaItems directly here and skip the exov2-only MediaQueueItem construction that
+  // toPlayerMediaItems does per track.
+  val currentTrackIndex = getCurrentTrackIndex()
+  val bookTitle = displayTitle ?: ""
+  val author = displayAuthor ?: ""
+  val coverUri = getCoverUri(ctx)
+  val useServerUri = preferServerUrisForCast && isLocal && !serverAddress.isNullOrBlank()
+
+  val mediaItems = mutableListOf<MediaItem>()
+  for ((index, audioTrack) in audioTracks.withIndex()) {
+    val mediaUri =
+      if (useServerUri) castServerUriForTrack(audioTrack) else getContentUri(audioTrack)
+    val safeUri = mediaUri ?: continue
+    // Use HLS MIME type for transcoded sessions so DefaultMediaSourceFactory
+    // creates an HlsMediaSource instead of a ProgressiveMediaSource.
+    val mimeType = if (isHLS) MIME_TYPE_HLS else audioTrack.mimeType
 
     // Resolve the resume track's chapter at the resume position, not the file start, so the
     // notification opens on the correct chapter instead of snapping to it on the first tick.
     val chapterPosMs =
-      if (index == getCurrentTrackIndex()) currentTimeMs else getTrackStartOffsetMs(index)
+      if (index == currentTrackIndex) currentTimeMs else getTrackStartOffsetMs(index)
     val chapterTitle = getChapterForTime(chapterPosMs)?.title
     val metadataBuilder = MediaMetadata.Builder()
       .setTitle(bookTitle)
       .setArtist(chapterTitle ?: author)
       .setAlbumTitle(bookTitle)
       .setAlbumArtist(author)
-      .setArtworkUri(playerMediaItem.artworkUri)
+      .setArtworkUri(coverUri)
       .setTrackNumber(index + 1)
       .setTotalTrackCount(audioTracks.size)
-      .setDurationMs(audioTrack?.durationMs ?: C.TIME_UNSET)
+      .setDurationMs(audioTrack.durationMs)
       .setIsPlayable(true)
       .setIsBrowsable(false)
       .setMediaType(
@@ -136,11 +118,14 @@ fun PlaybackSession.toMedia3MediaItems(
       metadataBuilder.setArtworkData(localArtworkData, MediaMetadata.PICTURE_TYPE_FRONT_COVER)
     }
 
-    MediaItem.Builder()
-      .setUri(playerMediaItem.uri.toString())
-      .setMediaId(playerMediaItem.mediaId)
-      .setMimeType(playerMediaItem.mimeType)
-      .setMediaMetadata(metadataBuilder.build())
-      .build()
+    mediaItems.add(
+      MediaItem.Builder()
+        .setUri(safeUri.toString())
+        .setMediaId("${id}_${audioTrack.stableId}")
+        .setMimeType(mimeType)
+        .setMediaMetadata(metadataBuilder.build())
+        .build()
+    )
   }
+  return mediaItems
 }

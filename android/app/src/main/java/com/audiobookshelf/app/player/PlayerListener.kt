@@ -9,7 +9,7 @@ import com.google.android.exoplayer2.Player
 
 //const val PAUSE_LEN_BEFORE_RECHECK = 30000 // 30 seconds
 
-class PlayerListener(var playerNotificationService:PlayerNotificationService) : Player.Listener, PlayerEvents {
+class PlayerListener(var playerNotificationService:PlayerNotificationService) : Player.Listener {
   var tag = "PlayerListener"
 
   companion object {
@@ -17,8 +17,8 @@ class PlayerListener(var playerNotificationService:PlayerNotificationService) : 
     var lazyIsPlaying: Boolean = false
   }
 
-  // PlayerEvents implementation (neutral)
-  override fun onPlayerError(message: String, errorCode: Int?) {
+  // Neutral event handlers, invoked by the Player.Listener adapters below.
+  fun onPlayerError(message: String, errorCode: Int?) {
     val errorMessage = message.ifBlank { "Unknown Error" }
     Log.e(tag, "onPlayerError $errorMessage")
     // Metrics: count playback errors for this session
@@ -26,7 +26,7 @@ class PlayerListener(var playerNotificationService:PlayerNotificationService) : 
     playerNotificationService.handlePlayerPlaybackError(errorMessage) // If was direct playing session, fallback to transcode
   }
 
-  override fun onPositionDiscontinuity(isSeek: Boolean) {
+  fun onPositionDiscontinuity(isSeek: Boolean) {
     if (isSeek) {
       val player = playerNotificationService.mPlayer
       Log.d(
