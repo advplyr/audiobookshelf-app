@@ -63,6 +63,7 @@ class DownloadItemManager(
 
   init {
     DeviceManager.dbManager.clearLegacyDownloadQueueOnce()
+    IncompleteDownloadCleanup.cleanupExpired(context)
   }
 
   @Synchronized
@@ -83,6 +84,7 @@ class DownloadItemManager(
       }
       item.downloadItemParts.forEach { part ->
         if (part.moved) return@forEach
+        if (item.terminalFailureAt != null && part.failed) return@forEach
         part.downloadId = null
         part.isMoving = false
         part.failed = false
@@ -91,6 +93,7 @@ class DownloadItemManager(
         part.bytesDownloaded = File(part.destinationPath).takeIf(File::exists)?.length() ?: 0L
       }
       downloadItemQueue.add(item)
+      if (item.terminalFailureAt != null) IncompleteDownloadCleanup.schedule(context, item)
       clientEventEmitter.onDownloadItem(item)
     }
     checkUpdateDownloadQueue()
@@ -110,6 +113,8 @@ class DownloadItemManager(
   @Synchronized
   fun retryAll() {
     downloadItemQueue.forEach { item ->
+      item.terminalFailureAt = null
+      IncompleteDownloadCleanup.cancel(context, item.id)
       item.downloadItemParts.filter { it.failed }.forEach { part ->
         part.failed = false
         part.completed = false
@@ -243,7 +248,9 @@ class DownloadItemManager(
       part.failed = true
       part.completed = false
       part.downloadId = null
+      item.terminalFailureAt = item.terminalFailureAt ?: System.currentTimeMillis()
       persist(item, force = true)
+      IncompleteDownloadCleanup.schedule(context, item)
       notifyQueueChanged()
       return
     }
