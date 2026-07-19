@@ -182,6 +182,9 @@ class DownloadItemManager(
     part.lastUpdateTime = System.currentTimeMillis()
     currentDownloadItemParts.add(part)
     persist(item, force = true)
+    val token =
+            DeviceManager.deviceData.serverConnectionConfigs
+                    .find { it.id == item.serverConnectionConfigId }?.token ?: DeviceManager.token
     activeCalls[part.id] =
             InternalDownloadManager(stagingFile, part.fileSize, object : InternalProgressCallback {
               override fun onProgress(totalBytesWritten: Long, progress: Long) {
@@ -204,7 +207,9 @@ class DownloadItemManager(
                   persist(item, force = true)
                 }
               }
-            }, { hasAvailableSpace(part) }).download(serverUrl(item, part))
+            }, { hasAvailableSpace(part) }).download(
+                    serverUrl(item, part),
+                    token)
   }
 
   @Synchronized
@@ -445,11 +450,8 @@ class DownloadItemManager(
           }
 
   private fun serverUrl(item: DownloadItem, part: DownloadItemPart): String {
-    val token = DeviceManager.deviceData.serverConnectionConfigs
-            .find { it.id == item.serverConnectionConfigId }?.token ?: DeviceManager.token
-    var url = "${item.serverAddress}${part.serverPath}?token=$token"
-    if (part.serverPath.endsWith("/cover")) url += "&raw=1"
-    return url
+    val rawCover = if (part.serverPath.endsWith("/cover")) "?raw=1" else ""
+    return "${item.serverAddress}${part.serverPath}$rawCover"
   }
 
   private companion object {

@@ -22,16 +22,18 @@ class InternalDownloadManager(
   /**
    * Starts or resumes a download.
    *
-   * @param url authenticated download URL
+   * @param url download URL
+   * @param token access token sent in the Authorization header
    * @return active call, used to cancel a stalled transfer
    */
-  fun download(url: String): Call {
+  fun download(url: String, token: String): Call {
     destinationFile.parentFile?.mkdirs()
     val existingBytes = destinationFile.takeIf { it.exists() }?.length() ?: 0L
     val request =
             Request.Builder()
                     .url(url)
                     .addHeader("Accept-Encoding", "identity")
+                    .addHeader("Authorization", "Bearer $token")
                     .apply {
                       if (existingBytes > 0L) header("Range", "bytes=$existingBytes-")
                     }
