@@ -14,8 +14,6 @@ import com.audiobookshelf.app.models.DownloadItemPart
 
 /** Android-owned foreground lifecycle for transfers that must outlive the WebView and Activity. */
 class DownloadService : Service() {
-  private var lastPart: DownloadItemPart? = null
-
   override fun onCreate() {
     super.onCreate()
     createChannel()
@@ -40,7 +38,6 @@ class DownloadService : Service() {
   override fun onBind(intent: Intent?): IBinder? = null
 
   fun onPartUpdate(part: DownloadItemPart) {
-    lastPart = part
     val text = if (part.waitingForSpace) "Waiting for available storage" else "Downloading ${part.filename}"
     val progress = part.progress.coerceIn(0L, 100L).toInt()
     val notification = notification(text, progress, part.fileSize > 0L)

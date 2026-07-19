@@ -123,9 +123,9 @@ class DbManager {
   }
 
   /**
-   * The downloader now persists app-owned staging paths instead of DownloadManager state. Old
-   * queue entries cannot be resumed safely, but completed local media lives in other books and is
-   * deliberately left alone.
+   * Removes DownloadManager queue entries that cannot be resumed by the app-managed downloader.
+   *
+   * This migration preserves completed local media, which is stored in separate books.
    */
   fun clearLegacyDownloadQueueOnce() {
     val metadata = Paper.book("downloadQueueMetadata")

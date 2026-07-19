@@ -5,7 +5,6 @@ import android.util.Log
 import com.audiobookshelf.app.MainActivity
 import com.audiobookshelf.app.data.*
 import com.audiobookshelf.app.device.DeviceManager
-import com.audiobookshelf.app.device.FolderScanner
 import com.audiobookshelf.app.models.DownloadItem
 import com.audiobookshelf.app.models.DownloadItemPart
 import com.audiobookshelf.app.server.ApiHandler
@@ -27,7 +26,6 @@ class AbsDownloader : Plugin() {
 
   lateinit var mainActivity: MainActivity
   lateinit var apiHandler: ApiHandler
-  lateinit var folderScanner: FolderScanner
   lateinit var downloadItemManager: DownloadItemManager
 
   private val clientEventEmitter = (object : DownloadItemManager.DownloadEventEmitter {
@@ -45,7 +43,6 @@ class AbsDownloader : Plugin() {
 
   override fun load() {
     mainActivity = (activity as MainActivity)
-    folderScanner = FolderScanner(mainActivity)
     apiHandler = ApiHandler(mainActivity)
     downloadItemManager = DownloadServiceHost.ensure(mainActivity)
     DownloadServiceHost.attachBridge(mainActivity, clientEventEmitter)
@@ -56,10 +53,7 @@ class AbsDownloader : Plugin() {
     super.handleOnDestroy()
   }
 
-  /**
-   * Queue restoration happens before the WebView mounts. Replay its parent items when Vue registers
-   * the listener so subsequent part updates always have a matching store entry.
-   */
+  /** Replays restored queue items when the frontend subscribes to download events. */
   @PluginMethod(returnType = PluginMethod.RETURN_NONE)
   override fun addListener(call: PluginCall) {
     super.addListener(call)
@@ -151,8 +145,6 @@ class AbsDownloader : Plugin() {
     val isInternal = localFolder.id.startsWith("internal-")
 
     val finalInternalFolderPath = "${mainActivity.filesDir}/downloads/${libraryItem.id}"
-    // Keep internal staging on the same filesystem as its final file so finalization is a rename.
-    // External-folder downloads can use app external storage and are moved through SAF afterwards.
     val tempFolderPath =
             if (isInternal) {
               "${mainActivity.filesDir}/download-staging/${libraryItem.id}"

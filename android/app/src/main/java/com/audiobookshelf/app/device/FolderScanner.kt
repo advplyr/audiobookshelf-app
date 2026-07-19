@@ -10,7 +10,7 @@ import com.audiobookshelf.app.models.DownloadItem
 import com.audiobookshelf.app.models.DownloadItemPart
 import java.io.File
 
-/** Creates local-library records from the completed download manifest, not a recursive rescan. */
+/** Creates local-library records from a completed download manifest. */
 class FolderScanner(private val ctx: Context) {
   private val tag = "FolderScanner"
 
@@ -19,9 +19,13 @@ class FolderScanner(private val ctx: Context) {
           var localMediaProgress: LocalMediaProgress?
   )
 
-  private fun localLibraryItemId(mediaItemId: String) = "local_${DeviceManager.getBase64Id(mediaItemId)}"
+  private fun localLibraryItemId(mediaItemId: String) =
+          "local_${DeviceManager.getBase64Id(mediaItemId)}"
 
-  private fun createLocalFile(part: DownloadItemPart, externalFile: DocumentFile? = null): LocalFile? {
+  private fun createLocalFile(
+          part: DownloadItemPart,
+          externalFile: DocumentFile? = null
+  ): LocalFile? {
     if (part.isInternalStorage) {
       val file = File(part.finalDestinationPath)
       if (!file.exists()) return null
@@ -43,7 +47,8 @@ class FolderScanner(private val ctx: Context) {
               try {
                 ctx.contentResolver.openFileDescriptor(uri, "r")?.use { descriptor ->
                   descriptor.statSize.coerceAtLeast(0L)
-                } ?: 0L
+                }
+                        ?: 0L
               } catch (e: Exception) {
                 Log.e(tag, "Could not open completed SAF file: $contentUrl", e)
                 return null
@@ -123,8 +128,7 @@ class FolderScanner(private val ctx: Context) {
               if (part.isInternalStorage) {
                 null
               } else {
-                part.completedDestinationUri
-                        ?.let { DocumentFileCompat.fromUri(ctx, Uri.parse(it)) }
+                part.completedDestinationUri?.let { DocumentFileCompat.fromUri(ctx, Uri.parse(it)) }
                         ?: resolveExternalFile(externalFolder, part)
               }
       Log.d(tag, "Resolve part ${part.filename}: externalFile=${externalFile?.uri}")
@@ -203,7 +207,9 @@ class FolderScanner(private val ctx: Context) {
 
     val result = DownloadItemScanResult(localItem, null)
     item.userMediaProgress?.let { progress ->
-      val progressId = if (item.episodeId.isNullOrEmpty()) localItem.id else "${localItem.id}-$localEpisodeId"
+      val progressId =
+              if (item.episodeId.isNullOrEmpty()) localItem.id
+              else "${localItem.id}-$localEpisodeId"
       result.localMediaProgress =
               LocalMediaProgress(
                       progressId,
@@ -247,14 +253,18 @@ class FolderScanner(private val ctx: Context) {
    */
   private fun resolveExternalFile(folder: DocumentFile?, part: DownloadItemPart): DocumentFile? {
     if (folder == null) return null
-    folder.findFile(part.filename)?.let { return it }
+    folder.findFile(part.filename)?.let {
+      return it
+    }
     val expectedBaseName = part.filename.substringBeforeLast('.')
     return folder.listFiles().firstOrNull { document ->
       document.name == part.filename ||
               document.fullName == part.filename ||
-              (part.audioTrack != null && document.isFile &&
+              (part.audioTrack != null &&
+                      document.isFile &&
                       (document.name ?: "").substringBeforeLast('.') == expectedBaseName) ||
-              (part.audioTrack != null && document.isFile &&
+              (part.audioTrack != null &&
+                      document.isFile &&
                       document.fullName.substringBeforeLast('.') == expectedBaseName)
     }
   }

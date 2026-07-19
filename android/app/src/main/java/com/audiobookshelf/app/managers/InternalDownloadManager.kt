@@ -20,8 +20,10 @@ class InternalDownloadManager(
 ) {
   private val tag = "InternalDownloadManager"
   /**
-   * Returns the active call so the queue can cancel a stalled transfer. A partial staging file is
-   * retained only when the server proves that it honoured a subsequent range request.
+   * Starts or resumes a download.
+   *
+   * @param url authenticated download URL
+   * @return active call, used to cancel a stalled transfer
    */
   fun download(url: String): Call {
     destinationFile.parentFile?.mkdirs()

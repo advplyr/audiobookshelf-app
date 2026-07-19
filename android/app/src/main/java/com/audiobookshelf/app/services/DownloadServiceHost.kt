@@ -28,10 +28,9 @@ object DownloadServiceHost {
     return manager!!
   }
 
+  /** Attaches the frontend after restored queue items have been emitted. */
   @Synchronized
   fun attachBridge(context: Context, emitter: DownloadItemManager.DownloadEventEmitter) {
-    // Rehydrate the frontend's parent items before allowing part-progress events through.
-    // Otherwise a running restored queue can emit a part before Vue knows its DownloadItem.
     bridgeReady = false
     bridgeEmitter = emitter
     val queue = ensure(context)

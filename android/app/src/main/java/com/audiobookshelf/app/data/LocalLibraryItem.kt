@@ -98,7 +98,6 @@ class LocalLibraryItem(
     return true
   }
 
-  /** App-private files have paths; SAF files must be validated through their persisted URI. */
   @JsonIgnore
   private fun trackExists(ctx: Context, contentUrl: String?, path: String): Boolean {
     return LocalFile("", null, contentUrl ?: "", "", path, "", null, 0).exists(ctx)

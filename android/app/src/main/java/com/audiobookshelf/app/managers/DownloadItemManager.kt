@@ -24,10 +24,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import okhttp3.Call
 
-/**
- * Process-owned Android download queue. Every network write goes through app-owned staging and is
- * admitted only after reserving enough space for the complete operation.
- */
+/** Manages the process-owned queue for app-managed downloads. */
 class DownloadItemManager(
         private val folderScanner: FolderScanner,
         private val context: Context,
@@ -36,7 +33,6 @@ class DownloadItemManager(
   private val tag = "DownloadItemManager"
   private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
   private val activeCalls = ConcurrentHashMap<String, Call>()
-  /** DocumentsProvider does not make concurrent createDirectory/findFile calls atomic. */
   private val safFolderLocks = ConcurrentHashMap<String, Any>()
   private val reservations = mutableMapOf<String, Long>()
   private val lastPersistTime = mutableMapOf<String, Long>()
@@ -366,8 +362,6 @@ class DownloadItemManager(
   }
 
   private fun tryReserve(part: DownloadItemPart): Boolean {
-    // Covers from older servers often omit a size. Keep unknown-length work serial and use the
-    // runtime low-space guard rather than leaving those queue items permanently deferred.
     if (part.fileSize <= 0L && currentDownloadItemParts.any { it.fileSize <= 0L }) return false
     val staging = File(part.destinationPath)
     staging.parentFile?.mkdirs()

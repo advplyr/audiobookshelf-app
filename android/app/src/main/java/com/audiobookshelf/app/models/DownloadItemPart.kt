@@ -15,7 +15,6 @@ data class DownloadItemPart(
   val downloadItemId: String,
   val filename: String,
   val fileSize: Long,
-  /** App-owned staging location. This is intentionally a String so it survives process storage. */
   @JsonIgnore val destinationPath: String,
   val finalDestinationPath:String,
   val serverPath: String,
@@ -32,15 +31,12 @@ data class DownloadItemPart(
   @JsonIgnore val uri: Uri,
   @JsonIgnore val destinationUri: Uri,
   @JsonIgnore val finalDestinationUri: Uri,
-  /** Final SAF document returned by the provider after a successful move. */
-  /** Persisted Android-only SAF URI used to reopen a completed document after process recovery. */
   @JsonIgnore var completedDestinationUri: String?,
   val finalDestinationSubfolder: String,
   var downloadId: Long?,
   @JsonIgnore var lastUpdateTime: Long?,
   var progress: Long,
   var bytesDownloaded: Long,
-  /** Android queue state; hidden from the shared Capacitor download-part payload. */
   @JsonIgnore var retryCount: Int = 0,
   @JsonIgnore var waitingForSpace: Boolean = false
 ) {

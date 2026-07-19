@@ -14,7 +14,7 @@ import com.audiobookshelf.app.models.DownloadItem
 import java.io.File
 import java.util.concurrent.TimeUnit
 
-/** Removes only terminally failed download items after their retention window has elapsed. */
+/** Removes terminally failed downloads after their retention window elapses. */
 object IncompleteDownloadCleanup {
   private const val tag = "IncompleteDownloadCleanup"
   private const val RETENTION_MS = 24L * 60L * 60L * 1000L
@@ -34,7 +34,7 @@ object IncompleteDownloadCleanup {
     WorkManager.getInstance(context).cancelUniqueWork(WORK_PREFIX + itemId)
   }
 
-  /** Called on app/service startup as a catch-up for work delayed by Android or force-stop. */
+  /** Removes failures retained longer than 24 hours when scheduled work did not run. */
   fun cleanupExpired(context: Context): Set<String> {
     val now = System.currentTimeMillis()
     return DeviceManager.dbManager.getDownloadItems()
@@ -49,7 +49,6 @@ object IncompleteDownloadCleanup {
   private fun isEligible(item: DownloadItem, now: Long): Boolean {
     val failedAt = item.terminalFailureAt ?: return false
     if (now - failedAt < RETENTION_MS) return false
-    // Do not remove an item while another part is still downloading, waiting, or finalizing.
     return item.downloadItemParts.all { part ->
       part.moved || (part.failed && !part.isMoving)
     }
@@ -61,7 +60,6 @@ object IncompleteDownloadCleanup {
       if (part.isInternalStorage && part.moved) {
         deleteAppOwnedFile(context, File(part.finalDestinationPath))
       } else if (!part.isInternalStorage && part.moved) {
-        // Never infer an arbitrary SAF path during cleanup. The stored document URI is authoritative.
         part.completedDestinationUri?.let { uriString ->
           try {
             DocumentFile.fromSingleUri(context, Uri.parse(uriString))?.delete()
