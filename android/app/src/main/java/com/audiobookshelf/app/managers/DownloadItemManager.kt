@@ -156,7 +156,15 @@ class DownloadItemManager(
       val slots = MAX_SIMULTANEOUS_DOWNLOADS - currentDownloadItemParts.size
       if (slots <= 0) return@forEach
       item.getNextDownloadItemParts(slots).forEach { part ->
-        if (tryReserve(part)) startDownload(item, part)
+        val existingFile = findSharedStorageFile(part)
+        if (existingFile != null) {
+          part.bytesDownloaded = existingFile.length()
+          part.progress = 100L
+          part.completedDestinationUri = existingFile.uri.toString()
+          File(part.destinationPath).delete()
+          completePart(item, part)
+          clientEventEmitter.onDownloadItemPartUpdate(part)
+        } else if (tryReserve(part)) startDownload(item, part)
         else {
           part.waitingForSpace = true
           part.lastUpdateTime = System.currentTimeMillis()
@@ -462,6 +470,21 @@ class DownloadItemManager(
       current = current.findFile(segment) ?: current.createDirectory(segment) ?: return null
     }
     return current
+  }
+
+  private fun findSharedStorageFile(part: DownloadItemPart): DocumentFile? {
+    if (part.isInternalStorage) return null
+    val root = DocumentFile.fromTreeUri(context, Uri.parse(part.localFolderUrl)) ?: return null
+    var folder = root
+    part.finalDestinationSubfolder.split('/').filter { it.isNotBlank() }.forEach { segment ->
+      if (segment == "." || segment == "..") return null
+      folder = folder.findFile(segment) ?: return null
+    }
+    val file = folder.findFile(part.filename) ?: return null
+    if (!file.isFile) return null
+    if (part.fileSize > 0L && file.length() != part.fileSize) return null
+    if (part.fileSize <= 0L && file.length() <= 0L) return null
+    return file
   }
 
   private fun mimeTypeFor(part: DownloadItemPart): String =
