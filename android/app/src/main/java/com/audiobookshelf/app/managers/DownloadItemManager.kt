@@ -38,7 +38,8 @@ class DownloadItemManager(
   private val lastPersistTime = mutableMapOf<String, Long>()
   private var watcherRunning = false
   private val jacksonMapper =
-          jacksonObjectMapper().enable(JsonReadFeature.ALLOW_UNESCAPED_CONTROL_CHARS.mappedFeature())
+          jacksonObjectMapper()
+                  .enable(JsonReadFeature.ALLOW_UNESCAPED_CONTROL_CHARS.mappedFeature())
 
   var downloadItemQueue: MutableList<DownloadItem> = mutableListOf()
     private set
@@ -114,13 +115,6 @@ class DownloadItemManager(
     notifyQueueChanged()
   }
 
-  @Synchronized
-  fun retryAll() {
-    downloadItemQueue.forEach(::retryDownloadItem)
-    checkUpdateDownloadQueue()
-    notifyQueueChanged()
-  }
-
   private fun retryDownloadItem(item: DownloadItem) {
     item.terminalFailureAt = null
     IncompleteDownloadCleanup.cancel(context, item.id)
@@ -182,34 +176,41 @@ class DownloadItemManager(
     part.lastUpdateTime = System.currentTimeMillis()
     currentDownloadItemParts.add(part)
     persist(item, force = true)
+    val activeConfig = DeviceManager.serverConnectionConfig
     val token =
-            DeviceManager.deviceData.serverConnectionConfigs
-                    .find { it.id == item.serverConnectionConfigId }?.token ?: DeviceManager.token
+            if (activeConfig?.id == item.serverConnectionConfigId) activeConfig.token
+            else
+                    DeviceManager.getServerConnectionConfig(item.serverConnectionConfigId)?.token
+                            ?: DeviceManager.token
     activeCalls[part.id] =
-            InternalDownloadManager(stagingFile, part.fileSize, object : InternalProgressCallback {
-              override fun onProgress(totalBytesWritten: Long, progress: Long) {
-                synchronized(this@DownloadItemManager) {
-                  if (part !in currentDownloadItemParts) return
-                  part.bytesDownloaded = totalBytesWritten
-                  part.progress = progress
-                  part.lastUpdateTime = System.currentTimeMillis()
-                  persist(item)
-                }
-              }
+            InternalDownloadManager(
+                            stagingFile,
+                            part.fileSize,
+                            object : InternalProgressCallback {
+                              override fun onProgress(totalBytesWritten: Long, progress: Long) {
+                                synchronized(this@DownloadItemManager) {
+                                  if (part !in currentDownloadItemParts) return
+                                  part.bytesDownloaded = totalBytesWritten
+                                  part.progress = progress
+                                  part.lastUpdateTime = System.currentTimeMillis()
+                                  persist(item)
+                                }
+                              }
 
-              override fun onComplete(failed: Boolean) {
-                synchronized(this@DownloadItemManager) {
-                  if (part !in currentDownloadItemParts) return
-                  part.failed = failed
-                  part.completed = !failed
-                  part.lastUpdateTime = System.currentTimeMillis()
-                  activeCalls.remove(part.id)
-                  persist(item, force = true)
-                }
-              }
-            }, { hasAvailableSpace(part) }).download(
-                    serverUrl(item, part),
-                    token)
+                              override fun onComplete(failed: Boolean) {
+                                synchronized(this@DownloadItemManager) {
+                                  if (part !in currentDownloadItemParts) return
+                                  part.failed = failed
+                                  part.completed = !failed
+                                  part.lastUpdateTime = System.currentTimeMillis()
+                                  activeCalls.remove(part.id)
+                                  persist(item, force = true)
+                                }
+                              }
+                            },
+                            { hasAvailableSpace(part) }
+                    )
+                    .download(serverUrl(item, part), token)
   }
 
   @Synchronized
@@ -218,7 +219,8 @@ class DownloadItemManager(
     watcherRunning = true
     scope.launch {
       while (true) {
-        val activeParts = synchronized(this@DownloadItemManager) { currentDownloadItemParts.toList() }
+        val activeParts =
+                synchronized(this@DownloadItemManager) { currentDownloadItemParts.toList() }
         activeParts.forEach(::handlePartUpdate)
         synchronized(this@DownloadItemManager) {
           checkUpdateDownloadQueue()
@@ -235,10 +237,12 @@ class DownloadItemManager(
 
   private fun handlePartUpdate(part: DownloadItemPart) {
     clientEventEmitter.onDownloadItemPartUpdate(part)
-    val item = synchronized(this) { downloadItemQueue.find { it.id == part.downloadItemId } } ?: run {
-      removeActivePart(part)
-      return
-    }
+    val item =
+            synchronized(this) { downloadItemQueue.find { it.id == part.downloadItemId } }
+                    ?: run {
+                      removeActivePart(part)
+                      return
+                    }
     if (!part.completed && !part.failed) {
       val lastUpdate = part.lastUpdateTime ?: return
       if (System.currentTimeMillis() - lastUpdate > STALL_TIMEOUT_MS) {
@@ -287,7 +291,8 @@ class DownloadItemManager(
     val backup = File(finalFile.parentFile, ".${finalFile.name}.abs-backup")
     try {
       if (backup.exists() && !backup.delete()) throw IllegalStateException("Could not clear backup")
-      if (finalFile.exists() && !finalFile.renameTo(backup)) throw IllegalStateException("Could not protect existing file")
+      if (finalFile.exists() && !finalFile.renameTo(backup))
+              throw IllegalStateException("Could not protect existing file")
       if (!stagingFile.renameTo(finalFile)) {
         if (backup.exists()) backup.renameTo(finalFile)
         throw IllegalStateException("Could not finalize internal staging file")
@@ -303,34 +308,42 @@ class DownloadItemManager(
 
   private fun moveDownloadedFile(item: DownloadItem, part: DownloadItemPart) {
     if (part.moved || part.isMoving) return
-    val root = DocumentFile.fromTreeUri(context, Uri.parse(part.localFolderUrl))
-            ?: return failFinalization(item, part, "Could not resolve SAF destination")
+    val root =
+            DocumentFile.fromTreeUri(context, Uri.parse(part.localFolderUrl))
+                    ?: return failFinalization(item, part, "Could not resolve SAF destination")
     part.isMoving = true
     persist(item, force = true)
     scope.launch {
       try {
-        if (!hasAvailableSpace(part)) throw IllegalStateException("Insufficient storage for SAF copy")
+        if (!hasAvailableSpace(part))
+                throw IllegalStateException("Insufficient storage for SAF copy")
         val folderKey = "${root.uri}/${part.finalDestinationSubfolder}"
         val folderLock = safFolderLocks.computeIfAbsent(folderKey) { Any() }
-        val folder = synchronized(folderLock) {
-          getOrCreateFolder(root, part.finalDestinationSubfolder)
-        } ?: throw IllegalStateException("Could not create SAF destination folder")
+        val folder =
+                synchronized(folderLock) { getOrCreateFolder(root, part.finalDestinationSubfolder) }
+                        ?: throw IllegalStateException("Could not create SAF destination folder")
         val temporaryName = ".${part.filename}.${part.id.hashCode()}.part"
         folder.findFile(temporaryName)?.delete()
-        val temporary = folder.createFile(mimeTypeFor(part), temporaryName)
-                ?: throw IllegalStateException("Could not create SAF temporary file")
+        val temporary =
+                folder.createFile(mimeTypeFor(part), temporaryName)
+                        ?: throw IllegalStateException("Could not create SAF temporary file")
         val staging = File(part.destinationPath)
         FileInputStream(staging).use { input ->
           context.contentResolver.openOutputStream(temporary.uri, "w")?.use { input.copyTo(it) }
                   ?: throw IllegalStateException("Could not open SAF output stream")
         }
-        if (temporary.length() != staging.length()) throw IllegalStateException("SAF copy size mismatch")
+        if (temporary.length() != staging.length())
+                throw IllegalStateException("SAF copy size mismatch")
         val existing = folder.findFile(part.filename)
-        if (existing != null && !existing.delete()) throw IllegalStateException("Could not replace existing file")
-        if (!temporary.renameTo(part.filename)) throw IllegalStateException("Could not finalize SAF temporary file")
-        val destination = folder.findFile(part.filename)
-                ?: throw IllegalStateException("Could not reopen finalized SAF file")
-        if (destination.length() != staging.length()) throw IllegalStateException("SAF final size mismatch")
+        if (existing != null && !existing.delete())
+                throw IllegalStateException("Could not replace existing file")
+        if (!temporary.renameTo(part.filename))
+                throw IllegalStateException("Could not finalize SAF temporary file")
+        val destination =
+                folder.findFile(part.filename)
+                        ?: throw IllegalStateException("Could not reopen finalized SAF file")
+        if (destination.length() != staging.length())
+                throw IllegalStateException("SAF final size mismatch")
         if (!staging.delete()) Log.w(tag, "Could not remove staging file ${staging.name}")
         part.completedDestinationUri = destination.uri.toString()
         completePart(item, part)
@@ -364,12 +377,17 @@ class DownloadItemManager(
     if (!item.isDownloadFinished) return
     scope.launch {
       folderScanner.scanDownloadItem(item) { scanResult ->
-        val event = JSObject().apply {
-          put("libraryItemId", item.id)
-          put("localFolderId", item.localFolder.id)
-          scanResult?.localLibraryItem?.let { put("localLibraryItem", JSObject(jacksonMapper.writeValueAsString(it))) }
-          scanResult?.localMediaProgress?.let { put("localMediaProgress", JSObject(jacksonMapper.writeValueAsString(it))) }
-        }
+        val event =
+                JSObject().apply {
+                  put("libraryItemId", item.id)
+                  put("localFolderId", item.localFolder.id)
+                  scanResult?.localLibraryItem?.let {
+                    put("localLibraryItem", JSObject(jacksonMapper.writeValueAsString(it)))
+                  }
+                  scanResult?.localMediaProgress?.let {
+                    put("localMediaProgress", JSObject(jacksonMapper.writeValueAsString(it)))
+                  }
+                }
         clientEventEmitter.onDownloadItemComplete(event)
         synchronized(this@DownloadItemManager) {
           downloadItemQueue.remove(item)
@@ -385,7 +403,8 @@ class DownloadItemManager(
     val staging = File(part.destinationPath)
     staging.parentFile?.mkdirs()
     val expectedSize = if (part.fileSize > 0L) part.fileSize else UNKNOWN_PART_RESERVATION_BYTES
-    val remaining = (expectedSize - (staging.takeIf(File::exists)?.length() ?: 0L)).coerceAtLeast(0L)
+    val remaining =
+            (expectedSize - (staging.takeIf(File::exists)?.length() ?: 0L)).coerceAtLeast(0L)
     val required = if (part.isInternalStorage) remaining else remaining + expectedSize
     val key = storageKey(staging)
     val fs = statFsFor(staging)
@@ -410,7 +429,8 @@ class DownloadItemManager(
   }
 
   private fun storageKey(file: File): String =
-          if (file.absolutePath.startsWith(context.filesDir.absolutePath)) "internal" else "external"
+          if (file.absolutePath.startsWith(context.filesDir.absolutePath)) "internal"
+          else "external"
 
   @Synchronized
   private fun removeActivePart(part: DownloadItemPart) {
@@ -425,7 +445,9 @@ class DownloadItemManager(
     DeviceManager.dbManager.saveDownloadItem(item)
   }
 
-  private fun notifyQueueChanged() { clientEventEmitter.onQueueChanged(hasWork()) }
+  private fun notifyQueueChanged() {
+    clientEventEmitter.onQueueChanged(hasWork())
+  }
 
   fun destroy() {
     activeCalls.values.forEach(Call::cancel)
@@ -443,11 +465,12 @@ class DownloadItemManager(
   }
 
   private fun mimeTypeFor(part: DownloadItemPart): String =
-          part.audioTrack?.mimeType ?: when (part.ebookFile?.ebookFormat?.lowercase()) {
-            "epub" -> "application/epub+zip"
-            "pdf" -> "application/pdf"
-            else -> "image/jpeg"
-          }
+          part.audioTrack?.mimeType
+                  ?: when (part.ebookFile?.ebookFormat?.lowercase()) {
+                    "epub" -> "application/epub+zip"
+                    "pdf" -> "application/pdf"
+                    else -> "image/jpeg"
+                  }
 
   private fun serverUrl(item: DownloadItem, part: DownloadItemPart): String {
     val rawCover = if (part.serverPath.endsWith("/cover")) "?raw=1" else ""

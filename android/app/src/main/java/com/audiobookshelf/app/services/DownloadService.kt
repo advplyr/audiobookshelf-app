@@ -24,7 +24,6 @@ class DownloadService : Service() {
   override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
     when (intent?.action) {
       ACTION_CANCEL -> DownloadServiceHost.cancelAll(this)
-      ACTION_RETRY -> DownloadServiceHost.retryAll(this)
       else -> DownloadServiceHost.ensure(this)
     }
     return START_STICKY
@@ -54,8 +53,6 @@ class DownloadService : Service() {
   private fun notification(text: String, progress: Int = 0, determinate: Boolean = false): Notification {
     val cancelIntent = PendingIntent.getService(
             this, 1, Intent(this, DownloadService::class.java).setAction(ACTION_CANCEL), pendingIntentFlags())
-    val retryIntent = PendingIntent.getService(
-            this, 2, Intent(this, DownloadService::class.java).setAction(ACTION_RETRY), pendingIntentFlags())
     return NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.icon)
             .setContentTitle("Audiobookshelf downloads")
@@ -64,7 +61,6 @@ class DownloadService : Service() {
             .setOngoing(true)
             .setProgress(100, progress, !determinate)
             .addAction(0, "Cancel", cancelIntent)
-            .addAction(0, "Retry", retryIntent)
             .build()
   }
 
@@ -79,7 +75,6 @@ class DownloadService : Service() {
     private const val CHANNEL_ID = "downloads"
     private const val NOTIFICATION_ID = 4102
     private const val ACTION_CANCEL = "com.audiobookshelf.app.download.CANCEL"
-    private const val ACTION_RETRY = "com.audiobookshelf.app.download.RETRY"
     fun intent(context: Context) = Intent(context, DownloadService::class.java)
   }
 }

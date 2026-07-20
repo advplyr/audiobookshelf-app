@@ -56,12 +56,6 @@ object DownloadServiceHost {
   }
 
   @Synchronized
-  fun retryAll(context: Context) {
-    startService(context)
-    ensure(context).retryAll()
-  }
-
-  @Synchronized
   fun cancelAll(context: Context) { ensure(context).cancelAll() }
 
   @Synchronized
