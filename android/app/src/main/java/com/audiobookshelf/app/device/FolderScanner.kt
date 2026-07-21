@@ -35,7 +35,6 @@ class FolderScanner(private val ctx: Context) {
               Uri.fromFile(file).toString(),
               file.getBasePath(ctx),
               file.absolutePath,
-              file.getSimplePath(ctx),
               file.mimeType,
               file.length()
       )
@@ -61,7 +60,6 @@ class FolderScanner(private val ctx: Context) {
               contentUrl,
               part.localFolderName,
               part.finalDestinationPath,
-              part.finalDestinationPath,
               mimeTypeFor(part),
               size
       )
@@ -81,7 +79,6 @@ class FolderScanner(private val ctx: Context) {
             document.uri.toString(),
             document.getBasePath(ctx),
             document.getAbsolutePath(ctx),
-            document.getSimplePath(ctx),
             document.mimeType,
             document.length()
     )

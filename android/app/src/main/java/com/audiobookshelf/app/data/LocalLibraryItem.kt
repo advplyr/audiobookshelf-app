@@ -100,7 +100,7 @@ class LocalLibraryItem(
 
   @JsonIgnore
   private fun trackExists(ctx: Context, contentUrl: String?, path: String): Boolean {
-    return LocalFile("", null, contentUrl ?: "", "", path, "", null, 0).exists(ctx)
+    return LocalFile("", null, contentUrl ?: "", "", path, null, 0).exists(ctx)
   }
 
   @JsonIgnore
