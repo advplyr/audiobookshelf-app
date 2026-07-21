@@ -1,6 +1,7 @@
 package com.audiobookshelf.app.plugins
 
 import android.app.AlertDialog
+import android.content.Context
 import android.net.Uri
 import android.os.Build
 import android.util.Log
@@ -69,6 +70,19 @@ class AbsFileSystem : Plugin() {
   }
 
   @PluginMethod
+  fun setFolderPickerStrings(call: PluginCall) {
+    mainActivity.getSharedPreferences(FOLDER_PICKER_PREFERENCES, Context.MODE_PRIVATE)
+            .edit()
+            .putString(KEY_WRITE_ACCESS_REQUIRED, call.getString("writeAccessRequired"))
+            .putString(KEY_ALLOW, call.getString("allow"))
+            .putString(KEY_CANCEL, call.getString("cancel"))
+            .putString(KEY_ACCESS_DENIED, call.getString("accessDenied"))
+            .putString(KEY_PERMISSION_DENIED, call.getString("permissionDenied"))
+            .apply()
+    call.resolve()
+  }
+
+  @PluginMethod
   fun selectFolder(call: PluginCall) {
     val mediaType = call.data.getString("mediaType", "book").toString()
     val REQUEST_CODE_SELECT_FOLDER = 6
@@ -114,17 +128,14 @@ class AbsFileSystem : Plugin() {
                 if (requestCode == REQUEST_CODE_SELECT_FOLDER) {
 
                   val builder: AlertDialog.Builder = AlertDialog.Builder(mainActivity)
-                  builder.setMessage(
-                          "You have no write access to this storage, thus selecting this folder is useless." +
-                                  "\nWould you like to grant access to this folder?"
-                  )
-                  builder.setNegativeButton("Dont Allow") { _, _ ->
+                  builder.setMessage(folderPickerString(KEY_WRITE_ACCESS_REQUIRED, DEFAULT_WRITE_ACCESS_REQUIRED))
+                  builder.setNegativeButton(folderPickerString(KEY_CANCEL, DEFAULT_CANCEL)) { _, _ ->
                     run {
-                      jsobj.put("error", "User Canceled, Access Denied")
+                      jsobj.put("error", folderPickerString(KEY_ACCESS_DENIED, DEFAULT_ACCESS_DENIED))
                       call.resolve(jsobj)
                     }
                   }
-                  builder.setPositiveButton("Allow.") { _, _ ->
+                  builder.setPositiveButton(folderPickerString(KEY_ALLOW, DEFAULT_ALLOW)) { _, _ ->
                     mainActivity.storageHelper.requestStorageAccess(
                             REQUEST_CODE_SDCARD_ACCESS,
                             initialPath = FileFullPath(mainActivity, storageId, "")
@@ -133,7 +144,7 @@ class AbsFileSystem : Plugin() {
                   builder.show()
                 } else {
                   Log.d(TAG, "STORAGE ACCESS DENIED $requestCode")
-                  jsobj.put("error", "Access Denied")
+                  jsobj.put("error", folderPickerString(KEY_ACCESS_DENIED, DEFAULT_ACCESS_DENIED))
                   call.resolve(jsobj)
                 }
               }
@@ -141,7 +152,7 @@ class AbsFileSystem : Plugin() {
               override fun onStoragePermissionDenied(requestCode: Int) {
                 Log.d(TAG, "STORAGE PERMISSION DENIED $requestCode")
                 val jsobj = JSObject()
-                jsobj.put("error", "Permission Denied")
+                jsobj.put("error", folderPickerString(KEY_PERMISSION_DENIED, DEFAULT_PERMISSION_DENIED))
                 call.resolve(jsobj)
               }
             }
@@ -294,5 +305,24 @@ class AbsFileSystem : Plugin() {
     } else {
       call.resolve(JSObject("{\"success\":false}"))
     }
+  }
+
+  private fun folderPickerString(key: String, defaultValue: String): String =
+          mainActivity.getSharedPreferences(FOLDER_PICKER_PREFERENCES, Context.MODE_PRIVATE)
+                  .getString(key, defaultValue) ?: defaultValue
+
+  private companion object {
+    const val FOLDER_PICKER_PREFERENCES = "folder_picker"
+    const val KEY_WRITE_ACCESS_REQUIRED = "write_access_required"
+    const val KEY_ALLOW = "allow"
+    const val KEY_CANCEL = "cancel"
+    const val KEY_ACCESS_DENIED = "access_denied"
+    const val KEY_PERMISSION_DENIED = "permission_denied"
+    const val DEFAULT_WRITE_ACCESS_REQUIRED =
+            "You do not have write access to this folder. Would you like to grant access?"
+    const val DEFAULT_ALLOW = "Allow"
+    const val DEFAULT_CANCEL = "Cancel"
+    const val DEFAULT_ACCESS_DENIED = "Access denied"
+    const val DEFAULT_PERMISSION_DENIED = "Permission denied"
   }
 }

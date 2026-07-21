@@ -17,7 +17,7 @@ class DownloadService : Service() {
   override fun onCreate() {
     super.onCreate()
     createChannel()
-    startForeground(NOTIFICATION_ID, notification("Preparing downloads"))
+    startForeground(NOTIFICATION_ID, notification(DownloadServiceHost.notificationStrings(this).preparing))
     DownloadServiceHost.attachService(this)
   }
 
@@ -37,7 +37,10 @@ class DownloadService : Service() {
   override fun onBind(intent: Intent?): IBinder? = null
 
   fun onPartUpdate(part: DownloadItemPart) {
-    val text = if (part.waitingForSpace) "Waiting for available storage" else "Downloading ${part.filename}"
+    val strings = DownloadServiceHost.notificationStrings(this)
+    val text =
+            if (part.waitingForSpace) strings.waitingForStorage
+            else strings.downloadingFile.replace("{0}", part.filename)
     val progress = part.progress.coerceIn(0L, 100L).toInt()
     val notification = notification(text, progress, part.fileSize > 0L)
     (getSystemService(NOTIFICATION_SERVICE) as NotificationManager).notify(NOTIFICATION_ID, notification)
@@ -55,18 +58,22 @@ class DownloadService : Service() {
             this, 1, Intent(this, DownloadService::class.java).setAction(ACTION_CANCEL), pendingIntentFlags())
     return NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.icon)
-            .setContentTitle("Audiobookshelf downloads")
+            .setContentTitle(DownloadServiceHost.notificationStrings(this).downloads)
             .setContentText(text)
             .setOnlyAlertOnce(true)
             .setOngoing(true)
             .setProgress(100, progress, !determinate)
-            .addAction(0, "Cancel", cancelIntent)
+            .addAction(0, DownloadServiceHost.notificationStrings(this).cancel, cancelIntent)
             .build()
   }
 
   private fun createChannel() {
     val manager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
-    manager.createNotificationChannel(NotificationChannel(CHANNEL_ID, "Downloads", NotificationManager.IMPORTANCE_LOW))
+    manager.createNotificationChannel(
+            NotificationChannel(
+                    CHANNEL_ID,
+                    DownloadServiceHost.notificationStrings(this).downloads,
+                    NotificationManager.IMPORTANCE_LOW))
   }
 
   private fun pendingIntentFlags(): Int = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE

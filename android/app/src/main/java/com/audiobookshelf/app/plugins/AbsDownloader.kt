@@ -53,6 +53,18 @@ class AbsDownloader : Plugin() {
     super.handleOnDestroy()
   }
 
+  @PluginMethod
+  fun setDownloadNotificationStrings(call: PluginCall) {
+    DownloadServiceHost.setNotificationStrings(
+            mainActivity,
+            call.getString("preparing") ?: "Preparing downloads",
+            call.getString("downloadingFile") ?: "Downloading {0}",
+            call.getString("waitingForStorage") ?: "Waiting for available storage",
+            call.getString("downloads") ?: "Downloads",
+            call.getString("cancel") ?: "Cancel")
+    call.resolve()
+  }
+
   /** Replays restored queue items when the frontend subscribes to download events. */
   @PluginMethod(returnType = PluginMethod.RETURN_NONE)
   override fun addListener(call: PluginCall) {
@@ -91,7 +103,7 @@ class AbsDownloader : Plugin() {
 
         if (localFolder == null && localFolderId.startsWith("internal-")) {
           Log.d(tag, "Creating new App Storage internal LocalFolder $localFolderId")
-          localFolder = LocalFolder(localFolderId, "Internal App Storage", "", "", "", "", "internal", libraryItem.mediaType)
+          localFolder = LocalFolder(localFolderId, "Internal App Storage", "", "", "", "internal", libraryItem.mediaType)
           DeviceManager.dbManager.saveLocalFolder(localFolder)
         }
 
