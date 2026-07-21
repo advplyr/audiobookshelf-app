@@ -34,9 +34,7 @@ class InternalDownloadManager(
                     .url(url)
                     .addHeader("Accept-Encoding", "identity")
                     .addHeader("Authorization", "Bearer $token")
-                    .apply {
-                      if (existingBytes > 0L) header("Range", "bytes=$existingBytes-")
-                    }
+                    .apply { if (existingBytes > 0L) header("Range", "bytes=$existingBytes-") }
                     .build()
     val call = client.newCall(request)
     call.enqueue(
@@ -49,14 +47,21 @@ class InternalDownloadManager(
               override fun onResponse(call: Call, response: Response) {
                 response.use {
                   try {
-                    if (response.code == 416 && expectedSize > 0L && existingBytes == expectedSize) {
+                    if (response.code == 416 && expectedSize > 0L && existingBytes == expectedSize
+                    ) {
                       progressCallback.onProgress(existingBytes, 100L)
                       progressCallback.onComplete(false)
                       return
                     }
-                    val append = existingBytes > 0L && response.code == 206 && hasExpectedRange(response, existingBytes)
+                    val append =
+                            existingBytes > 0L &&
+                                    response.code == 206 &&
+                                    hasExpectedRange(response, existingBytes)
                     if (existingBytes > 0L && !append && response.code != 200) {
-                      Log.e(tag, "Invalid resume response ${response.code} for offset $existingBytes")
+                      Log.e(
+                              tag,
+                              "Invalid resume response ${response.code} for offset $existingBytes"
+                      )
                       progressCallback.onComplete(true)
                       return
                     }
@@ -70,8 +75,7 @@ class InternalDownloadManager(
                     val responseLength = response.body!!.contentLength()
                     val totalLength =
                             if (expectedSize > 0L) expectedSize
-                            else if (responseLength >= 0L) startingBytes + responseLength
-                            else 0L
+                            else if (responseLength >= 0L) startingBytes + responseLength else 0L
 
                     FileOutputStream(destinationFile, append).use { output ->
                       response.body!!.byteStream().use { input ->
@@ -80,17 +84,22 @@ class InternalDownloadManager(
                         while (true) {
                           val read = input.read(buffer)
                           if (read < 0) break
-                          if (!hasAvailableSpace()) throw IOException("Download paused to preserve free storage")
+                          if (!hasAvailableSpace())
+                                  throw IOException("Download paused to preserve free storage")
                           output.write(buffer, 0, read)
                           totalBytes += read
-                          val progress = if (totalLength > 0L) (totalBytes * 100L) / totalLength else 0L
+                          val progress =
+                                  if (totalLength > 0L) (totalBytes * 100L) / totalLength else 0L
                           progressCallback.onProgress(totalBytes, progress.coerceAtMost(100L))
                         }
                       }
                     }
 
                     if (expectedSize > 0L && destinationFile.length() != expectedSize) {
-                      Log.e(tag, "Downloaded size ${destinationFile.length()} did not match $expectedSize")
+                      Log.e(
+                              tag,
+                              "Downloaded size ${destinationFile.length()} did not match $expectedSize"
+                      )
                       progressCallback.onComplete(true)
                     } else {
                       progressCallback.onComplete(false)
@@ -114,7 +123,7 @@ class InternalDownloadManager(
   }
 
   private companion object {
-    const val CHUNK_SIZE = 8 * 1024
+    const val CHUNK_SIZE = 512 * 1024 // 512 KB
     val CONTENT_RANGE = Regex("bytes (\\d+)-(\\d+)/(?:\\d+|\\*)")
     val client =
             OkHttpClient.Builder()
