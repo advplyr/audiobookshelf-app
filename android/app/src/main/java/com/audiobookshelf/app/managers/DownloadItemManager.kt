@@ -59,7 +59,6 @@ class DownloadItemManager(
   }
 
   init {
-    DeviceManager.dbManager.clearLegacyDownloadQueueOnce()
     IncompleteDownloadCleanup.cleanupExpired(context)
   }
 
