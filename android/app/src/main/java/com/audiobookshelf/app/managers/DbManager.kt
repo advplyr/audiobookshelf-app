@@ -7,7 +7,6 @@ import com.audiobookshelf.app.models.DownloadItem
 import com.audiobookshelf.app.plugins.AbsLog
 import com.audiobookshelf.app.plugins.AbsLogger
 import io.paperdb.Paper
-import java.io.File
 
 class DbManager {
   val tag = "DbManager"
@@ -122,21 +121,6 @@ class DbManager {
     return downloadItems
   }
 
-  /**
-   * Removes DownloadManager queue entries that cannot be resumed by the app-managed downloader.
-   *
-   * This migration preserves completed local media, which is stored in separate books.
-   */
-  fun clearLegacyDownloadQueueOnce() {
-    val metadata = Paper.book("downloadQueueMetadata")
-    val architectureVersion = metadata.read<Int>("architectureVersion") ?: 0
-    if (architectureVersion >= 2) return
-
-    Paper.book("downloadItems").destroy()
-    metadata.write("architectureVersion", 2)
-    Log.i(tag, "Cleared legacy persisted download queue for architecture v2")
-  }
-
   fun saveLocalMediaProgress(mediaProgress: LocalMediaProgress) {
     Paper.book("localMediaProgress").write(mediaProgress.id, mediaProgress)
   }
@@ -218,9 +202,10 @@ class DbManager {
 
       // Check cover still there
       lli.coverAbsolutePath?.let {
-        val coverExists = lli.localFiles.any { localFile ->
-          localFile.absolutePath == it && localFile.exists(context)
-        }
+        val coverExists =
+                lli.localFiles.any { localFile ->
+                  localFile.absolutePath == it && localFile.exists(context)
+                }
         if (!coverExists) {
           Log.d(
                   tag,
@@ -306,15 +291,13 @@ class DbManager {
     return sessions
   }
 
-  fun saveLog(log:AbsLog) {
+  fun saveLog(log: AbsLog) {
     Paper.book("log").write(log.id, log)
   }
-  fun getAllLogs() : List<AbsLog> {
-    val logs:MutableList<AbsLog> = mutableListOf()
+  fun getAllLogs(): List<AbsLog> {
+    val logs: MutableList<AbsLog> = mutableListOf()
     Paper.book("log").allKeys.forEach { logId ->
-      Paper.book("log").read<AbsLog>(logId)?.let {
-        logs.add(it)
-      }
+      Paper.book("log").read<AbsLog>(logId)?.let { logs.add(it) }
     }
     return logs.sortedBy { it.timestamp }
   }
@@ -333,7 +316,10 @@ class DbManager {
       }
     }
     if (logsRemoved > 0) {
-      AbsLogger.info("DbManager", "cleanLogs: Removed $logsRemoved logs older than $numberOfHoursToKeep hours")
+      AbsLogger.info(
+              "DbManager",
+              "cleanLogs: Removed $logsRemoved logs older than $numberOfHoursToKeep hours"
+      )
     }
   }
 }
