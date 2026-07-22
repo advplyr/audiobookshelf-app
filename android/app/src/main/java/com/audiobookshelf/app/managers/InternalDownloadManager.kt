@@ -6,7 +6,7 @@ import java.util.concurrent.TimeUnit
 import okhttp3.*
 
 /**
- * Manages the internal download process.
+ * Manages the internal download process (streams the response body straight to a file).
  *
  * @property outputStream The output stream to write the downloaded data.
  * @property progressCallback The callback to report download progress.
@@ -17,9 +17,22 @@ class InternalDownloadManager(
 ) : AutoCloseable {
 
   private val tag = "InternalDownloadManager"
-  private val client: OkHttpClient =
-          OkHttpClient.Builder().connectTimeout(30, TimeUnit.SECONDS).build()
   private val writer = BinaryFileWriter(outputStream, progressCallback)
+  private var call: Call? = null
+
+  // Ensures the callback fires exactly once and the stream is always closed, so a part can never
+  // get stuck "in progress" forever (which would permanently occupy a download-queue slot).
+  @Volatile private var finished = false
+
+  companion object {
+    // Shared client: previously a new OkHttpClient (with its own thread + connection pool) was
+    // created per download part. readTimeout bounds a silently stalled stream.
+    private val client: OkHttpClient =
+            OkHttpClient.Builder()
+                    .connectTimeout(30, TimeUnit.SECONDS)
+                    .readTimeout(30, TimeUnit.SECONDS)
+                    .build()
+  }
 
   /**
    * Downloads a file from the given URL.
@@ -29,27 +42,73 @@ class InternalDownloadManager(
    */
   @Throws(IOException::class)
   fun download(url: String) {
-    val request: Request = Request.Builder().url(url).addHeader("Accept-Encoding", "identity").build()
-    client.newCall(request)
-            .enqueue(
-                    object : Callback {
-                      override fun onFailure(call: Call, e: IOException) {
-                        Log.e(tag, "Download URL $url FAILED", e)
-                        progressCallback.onComplete(true)
-                      }
+    val request: Request =
+            Request.Builder().url(url).addHeader("Accept-Encoding", "identity").build()
+    val newCall = client.newCall(request)
+    call = newCall
+    newCall.enqueue(
+            object : Callback {
+              override fun onFailure(call: Call, e: IOException) {
+                if (call.isCanceled()) {
+                  Log.d(tag, "Download URL ${redactUrl(url)} canceled")
+                } else {
+                  Log.e(tag, "Download URL ${redactUrl(url)} FAILED", e)
+                }
+                finishWith(failed = true)
+              }
 
-                      override fun onResponse(call: Call, response: Response) {
-                        response.body?.let { responseBody ->
-                          val length: Long = response.header("Content-Length")?.toLongOrNull() ?: 0L
-                          writer.write(responseBody.byteStream(), length)
-                        }
-                                ?: run {
-                                  Log.e(tag, "Response doesn't contain a file")
-                                  progressCallback.onComplete(true)
-                                }
-                      }
-                    }
-            )
+              override fun onResponse(call: Call, response: Response) {
+                response.use { resp ->
+                  if (!resp.isSuccessful) {
+                    Log.e(tag, "Download URL ${redactUrl(url)} returned HTTP ${resp.code}")
+                    finishWith(failed = true)
+                    return
+                  }
+                  val body = resp.body
+                  if (body == null) {
+                    Log.e(tag, "Response doesn't contain a file")
+                    finishWith(failed = true)
+                    return
+                  }
+                  val length =
+                          resp.header("Content-Length")?.toLongOrNull()
+                                  ?: body.contentLength().takeIf { it > 0 }
+                                  ?: 0L
+                  try {
+                    writer.write(body.byteStream(), length)
+                    finishWith(failed = false)
+                  } catch (e: Exception) {
+                    // A mid-stream read/write failure (disk full, connection reset) used to throw
+                    // here and be swallowed by OkHttp, leaving the part wedged. Always resolve it.
+                    Log.e(tag, "Download URL ${redactUrl(url)} failed while writing", e)
+                    finishWith(failed = true)
+                  }
+                }
+              }
+            }
+    )
+  }
+
+  /** Cancels an in-flight download (used by the stall watchdog). */
+  fun cancel() {
+    call?.cancel()
+  }
+
+  @Synchronized
+  private fun finishWith(failed: Boolean) {
+    if (finished) return
+    finished = true
+    var didFail = failed
+    try {
+      close()
+    } catch (e: Exception) {
+      // close() is what flushes the final buffered bytes to disk, so failing here means the file is
+      // incomplete however well the transfer itself went. Reporting success would hand the scanner a
+      // truncated track.
+      Log.e(tag, "Error closing writer — treating the download as failed", e)
+      didFail = true
+    }
+    progressCallback.onComplete(didFail)
   }
 
   /**
@@ -75,10 +134,11 @@ class BinaryFileWriter(
 ) : AutoCloseable {
 
   /**
-   * Writes data from the input stream to the output stream.
+   * Writes data from the input stream to the output stream. Completion is signalled by the caller
+   * (InternalDownloadManager.finishWith) so success and failure resolve through a single path.
    *
    * @param inputStream The input stream to read the data from.
-   * @param length The total length of the data to be written.
+   * @param length The total length of the data to be written (0 if unknown).
    * @return The total number of bytes written.
    * @throws IOException If an I/O error occurs.
    */
@@ -91,9 +151,11 @@ class BinaryFileWriter(
       while (input.read(dataBuffer).also { readBytes = it } != -1) {
         totalBytes += readBytes
         outputStream.write(dataBuffer, 0, readBytes)
-        progressCallback.onProgress(totalBytes, (totalBytes * 100L) / length)
+        // Guard against divide-by-zero when the server omits Content-Length (chunked encoding).
+        val progress = if (length > 0) (totalBytes * 100L) / length else 0L
+        progressCallback.onProgress(totalBytes, progress)
       }
-      progressCallback.onComplete(false)
+      outputStream.flush()
       return totalBytes
     }
   }

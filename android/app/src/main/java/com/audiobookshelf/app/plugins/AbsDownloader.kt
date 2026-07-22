@@ -50,6 +50,8 @@ class AbsDownloader : Plugin() {
     folderScanner = FolderScanner(mainActivity)
     apiHandler = ApiHandler(mainActivity)
     downloadItemManager = DownloadItemManager(downloadManager, folderScanner, mainActivity, clientEventEmitter)
+    // Re-adopt any downloads left incomplete when the app was last killed
+    downloadItemManager.reconcilePersistedDownloads()
   }
 
   @PluginMethod
@@ -61,7 +63,7 @@ class AbsDownloader : Plugin() {
     Log.d(tag, "Download library item $libraryItemId to folder $localFolderId / episode: $episodeId")
 
     val downloadId = if (episodeId.isEmpty()) libraryItemId else "$libraryItemId-$episodeId"
-    if (downloadItemManager.downloadItemQueue.find { it.id == downloadId } != null) {
+    if (downloadItemManager.isItemInQueue(downloadId)) {
       Log.d(tag, "Download already started for this media entity $downloadId")
       return call.resolve(JSObject("{\"error\":\"Download already started for this media entity\"}"))
     }

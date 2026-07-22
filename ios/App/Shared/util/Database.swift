@@ -219,6 +219,17 @@ class Database {
             return nil
         }
     }
+
+    public func getDownloadItems() -> [DownloadItem] {
+        do {
+            let realm = try Realm()
+            realm.refresh()
+            return Array(realm.objects(DownloadItem.self))
+        } catch {
+            debugPrint(error)
+            return []
+        }
+    }
     
     public func saveDownloadItem(_ downloadItem: DownloadItem) throws {
         let realm = try Realm()

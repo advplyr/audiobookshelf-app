@@ -31,6 +31,14 @@ target 'Audiobookshelf' do
   
   pod 'RealmSwift', '~> 10'
   pod 'Alamofire', '~> 5.5'
+
+  # App-hosted unit tests. inherit! :search_paths gives the test target the framework /
+  # header search paths for the app's pods (RealmSwift, Capacitor, Alamofire) so that
+  # `@testable import Audiobookshelf` resolves their modules, without re-linking the pods
+  # into the test bundle (their symbols come from the host app via bundle_loader).
+  target 'AudiobookshelfUnitTests' do
+    inherit! :search_paths
+  end
 end
 
 

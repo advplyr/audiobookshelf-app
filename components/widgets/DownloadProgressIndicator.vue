@@ -12,7 +12,8 @@ export default {
     return {
       downloadItemListener: null,
       completeListener: null,
-      itemPartUpdateListener: null
+      itemPartUpdateListener: null,
+      failedPartsToasted: new Set()
     }
   },
   computed: {
@@ -76,6 +77,11 @@ export default {
     },
     onDownloadItemPartUpdate(itemPart) {
       this.$store.commit('globals/updateDownloadItemPart', itemPart)
+      // Surface a permanently-failed part right away instead of leaving a frozen progress bar
+      if (itemPart && itemPart.failed && !this.failedPartsToasted.has(itemPart.id)) {
+        this.failedPartsToasted.add(itemPart.id)
+        this.$toast.error(`Download failed: ${itemPart.filename || itemPart.itemTitle || 'file'}`)
+      }
     }
   },
   async mounted() {

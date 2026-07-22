@@ -87,6 +87,19 @@ extension DownloadItem {
     func didDownloadSuccessfully() -> Bool {
         self.downloadItemParts.allSatisfy({ $0.failed == false })
     }
+
+    // Reconstruct a LibraryItem from the metadata captured when the download was queued. Used to
+    // finalize a fully-downloaded item when the server can't be reached to refresh it (offline or
+    // HTTP 429 rate-limiting), so the download doesn't wedge forever at "Processing...". Uses
+    // detached copies so the result is safe to use off the caller's thread, like a decoded item.
+    func asLibraryItem() -> LibraryItem {
+        let item = LibraryItem()
+        item.id = self.libraryItemId ?? self.id ?? ""
+        item.mediaType = self.mediaType ?? ""
+        item.media = MediaType.detachCopy(of: self.media)
+        item.userMediaProgress = MediaProgress.detachCopy(of: self.userMediaProgress)
+        return item
+    }
     
     func delete() throws {
         try self.realm?.write {
