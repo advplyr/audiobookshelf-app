@@ -92,7 +92,7 @@ data class LocalFolder(
   var mediaType:String
 )
 
-@JsonTypeInfo(use = JsonTypeInfo.Id.DEDUCTION)
+@JsonTypeInfo(use= JsonTypeInfo.Id.DEDUCTION)
 @JsonSubTypes(
   JsonSubTypes.Type(LibraryItem::class),
   JsonSubTypes.Type(LocalLibraryItem::class)

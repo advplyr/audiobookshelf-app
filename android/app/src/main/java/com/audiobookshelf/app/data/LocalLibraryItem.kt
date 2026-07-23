@@ -65,7 +65,7 @@ class LocalLibraryItem(
   fun getDuration():Double {
     var total = 0.0
     val audioTracks = media.getAudioTracks()
-    audioTracks.forEach { total += it.duration }
+    audioTracks.forEach{ total += it.duration }
     return total
   }
 

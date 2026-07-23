@@ -5,17 +5,17 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 data class AudioTrack(
-  var index: Int,
-  var startOffset: Double,
-  var duration: Double,
-  var title: String,
-  var contentUrl: String,
-  var mimeType: String,
-  var metadata: FileMetadata?,
-  var isLocal: Boolean,
-  var localFileId: String?,
-  // TODO: This should no longer be necessary
-  var serverIndex: Int? // Need to know if server track index is different
+        var index: Int,
+        var startOffset: Double,
+        var duration: Double,
+        var title: String,
+        var contentUrl: String,
+        var mimeType: String,
+        var metadata: FileMetadata?,
+        var isLocal: Boolean,
+        var localFileId: String?,
+        // TODO: This should no longer be necessary
+        var serverIndex: Int? // Need to know if server track index is different
 ) {
 
   /**

@@ -24,7 +24,7 @@ fun getUriToDrawable(context: Context, @AnyRes drawableId: Int): Uri {
  * @return - uri
  */
 fun getUriToAbsIconDrawable(context: Context, absIconName: String): Uri {
-  val drawableId = when (absIconName) {
+  val drawableId = when(absIconName) {
     "audiobookshelf" -> R.drawable.abs_audiobookshelf
     "authors" -> R.drawable.abs_authors
     "book-1" -> R.drawable.abs_book_1
