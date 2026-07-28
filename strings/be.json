@@ -297,7 +297,7 @@
   "MessageBookshelfEmpty": "Кніжная паліца пустая",
   "MessageConfirmAppExit": "Вы хацелі выйсці з праграмы?",
   "MessageConfirmDeleteEpisodeDownloadQueue": "Вы ўпэўнены, што хочаце ачысціць чаргу спампоўвання выпускаў?",
-  "MessageConfirmDeleteLocalEpisode": "Выдаліць лакальны выпуск \"{0}\" з прылады? Файл на серверы застанецца нязменным.",
+  "MessageConfirmDeleteLocalEpisode": "Выдаліць лакальны выпуск \"{0}\" з прылады? Файл на серверы гэта не закране.",
   "MessageConfirmDeleteLocalFiles": "Выдаліць лакальныя файлы гэтага элемента з прылады? Файлы на серверы і прагрэс застануцца нязменнымі.",
   "MessageConfirmDeleteServerConfig": "Выдаліць гэту канфігурацыю сервера?",
   "MessageConfirmDeleteServerEpisode": "Вы ўпэўнены, што хочаце выдаліць выпуск \"{0}\" з сервера?\nУвага: будзе выдалены аўдыяфайл.",
