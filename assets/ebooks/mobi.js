@@ -2,12 +2,25 @@
 This is borrowed from koodo-reader https://github.com/troyeguo/koodo-reader/tree/master/src
 */
 
-function ab2str(buf) {
+function ab2str(buf, encoding = "utf-8") {
   if (buf instanceof ArrayBuffer) {
     buf = new Uint8Array(buf);
   }
-  return new TextDecoder("utf-8").decode(buf);
+  try {
+    return new TextDecoder(encoding).decode(buf);
+  } catch (error) {
+    // Unsupported encoding label
+    return new TextDecoder("utf-8").decode(buf);
+  }
 }
+
+// Text encoding codes used in the MOBI header. 1250 is not part of the spec
+// (only 1252 and 65001 are) but files produced by old converters exist.
+const MOBI_TEXT_ENCODINGS = {
+  1250: "windows-1250",
+  1252: "windows-1252",
+  65001: "utf-8",
+};
 
 var domParser = new DOMParser();
 
@@ -245,7 +258,8 @@ class MobiFile {
       buffers.push(this.read_text_record(i));
     }
     var all = copagesne_uint8array(buffers);
-    return ab2str(all);
+    var encoding = MOBI_TEXT_ENCODINGS[this.mobi_header?.text_encoding] || "utf-8";
+    return ab2str(all, encoding);
   }
 
   read_text_record(i) {
