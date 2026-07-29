@@ -118,7 +118,7 @@ class AbsAudioPlayer : Plugin() {
 
       MediaEventManager.clientEventEmitter = playerNotificationService.clientEventEmitter
     }
-    mainActivity.pluginCallback = foregroundServiceReady
+    mainActivity.pluginCallbacks.add(foregroundServiceReady)
   }
 
   fun emit(evtName: String, value: Any) {

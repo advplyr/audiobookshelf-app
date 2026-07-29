@@ -361,7 +361,27 @@ const useNative = Capacitor.getPlatform() === 'android'   // F1
 Mixin API vůči čtečkám i `Reader.vue` liště se nemění — přepnutí je
 transparentní.
 
-### A.8 Testovací plán F1
+### A.8 Stav implementace F1
+
+První řez F1 je v kódu (commit „Implement F1 slice…“):
+
+- [x] JS: `plugins/capacitor/AbsTTSPlayer.js`, `ttsExtractBook()` ve všech třech
+  čtečkách, mixin deleguje na nativní plugin, follow-along z `onParagraph`
+  eventů, re-sync stavu při otevření čtečky (`getState`)
+- [x] Android: `TTSBook.kt`, `TTSBookCache.kt` (LRU), `TTSPlaybackEngine.kt`
+  (TextToSpeech + session guard + chunker), `AbsTTSPlayer.kt` bridge,
+  TTS sekce v `PlayerNotificationService` (pauza audia, foreground
+  MediaStyle notifikace s play/pause/stop akcemi), registrace v `MainActivity`
+- [ ] **Netestováno na zařízení — Kotlin část je napsaná bez kompilace;
+  před merge nutný lokální build (`npx cap run android`) a manuální matice A.9**
+- [ ] Media session takeover (transport ovládání z BT/hodinek přes
+  MediaSessionConnector) — zatím jen notifikační akce; předpoklad pro F2
+- [ ] Nativní sync průběhu na server (nyní se průběh dostane na server jen
+  přes otevřenou čtečku); mapování v A.6
+- [ ] F2: kategorie „E-knihy“ v `BrowseTree` + `onPlayFromMediaId`
+- [ ] F3/F4: iOS engine, CarPlay
+
+### A.9 Testovací plán F1
 
 - **Unit (Kotlin):** chunker (parita s JS `splitTextChunks` na sadě českých
   a anglických textů vč. zkratek a dlouhých vět), výpočet pozice/odhadu času,

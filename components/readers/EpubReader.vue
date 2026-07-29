@@ -223,6 +223,74 @@ export default {
       const contents = this.rendition?.getContents() || []
       return contents.find((c) => c.sectionIndex === this.ttsSectionIndex) || contents[0] || null
     },
+    /**
+     * Native TTS hook: extract the whole book by walking the spine without
+     * rendering. Paragraph location is the epub cfi of the element.
+     */
+    async ttsExtractBook() {
+      if (!this.book?.spine) return null
+
+      // Map spine hrefs to chapter titles from the toc
+      const tocTitles = {}
+      const addTocItems = (items) => {
+        for (const item of items || []) {
+          const href = (item.href || '').split('#')[0]
+          if (href && !tocTitles[href]) tocTitles[href] = item.label?.trim() || ''
+          addTocItems(item.subitems)
+        }
+      }
+      addTocItems(this.chapters)
+
+      const chapters = []
+      for (const section of this.book.spine.spineItems || []) {
+        if (section.linear === false || section.linear === 'no') continue
+        try {
+          const doc = await section.load(this.book.load.bind(this.book))
+          const body = doc?.querySelector?.('body') || doc?.getElementsByTagName?.('body')?.[0] || doc
+          const paragraphs = this.ttsCollectHtmlParagraphs(body).map((p) => {
+            let cfi = null
+            try {
+              cfi = new EpubCFI(p.ref, section.cfiBase).toString()
+            } catch (error) {
+              // paragraph stays speakable without follow-along
+            }
+            return { text: p.text, location: cfi, chars: p.text.length }
+          })
+          section.unload()
+          if (!paragraphs.length) continue
+          chapters.push({
+            title: tocTitles[(section.href || '').split('#')[0]] || '',
+            startLocation: section.href || '',
+            paragraphs
+          })
+        } catch (error) {
+          console.error('[EpubReader] ttsExtractBook failed to load section', section.href, error)
+        }
+      }
+      return { ebookFormat: 'epub', chapters }
+    },
+    /** Native TTS hook: start at the chapter/paragraph of the visible page */
+    ttsNativeStartPosition(book) {
+      const location = this.rendition?.currentLocation()
+      const currentHref = this.book?.spine?.get(location?.start?.index)?.href
+      const chapterIndex = book.chapters.findIndex((c) => c.startLocation === currentHref)
+      if (chapterIndex < 0) return { chapterIndex: 0, paragraphIndex: 0 }
+
+      const cfiCompare = new EpubCFI()
+      let paragraphIndex = book.chapters[chapterIndex].paragraphs.findIndex((p) => {
+        try {
+          return p.location && cfiCompare.compare(p.location, location.start.cfi) >= 0
+        } catch (error) {
+          return false
+        }
+      })
+      if (paragraphIndex < 0) paragraphIndex = 0
+      return { chapterIndex, paragraphIndex }
+    },
+    /** Native TTS hook: follow the spoken paragraph while the reader is open */
+    ttsNativeFollow(event) {
+      if (event.location) this.ttsFollowParagraph({ ref: event.location })
+    },
     prev() {
       if (this.rendition) {
         this.rendition.prev()

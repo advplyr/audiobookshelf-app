@@ -145,6 +145,37 @@ export default {
       const text = this.ttsTextFromContent(textContent)
       return text ? [{ text, ref: pageNum }] : []
     },
+    /** Native TTS hook: chapter per page with a text layer; location is the page number */
+    async ttsExtractBook() {
+      if (!this.pdfDocInitParams?.promise || !this.numPages) return null
+      const doc = await this.pdfDocInitParams.promise
+      const chapters = []
+      for (let pageNum = 1; pageNum <= this.numPages; pageNum++) {
+        const page = await doc.getPage(pageNum)
+        const textContent = await page.getTextContent()
+        const text = this.ttsTextFromContent(textContent)
+        if (!text) continue
+        chapters.push({
+          title: String(pageNum),
+          startLocation: String(pageNum),
+          paragraphs: [{ text, location: String(pageNum), chars: text.length }]
+        })
+      }
+      return { ebookFormat: 'pdf', chapters }
+    },
+    /** Native TTS hook: start at the first chapter at/after the current page */
+    ttsNativeStartPosition(book) {
+      const chapterIndex = book.chapters.findIndex((c) => Number(c.startLocation) >= this.page)
+      return { chapterIndex: Math.max(0, chapterIndex), paragraphIndex: 0 }
+    },
+    /** Native TTS hook: turn to the spoken page */
+    ttsNativeFollow(event) {
+      const pageNum = Number(event.location)
+      if (pageNum && pageNum !== this.page) {
+        this.page = pageNum
+        this.updateProgress()
+      }
+    },
     /** Reconstruct plain text from the pdfjs text layer items */
     ttsTextFromContent(textContent) {
       // Group items into lines by their y coordinate

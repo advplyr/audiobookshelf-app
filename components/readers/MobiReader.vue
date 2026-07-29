@@ -44,6 +44,33 @@ export default {
       })
       return Math.max(0, startIndex)
     },
+    /** Native TTS hook: the whole book is one chapter; location is the paragraph index */
+    ttsExtractBook() {
+      const iframe = document.getElementsByTagName('iframe')[0]
+      const paragraphs = this.ttsCollectHtmlParagraphs(iframe?.contentDocument?.body)
+      this.ttsNativeElements = paragraphs.map((p) => p.ref)
+      if (!paragraphs.length) return { ebookFormat: 'mobi', chapters: [] }
+      return {
+        ebookFormat: 'mobi',
+        chapters: [
+          {
+            title: '',
+            startLocation: '',
+            paragraphs: paragraphs.map((p, index) => ({ text: p.text, location: String(index), chars: p.text.length }))
+          }
+        ]
+      }
+    },
+    /** Native TTS hook: start from the paragraph at the current scroll position */
+    ttsNativeStartPosition() {
+      const paragraphs = (this.ttsNativeElements || []).map((ref) => ({ ref }))
+      return { chapterIndex: 0, paragraphIndex: this.ttsStartIndex(paragraphs) }
+    },
+    /** Native TTS hook: scroll along with the spoken paragraph */
+    ttsNativeFollow(event) {
+      const el = this.ttsNativeElements?.[event.paragraphIndex]
+      if (el) this.ttsFollowParagraph({ ref: el })
+    },
     /** TTS hook: scroll the spoken paragraph into view */
     ttsFollowParagraph(paragraph) {
       const rect = paragraph.ref?.getBoundingClientRect?.()

@@ -60,6 +60,11 @@ const val SLEEP_TIMER_WAKE_UP_EXPIRATION = 120000L // 2m
 const val PLAYER_CAST = "cast-player"
 const val PLAYER_EXO = "exo-player"
 
+// Read aloud (TTS) player actions + notification id (see docs/native-tts-player-design.md)
+const val ACTION_TTS_PLAY_PAUSE = "com.audiobookshelf.app.ACTION_TTS_PLAY_PAUSE"
+const val ACTION_TTS_STOP = "com.audiobookshelf.app.ACTION_TTS_STOP"
+const val TTS_NOTIFICATION_ID = 11
+
 class PlayerNotificationService : MediaBrowserServiceCompat() {
 
   companion object {
@@ -160,12 +165,150 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
     isStarted = true
     Log.d(tag, "onStartCommand $startId")
 
+    // Read aloud (TTS) notification actions
+    when (intent?.action) {
+      ACTION_TTS_PLAY_PAUSE -> ttsEngine?.let {
+        if (it.state == TTSPlaybackEngine.TTSState.PLAYING) it.pause() else it.play()
+      }
+      ACTION_TTS_STOP -> ttsEngine?.stop()
+    }
+
     return START_STICKY
   }
 
   @Deprecated("Deprecated in Java")
   override fun onStart(intent: Intent?, startId: Int) {
     Log.d(tag, "onStart $startId")
+  }
+
+  //
+  // Read aloud (TTS) player - speaks extracted ebook text with the system
+  // voices in this foreground service so playback survives the screen
+  // turning off. See docs/native-tts-player-design.md
+  //
+  interface TTSClientEventEmitter {
+    fun onTTSStateChange(state: String)
+    fun onTTSParagraph(chapterIndex: Int, paragraphIndex: Int, location: String?, progress: Double)
+    fun onTTSError(message: String)
+  }
+
+  var ttsClientEventEmitter: TTSClientEventEmitter? = null
+  val ttsBookCache by lazy { TTSBookCache(this) }
+  var ttsEngine: TTSPlaybackEngine? = null
+    private set
+
+  fun getTTSEngine(): TTSPlaybackEngine {
+    if (ttsEngine == null) {
+      ttsEngine = TTSPlaybackEngine(this, object : TTSPlaybackEngine.Listener {
+        override fun onTTSStateChange(state: TTSPlaybackEngine.TTSState) {
+          when (state) {
+            TTSPlaybackEngine.TTSState.PLAYING, TTSPlaybackEngine.TTSState.PAUSED -> updateTTSNotification()
+            TTSPlaybackEngine.TTSState.STOPPED -> stopTTSForeground()
+          }
+          ttsClientEventEmitter?.onTTSStateChange(state.value)
+        }
+
+        override fun onTTSParagraph(chapterIndex: Int, paragraphIndex: Int, location: String?, progress: Double) {
+          ttsClientEventEmitter?.onTTSParagraph(chapterIndex, paragraphIndex, location, progress)
+        }
+
+        override fun onTTSError(message: String) {
+          ttsClientEventEmitter?.onTTSError(message)
+        }
+      })
+    }
+    return ttsEngine!!
+  }
+
+  fun prepareTTSBook(book: TTSBook) {
+    ttsBookCache.save(book)
+    getTTSEngine().prepare(book)
+  }
+
+  fun playTTS(libraryItemId: String?, chapterIndex: Int?, paragraphIndex: Int?) {
+    val engine = getTTSEngine()
+    // When a different (or no) book is loaded, load it from the cache -
+    // this is the path used when a book is picked without the WebView
+    if (!libraryItemId.isNullOrEmpty() && engine.book?.libraryItemId != libraryItemId) {
+      val cached = ttsBookCache.load(libraryItemId)
+      if (cached == null) {
+        ttsClientEventEmitter?.onTTSError("Book not found in cache")
+        return
+      }
+      engine.prepare(cached)
+    }
+
+    // TTS and audio playback share the audio output - pause any playing audio
+    if (this::currentPlayer.isInitialized && currentPlayer.isPlaying) {
+      currentPlayer.pause()
+    }
+
+    if (!isStarted) {
+      ContextCompat.startForegroundService(this, Intent(this, PlayerNotificationService::class.java))
+    }
+
+    engine.play(chapterIndex, paragraphIndex)
+  }
+
+  private fun buildTTSNotification(): Notification {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+      createNotificationChannel(channelId, channelName)
+    }
+    val engine = ttsEngine
+    val isPlaying = engine?.state == TTSPlaybackEngine.TTSState.PLAYING
+
+    val playPauseIntent = PendingIntent.getService(
+      this, 0,
+      Intent(this, PlayerNotificationService::class.java).setAction(ACTION_TTS_PLAY_PAUSE),
+      PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+    )
+    val stopIntent = PendingIntent.getService(
+      this, 1,
+      Intent(this, PlayerNotificationService::class.java).setAction(ACTION_TTS_STOP),
+      PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+    )
+
+    return NotificationCompat.Builder(this, channelId)
+      .setContentTitle(engine?.book?.title ?: "")
+      .setContentText(engine?.book?.author ?: "")
+      .setSmallIcon(R.drawable.icon_monochrome)
+      .setOngoing(isPlaying)
+      .setOnlyAlertOnce(true)
+      .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+      .addAction(
+        if (isPlaying) R.drawable.exo_icon_pause else R.drawable.exo_icon_play,
+        if (isPlaying) "Pause" else "Play",
+        playPauseIntent
+      )
+      .addAction(R.drawable.exo_icon_stop, "Stop", stopIntent)
+      .setStyle(
+        androidx.media.app.NotificationCompat.MediaStyle()
+          .setMediaSession(mediaSession.sessionToken)
+          .setShowActionsInCompactView(0, 1)
+      )
+      .build()
+  }
+
+  private fun updateTTSNotification() {
+    val notification = buildTTSNotification()
+    if (!PlayerNotificationListener.isForegroundService) {
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+        startForeground(TTS_NOTIFICATION_ID, notification, android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK)
+      } else {
+        startForeground(TTS_NOTIFICATION_ID, notification)
+      }
+    } else {
+      val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+      notificationManager.notify(TTS_NOTIFICATION_ID, notification)
+    }
+  }
+
+  private fun stopTTSForeground() {
+    val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+    notificationManager.cancel(TTS_NOTIFICATION_ID)
+    if (!PlayerNotificationListener.isForegroundService) {
+      stopForeground(Service.STOP_FOREGROUND_REMOVE)
+    }
   }
 
   @RequiresApi(Build.VERSION_CODES.O)
@@ -196,6 +339,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
     playerNotificationManager.setPlayer(null)
     mPlayer.release()
     castPlayer?.release()
+    ttsEngine?.release()
     mediaSession.release()
     mediaProgressSyncer.reset()
 
