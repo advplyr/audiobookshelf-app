@@ -206,3 +206,171 @@ nativní vrstva není dostupná (např. starý build), a pro okamžité čtení 
 - **Upstream:** pokud má jít o příspěvek do upstream `advplyr/audiobookshelf-app`,
   je vhodné návrh probrat s maintainerem předem (touch points:
   `PlayerNotificationService`, `BrowseTree` — místa s aktivním vývojem).
+
+---
+
+## Příloha A: Implementační specifikace fáze F1 (+ F2)
+
+Cíl F1: předčítání běží v nativní službě na Androidu — přežije zhasnutou
+obrazovku, má notifikaci s ovládáním a media session. F2 na to navazuje
+kategorií v Android Auto.
+
+### A.1 Seznam změn po souborech
+
+**JavaScript (sdílené pro obě platformy):**
+
+| Soubor | Změna |
+| --- | --- |
+| `plugins/capacitor/AbsTTSPlayer.js` | **nový** — `registerPlugin('AbsTTSPlayer')` + web/fallback implementace: pokud nativní plugin není dostupný, deleguje na dnešní JS smyčku z mixinu (zachová funkčnost na starých buildech) |
+| `plugins/capacitor/index.js` | export nového pluginu |
+| `mixins/ttsPlayer.js` | řídicí smyčka se nahradí voláními `AbsTTSPlayer`; hooky pro extrakci a follow-along zůstávají; přibude `ttsExtractBook()` — extrakce **celé knihy** (ne jen aktuální jednotky) do `TTSBook` payloadu |
+| `components/readers/EpubReader.vue` | `ttsExtractBook()`: průchod spine přes `book.spine.each` + `section.load()` (bez renderování — netřeba zobrazovat, stačí DOM), odstavce + cfi per sekce |
+| `components/readers/MobiReader.vue` | `ttsExtractBook()`: celý dokument = jedna kapitola (případně dělení podle `h1/h2`) |
+| `components/readers/PdfReader.vue` | `ttsExtractBook()`: `getTextContent()` všech stránek; kapitola = stránka |
+| `components/readers/Reader.vue` | beze změn UI; lišta volá stejné metody (mixin je přesměruje na plugin) |
+
+**Android:**
+
+| Soubor | Změna |
+| --- | --- |
+| `plugins/AbsTTSPlayer.kt` | **nový** — Capacitor bridge: `prepareBook`, `play`, `pause`, `stop`, `seekTo`, `nextChapter`, `prevChapter`, `setRate`, `setLanguage`, `getState`, `listCachedBooks`, `removeCachedBook`; eventy `onParagraph`, `onStateChange` přes `notifyListeners` |
+| `player/TTSPlaybackEngine.kt` | **nový** — vlastní engine (viz A.2) |
+| `player/TTSBookCache.kt` | **nový** — JSON cache + LRU (viz A.4) |
+| `data/TTSBook.kt` | **nový** — Jackson data classes `TTSBook/TTSChapter/TTSParagraph` (stejný styl jako `DeviceClasses.kt`) |
+| `player/PlayerNotificationService.kt` | režim `AUDIO / TTS`; start TTS zastaví ExoPlayer a naopak; playback state + metadata z enginu |
+| `player/MediaSessionCallback.kt` | routing callbacků do enginu v TTS režimu; `onPlayFromMediaId` pro `ebook__` id (F2) |
+| `player/BrowseTree.kt` | (F2) kategorie „E-knihy“ z `TTSBookCache.list()` |
+| `MainActivity.kt` | `registerPlugin(AbsTTSPlayer::class.java)` |
+
+**iOS (F3, mimo rozsah F1):** `App/plugins/AbsTTSPlayer.swift` (`CAPBridgedPlugin`),
+`Shared/player/TTSPlayer.swift` — stejný kontrakt pluginu, do té doby na iOS
+běží web fallback z `AbsTTSPlayer.js` (= dnešní chování v1).
+
+### A.2 `TTSPlaybackEngine` (Kotlin) — návrh třídy
+
+```kotlin
+class TTSPlaybackEngine(
+  val context: Context,
+  val listener: Listener            // implementuje PlayerNotificationService
+) : TextToSpeech.OnInitListener {
+
+  interface Listener {
+    fun onTTSStateChange(state: TTSState)          // → media session + notifikace + JS event
+    fun onTTSParagraph(chapterIdx: Int, paragraphIdx: Int, location: String?)
+  }
+
+  private var tts: TextToSpeech? = null            // lazy init, onInit -> READY
+  private var book: TTSBook? = null
+  private var chapterIndex = 0
+  private var paragraphIndex = 0
+  private var chunkQueue: ArrayDeque<String> = ArrayDeque()  // věty aktuálního odstavce
+  private var sessionId = 0                        // stejný „session guard“ jako v JS v1
+  var rate: Float = 1f
+  var language: String = "en-US"
+  var state: TTSState = STOPPED                    // STOPPED | PLAYING | PAUSED
+
+  fun prepare(book: TTSBook, startChapter: Int, startParagraph: Int)
+  fun play(); fun pause(); fun stop()
+  fun seekTo(chapter: Int, paragraph: Int)
+  fun seekParagraph(delta: Int)                    // pro skip ±  z notifikace/BT
+  fun setPlaybackRate(r: Float)                    // tts.setSpeechRate + přepočet času
+
+  // interní tok:
+  // speakNextChunk(): utteranceId = "$sessionId-$chapterIndex-$paragraphIndex-$chunkIdx"
+  //   tts.speak(chunk, QUEUE_FLUSH, params, utteranceId)
+  // UtteranceProgressListener.onDone(id):
+  //   - id nepatří aktuální session -> ignoruj (guard)
+  //   - další chunk / další odstavec (emit onTTSParagraph) / další kapitola / konec -> stop
+  // chunkování: port splitTextChunks() z mixins/ttsPlayer.js (~300 znaků, hranice vět)
+
+  // odhad času pro media session (A.3):
+  // positionMs = (charsSpokenBefore / CHARS_PER_SEC / rate) * 1000
+  // durationMs = (book.totalChars / CHARS_PER_SEC / rate) * 1000, CHARS_PER_SEC ≈ 15
+}
+```
+
+Zásady:
+
+- `TextToSpeech` init je async — volání `play()` před `onInit` se zařadí a
+  provede po READY; chybový stav initu → JS event + toast.
+- Jazyk: `tts.setLanguage(Locale.forLanguageTag(language))`; návratový kód
+  `LANG_MISSING_DATA / LANG_NOT_SUPPORTED` → event `onStateChange(error=…)`,
+  JS ukáže existující toast `MessageReadAloudNoVoice`.
+- Engine sám nic nekreslí ani nesynchronizuje — jen mluví a hlásí pozici.
+
+### A.3 Media session mapping (TTS režim)
+
+| MediaSession callback | Akce enginu |
+| --- | --- |
+| `onPlay` / `onPause` | `play()` / `pause()` |
+| `onStop` | `stop()` + ukončení TTS session (zpět do AUDIO režimu) |
+| `onSkipToNext` / `onSkipToPrevious` | `seekTo(chapter±1, 0)` |
+| `onFastForward` / `onRewind` | `seekParagraph(+1)` / `seekParagraph(-1)` |
+| `onSeekTo(pos)` | pos → znaky → nejbližší odstavec → `seekTo` |
+| `onSetPlaybackSpeed(speed)` | `setPlaybackRate` |
+
+Metadata: `METADATA_KEY_TITLE` = titul knihy, `ARTIST` = autor,
+`ALBUM` = název kapitoly, `ART` = obálka z cache, `DURATION` = odhad (A.2).
+`PlaybackState` přepíná `STATE_PLAYING/PAUSED/STOPPED` podle enginu.
+
+### A.4 `TTSBookCache`
+
+- Adresář `filesDir/tts-cache/`, soubor `<libraryItemId>.json`
+  (serializovaný `TTSBook`) + `<libraryItemId>.meta.json` (titul, autor,
+  cesta k obálce, totalChars, lastAccessed — kvůli rychlému listování bez
+  načítání celé knihy).
+- `prepareBook` přepíše obě části a aktualizuje `lastAccessed`.
+- LRU limit: max ~20 knih nebo 50 MB (konfigurovatelné konstanty) — při
+  překročení se maže nejstarší `lastAccessed` (stejný princip jako epub
+  locations cache v JS).
+- Obálka: zkopíruje se do cache (Android Auto ji potřebuje i bez serveru).
+
+### A.5 Klíčové toky
+
+**Start ze čtečky:** čtečka `ttsExtractBook()` → `prepareBook(book)`
+(uloží cache, připraví session) → `play({chapterIndex, paragraphIndex})` →
+služba přejde do TTS režimu (zastaví případné audio), foreground notifikace,
+engine mluví → `onParagraph` eventy → otevřená čtečka listuje follow-along.
+
+**Zhasnutá obrazovka:** WebView se suspenduje, engine ve foreground službě
+jede dál; po odemknutí čtečka z `getState()` dorovná pozici.
+
+**Start z Android Auto (F2):** browse „E-knihy“ → `onPlayFromMediaId("ebook__<id>")`
+→ `TTSBookCache.load(id)` → `prepare` od poslední pozice (z uloženého
+progressu) → `play`. Aplikace nemusí být otevřená.
+
+**Konec knihy:** engine `stop()` + `onStateChange(STOPPED, endOfBook=true)` →
+progress 100 %, notifikace zmizí, služba se vrátí do AUDIO režimu.
+
+### A.6 Synchronizace průběhu
+
+Po každém odstavci engine spočítá `ebookLocation` (location odstavce) a
+`ebookProgress = charsSpokenTotal / totalChars`; zápis lokálně (Realm/DB
+stejně jako `updateLocalEbookProgress`) a na server `PATCH /api/me/progress/:id`
+— **throttling 15 s** jako u audia (`MediaProgressSyncer` vzor). Formát je
+identický s tím, co ukládá čtečka → obousměrná návaznost čtení/poslech.
+
+### A.7 Pravidla fallbacku v JS
+
+```js
+const useNative = Capacitor.getPlatform() === 'android'   // F1
+  && Capacitor.isPluginAvailable('AbsTTSPlayer')
+// jinak: dnešní WebView smyčka (mixin) — iOS do F3, staré buildy, web
+```
+
+Mixin API vůči čtečkám i `Reader.vue` liště se nemění — přepnutí je
+transparentní.
+
+### A.8 Testovací plán F1
+
+- **Unit (Kotlin):** chunker (parita s JS `splitTextChunks` na sadě českých
+  a anglických textů vč. zkratek a dlouhých vět), výpočet pozice/odhadu času,
+  LRU cache.
+- **Manuální matice:** zhasnutá obrazovka 30+ min / Doze (`adb shell dumpsys
+  deviceidle force-idle`) / BT ovládání / přepnutí audio↔TTS / změna rychlosti
+  a jazyka za běhu / kniha bez českého hlasu / prázdné kapitoly / restart
+  služby systémem (`onStartCommand` recovery).
+- **Android Auto (F2):** Desktop Head Unit (DHU) — browse, výběr, ovládání,
+  metadata, obnovení po odpojení.
+- **Regrese:** přehrávání audioknih (focus, notifikace, Cast) nesmí být
+  TTS režimem dotčeno.
