@@ -11,7 +11,8 @@
 </template>
 
 <script>
-import ePub from 'epubjs'
+import ePub, { EpubCFI } from 'epubjs'
+import { TextToSpeech } from '@capacitor-community/text-to-speech'
 
 export default {
   props: {
@@ -35,12 +36,21 @@ export default {
       currentLocationCfi: null,
       inittingDisplay: true,
       isRefreshingUI: false,
+      ttsState: 'stopped',
+      ttsSessionId: 0,
+      ttsSectionIndex: 0,
+      ttsParagraphs: [],
+      ttsParagraphIndex: 0,
+      ttsChunks: [],
+      ttsChunkIndex: 0,
       ereaderSettings: {
         theme: 'dark',
         font: 'serif',
         fontScale: 100,
         lineSpacing: 115,
-        textStroke: 0
+        textStroke: 0,
+        ttsLanguage: 'en-US',
+        ttsRate: 1
       }
     }
   },
@@ -127,7 +137,19 @@ export default {
   },
   methods: {
     updateSettings(settings) {
+      const ttsChanged = settings.ttsLanguage !== this.ereaderSettings.ttsLanguage || settings.ttsRate !== this.ereaderSettings.ttsRate
+
       this.ereaderSettings = settings
+
+      if (ttsChanged && this.ttsState === 'playing') {
+        // Restart the current chunk so the new voice/rate takes effect immediately
+        this.ttsSessionId++
+        TextToSpeech.stop()
+          .catch(() => {})
+          .finally(() => {
+            if (this.ttsState === 'playing') this.speakNextChunk()
+          })
+      }
 
       if (!this.rendition) return
 
@@ -140,6 +162,224 @@ export default {
     },
     goToChapter(href) {
       return this.rendition?.display(href)
+    },
+    /**
+     * Read aloud (TTS) of the epub text using the device system voices.
+     * Text is extracted from the rendered section, split into sentence-sized
+     * chunks and spoken sequentially. The displayed page follows along.
+     */
+    async startTTS() {
+      const location = this.rendition?.currentLocation()
+      if (!location?.start) return
+
+      this.ttsSessionId++
+      await TextToSpeech.stop().catch(() => {})
+
+      const lang = this.ereaderSettings.ttsLanguage || 'en-US'
+      TextToSpeech.isLanguageSupported({ lang })
+        .then((result) => {
+          if (!result.supported) {
+            this.$toast.warning(this.$strings.MessageReadAloudNoVoice)
+          }
+        })
+        .catch(() => {})
+
+      this.ttsSectionIndex = location.start.index
+      const contents = this.getTTSSectionContents()
+      if (!contents) return
+      this.ttsParagraphs = this.collectTTSParagraphs(contents)
+      if (!this.ttsParagraphs.length) {
+        this.$toast.error(this.$strings.MessageReadAloudNoText)
+        return
+      }
+
+      // Start from the first paragraph on the currently visible page
+      const cfiCompare = new EpubCFI()
+      let startIndex = this.ttsParagraphs.findIndex((p) => {
+        try {
+          return cfiCompare.compare(p.cfi, location.start.cfi) >= 0
+        } catch (error) {
+          return false
+        }
+      })
+      if (startIndex < 0) startIndex = this.ttsParagraphs.length - 1
+
+      this.ttsParagraphIndex = startIndex
+      this.ttsState = 'playing'
+      this.$emit('tts-state', 'playing')
+      this.speakCurrentParagraph()
+    },
+    pauseTTS() {
+      if (this.ttsState !== 'playing') return
+      this.ttsState = 'paused'
+      this.ttsSessionId++
+      TextToSpeech.stop().catch(() => {})
+      this.$emit('tts-state', 'paused')
+    },
+    resumeTTS() {
+      if (this.ttsState !== 'paused') return
+      this.ttsState = 'playing'
+      this.$emit('tts-state', 'playing')
+      this.speakNextChunk()
+    },
+    stopTTS() {
+      const wasActive = this.ttsState !== 'stopped'
+      this.ttsState = 'stopped'
+      this.ttsSessionId++
+      TextToSpeech.stop().catch(() => {})
+      this.ttsParagraphs = []
+      this.ttsParagraphIndex = 0
+      this.ttsChunks = []
+      this.ttsChunkIndex = 0
+      if (wasActive) this.$emit('tts-state', 'stopped')
+    },
+    speakCurrentParagraph() {
+      const paragraph = this.ttsParagraphs[this.ttsParagraphIndex]
+      if (!paragraph) {
+        this.ttsNextSection()
+        return
+      }
+      this.ttsFollowLocation(paragraph.cfi)
+      this.ttsChunks = this.splitTextChunks(paragraph.text)
+      this.ttsChunkIndex = 0
+      this.speakNextChunk()
+    },
+    async speakNextChunk() {
+      if (this.ttsState !== 'playing') return
+
+      if (this.ttsChunkIndex >= this.ttsChunks.length) {
+        this.ttsParagraphIndex++
+        if (this.ttsParagraphIndex >= this.ttsParagraphs.length) {
+          this.ttsNextSection()
+        } else {
+          this.speakCurrentParagraph()
+        }
+        return
+      }
+
+      const session = this.ttsSessionId
+      try {
+        await TextToSpeech.speak({
+          text: this.ttsChunks[this.ttsChunkIndex],
+          lang: this.ereaderSettings.ttsLanguage || 'en-US',
+          rate: this.ereaderSettings.ttsRate || 1,
+          category: 'playback'
+        })
+      } catch (error) {
+        // Rejection is expected when speech gets interrupted by stop()
+        if (session !== this.ttsSessionId || this.ttsState !== 'playing') return
+        console.error('[EpubReader] TTS speak failed', error)
+        this.$toast.error(this.$strings.MessageReadAloudFailed)
+        this.stopTTS()
+        return
+      }
+      if (session !== this.ttsSessionId || this.ttsState !== 'playing') return
+
+      this.ttsChunkIndex++
+      this.speakNextChunk()
+    },
+    async ttsNextSection() {
+      if (this.ttsState !== 'playing') return
+
+      // Skip sections with no readable text (e.g. cover/image pages)
+      let nextSection = this.book.spine.get(this.ttsSectionIndex + 1)
+      while (nextSection) {
+        this.ttsSectionIndex = nextSection.index
+        const session = this.ttsSessionId
+        await this.rendition.display(nextSection.href).catch((error) => {
+          console.error('[EpubReader] TTS failed to display section', error)
+        })
+        if (session !== this.ttsSessionId || this.ttsState !== 'playing') return
+
+        const contents = this.getTTSSectionContents()
+        const paragraphs = contents ? this.collectTTSParagraphs(contents) : []
+        if (paragraphs.length) {
+          this.ttsParagraphs = paragraphs
+          this.ttsParagraphIndex = 0
+          this.speakCurrentParagraph()
+          return
+        }
+        nextSection = this.book.spine.get(this.ttsSectionIndex + 1)
+      }
+
+      // Reached the end of the book
+      this.stopTTS()
+    },
+    getTTSSectionContents() {
+      const contents = this.rendition?.getContents() || []
+      return contents.find((c) => c.sectionIndex === this.ttsSectionIndex) || contents[0] || null
+    },
+    /** @returns {Array<{ text: string, cfi: string }>} */
+    collectTTSParagraphs(contents) {
+      const textElementsSelector = 'p, h1, h2, h3, h4, h5, h6, li, blockquote, figcaption, dt, dd'
+      const paragraphs = []
+      const elements = contents.document?.body?.querySelectorAll(textElementsSelector) || []
+      elements.forEach((el) => {
+        // Skip elements nested inside another matched element to avoid reading text twice
+        if (el.parentElement?.closest(textElementsSelector)) return
+        const text = (el.innerText || el.textContent || '').trim()
+        if (!text) return
+        try {
+          paragraphs.push({ text, cfi: contents.cfiFromNode(el) })
+        } catch (error) {
+          console.error('[EpubReader] TTS failed to get cfi for element', error)
+        }
+      })
+
+      // Fallback for epubs not using standard text elements
+      if (!paragraphs.length) {
+        const bodyText = (contents.document?.body?.innerText || '').trim()
+        if (bodyText) {
+          paragraphs.push({ text: bodyText, cfi: null })
+        }
+      }
+      return paragraphs
+    },
+    /** Turn the page when the spoken paragraph is not on the visible page */
+    ttsFollowLocation(cfi) {
+      if (!cfi) return
+      const location = this.rendition?.currentLocation()
+      if (!location?.start?.cfi || !location?.end?.cfi) return
+      try {
+        const cfiCompare = new EpubCFI()
+        if (cfiCompare.compare(cfi, location.end.cfi) >= 0 || cfiCompare.compare(cfi, location.start.cfi) < 0) {
+          this.rendition.display(cfi).catch((error) => {
+            console.error('[EpubReader] TTS failed to follow location', error)
+          })
+        }
+      } catch (error) {
+        console.error('[EpubReader] TTS failed to compare locations', error)
+      }
+    },
+    /**
+     * Native TTS engines limit utterance length and cannot be interrupted
+     * mid-utterance on all platforms, so speak in sentence-sized chunks
+     * @returns {string[]}
+     */
+    splitTextChunks(text, maxLength = 300) {
+      const chunks = []
+      const sentences = text.match(/[^.!?…]+[.!?…]+["'”’)]*\s*|[^.!?…]+$/g) || [text]
+      let current = ''
+      for (const sentence of sentences) {
+        if (current && current.length + sentence.length > maxLength) {
+          chunks.push(current)
+          current = ''
+        }
+        if (sentence.length > maxLength) {
+          let remaining = sentence.trim()
+          while (remaining.length > maxLength) {
+            let cut = remaining.lastIndexOf(' ', maxLength)
+            if (cut <= 0) cut = maxLength
+            chunks.push(remaining.slice(0, cut))
+            remaining = remaining.slice(cut)
+          }
+          current = remaining
+        } else {
+          current += sentence
+        }
+      }
+      if (current) chunks.push(current)
+      return chunks.map((c) => c.trim()).filter((c) => c)
     },
     prev() {
       if (this.rendition) {
@@ -432,6 +672,7 @@ export default {
     window.addEventListener('resize', this.screenOrientationChange)
   },
   beforeDestroy() {
+    this.stopTTS()
     this.book?.destroy()
 
     if (screen.orientation) {

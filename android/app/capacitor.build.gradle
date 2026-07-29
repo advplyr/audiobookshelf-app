@@ -11,6 +11,7 @@ apply from: "../capacitor-cordova-android-plugins/cordova.variables.gradle"
 dependencies {
     implementation project(':webnativellc-capacitor-filesharer')
     implementation project(':capacitor-community-keep-awake')
+    implementation project(':capacitor-community-text-to-speech')
     implementation project(':capacitor-community-volume-buttons')
     implementation project(':capacitor-app')
     implementation project(':capacitor-browser')

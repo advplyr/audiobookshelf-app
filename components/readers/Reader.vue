@@ -10,6 +10,9 @@
         <button v-if="isComic || isEpub" type="button" class="inline-flex mx-2" @click.stop="clickTOCBtn">
           <span class="material-symbols text-2xl text-fg">format_list_bulleted</span>
         </button>
+        <button v-if="isEpub" type="button" class="inline-flex mx-2" @click.stop="clickTTSBtn">
+          <span class="material-symbols text-2xl" :class="showTTSBar ? 'text-warning' : 'text-fg'">record_voice_over</span>
+        </button>
         <button v-if="isEpub" type="button" class="inline-flex mx-2" @click.stop="clickSettingsBtn">
           <span class="material-symbols text-2xl text-fg">settings</span>
         </button>
@@ -22,7 +25,28 @@
     </div>
 
     <!-- ereader -->
-    <component v-if="readerComponentName" ref="readerComponent" :is="readerComponentName" :url="ebookUrl" :library-item="selectedLibraryItem" :is-local="isLocal" :keep-progress="keepProgress" :showing-toolbar="showingToolbar" @touchstart="touchstart" @touchend="touchend" @loaded="readerLoaded" @hook:mounted="readerMounted" />
+    <component v-if="readerComponentName" ref="readerComponent" :is="readerComponentName" :url="ebookUrl" :library-item="selectedLibraryItem" :is-local="isLocal" :keep-progress="keepProgress" :showing-toolbar="showingToolbar" @touchstart="touchstart" @touchend="touchend" @loaded="readerLoaded" @hook:mounted="readerMounted" @tts-state="ttsStateChanged" />
+
+    <!-- read aloud (TTS) bar -->
+    <div v-if="showTTSBar && isEpub" class="fixed left-0 w-full z-30 px-4 py-2 flex items-center bg-bg text-fg" :style="{ bottom: ttsBarBottom, boxShadow: '0px -8px 8px #11111155' }" @touchstart.stop @mousedown.stop @touchend.stop @mouseup.stop>
+      <button type="button" :aria-label="$strings.ButtonPlay" class="inline-flex mx-1" @click.stop="clickTTSPlayPause">
+        <span class="material-symbols fill text-4xl text-fg">{{ ttsState === 'playing' ? 'pause_circle' : 'play_circle' }}</span>
+      </button>
+      <button type="button" :aria-label="$strings.ButtonStop" class="inline-flex mx-1" :class="ttsState === 'stopped' ? 'opacity-40' : ''" :disabled="ttsState === 'stopped'" @click.stop="clickTTSStop">
+        <span class="material-symbols text-4xl text-fg">stop</span>
+      </button>
+      <div class="flex-grow" />
+      <ui-toggle-btns v-model="ereaderSettings.ttsLanguage" name="tts-language" :items="ttsLanguageItems" @input="settingsUpdated" />
+      <div class="flex items-center ml-3">
+        <button type="button" class="inline-flex" @click.stop="setTTSRate(-0.25)">
+          <span class="material-symbols text-2xl text-fg">remove</span>
+        </button>
+        <p class="text-sm w-10 text-center">{{ ereaderSettings.ttsRate }}×</p>
+        <button type="button" class="inline-flex" @click.stop="setTTSRate(0.25)">
+          <span class="material-symbols text-2xl text-fg">add</span>
+        </button>
+      </div>
+    </div>
 
     <!-- table of contents modal -->
     <modals-fullscreen-modal v-model="showTOCModal" :theme="ereaderTheme">
@@ -142,6 +166,8 @@ export default {
       showingToolbar: false,
       showTOCModal: false,
       showSettingsModal: false,
+      showTTSBar: false,
+      ttsState: 'stopped',
       comicHasMetadata: false,
       chapters: [],
       isInittingWatchVolume: false,
@@ -154,7 +180,9 @@ export default {
         textStroke: 0,
         navigateWithVolume: 'enabled',
         navigateWithVolumeWhilePlaying: false,
-        keepScreenAwake: false
+        keepScreenAwake: false,
+        ttsLanguage: 'en-US',
+        ttsRate: 1
       }
     }
   },
@@ -168,6 +196,8 @@ export default {
         } else {
           this.unregisterListeners()
           this.$showHideStatusBar(true)
+          this.showTTSBar = false
+          this.ttsState = 'stopped'
         }
       }
     },
@@ -233,6 +263,21 @@ export default {
           value: 'none'
         }
       ]
+    },
+    ttsLanguageItems() {
+      return [
+        {
+          text: 'CZ',
+          value: 'cs-CZ'
+        },
+        {
+          text: 'EN',
+          value: 'en-US'
+        }
+      ]
+    },
+    ttsBarBottom() {
+      return this.isPlayerOpen ? '152px' : '32px'
     },
     onOffToggleButtonItems() {
       return [
@@ -345,7 +390,8 @@ export default {
   },
   methods: {
     settingsUpdated() {
-      this.$refs.readerComponent?.updateSettings?.(this.ereaderSettings)
+      // Pass a copy so the reader component can detect which settings changed
+      this.$refs.readerComponent?.updateSettings?.({ ...this.ereaderSettings })
       localStorage.setItem('ereaderSettings', JSON.stringify(this.ereaderSettings))
 
       this.initWatchVolume()
@@ -380,6 +426,38 @@ export default {
     clickSettingsBtn() {
       this.hideToolbar()
       this.showSettingsModal = true
+    },
+    clickTTSBtn() {
+      this.hideToolbar()
+      if (this.showTTSBar) {
+        this.$refs.readerComponent?.stopTTS?.()
+        this.showTTSBar = false
+      } else {
+        this.showTTSBar = true
+      }
+    },
+    clickTTSPlayPause() {
+      const reader = this.$refs.readerComponent
+      if (!reader?.startTTS) return
+      if (this.ttsState === 'playing') {
+        reader.pauseTTS()
+      } else if (this.ttsState === 'paused') {
+        reader.resumeTTS()
+      } else {
+        reader.startTTS()
+      }
+    },
+    clickTTSStop() {
+      this.$refs.readerComponent?.stopTTS?.()
+    },
+    setTTSRate(delta) {
+      const newRate = Math.round((this.ereaderSettings.ttsRate + delta) * 100) / 100
+      if (newRate < 0.5 || newRate > 2.5) return
+      this.ereaderSettings.ttsRate = newRate
+      this.settingsUpdated()
+    },
+    ttsStateChanged(state) {
+      this.ttsState = state
     },
     next() {
       if (this.$refs.readerComponent && this.$refs.readerComponent.next) {
