@@ -7,6 +7,8 @@ import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ServiceInfo
+import android.os.Build
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import com.audiobookshelf.app.R
@@ -17,14 +19,17 @@ class DownloadService : Service() {
   override fun onCreate() {
     super.onCreate()
     createChannel()
-    startForeground(NOTIFICATION_ID, notification(DownloadServiceHost.notificationStrings(this).preparing))
+    startForegroundWithType(DownloadServiceHost.notificationStrings(this).preparing)
     DownloadServiceHost.attachService(this)
   }
 
   override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
     when (intent?.action) {
       ACTION_CANCEL -> DownloadServiceHost.cancelAll(this)
-      else -> DownloadServiceHost.ensure(this)
+      else -> {
+        startForegroundWithType(DownloadServiceHost.notificationStrings(this).preparing)
+        DownloadServiceHost.ensure(this)
+      }
     }
     return START_STICKY
   }
@@ -50,6 +55,15 @@ class DownloadService : Service() {
     if (!hasWork) {
       stopForeground(STOP_FOREGROUND_REMOVE)
       stopSelf()
+    }
+  }
+
+  private fun startForegroundWithType(text: String) {
+    val notification = notification(text)
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+      startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
+    } else {
+      startForeground(NOTIFICATION_ID, notification)
     }
   }
 
