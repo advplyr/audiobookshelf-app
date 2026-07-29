@@ -10,8 +10,10 @@
 import MobiParser from '@/assets/ebooks/mobi.js'
 import HtmlParser from '@/assets/ebooks/htmlParser.js'
 import defaultCss from '@/assets/ebooks/basic.js'
+import TTSPlayer from '@/mixins/ttsPlayer'
 
 export default {
+  mixins: [TTSPlayer],
   props: {
     url: String,
     libraryItem: {
@@ -24,6 +26,34 @@ export default {
   },
   computed: {},
   methods: {
+    /**
+     * TTS hook: paragraphs from the rendered book iframe. The whole book is
+     * a single document, so there is only one unit and no ttsAdvanceUnit.
+     * Paragraph `ref` is the element, used for scroll position and follow.
+     */
+    ttsCollectParagraphs() {
+      const iframe = document.getElementsByTagName('iframe')[0]
+      return this.ttsCollectHtmlParagraphs(iframe?.contentDocument?.body)
+    },
+    /** TTS hook: start from the first paragraph visible at the current scroll position */
+    ttsStartIndex(paragraphs) {
+      const scrollTop = this.$el?.scrollTop || 0
+      const startIndex = paragraphs.findIndex((p) => {
+        const rect = p.ref?.getBoundingClientRect?.()
+        return rect && rect.bottom > scrollTop
+      })
+      return Math.max(0, startIndex)
+    },
+    /** TTS hook: scroll the spoken paragraph into view */
+    ttsFollowParagraph(paragraph) {
+      const rect = paragraph.ref?.getBoundingClientRect?.()
+      if (!rect || !this.$el) return
+      const viewTop = this.$el.scrollTop
+      const viewBottom = viewTop + this.$el.clientHeight
+      if (rect.top < viewTop || rect.top > viewBottom - 40) {
+        this.$el.scrollTo({ top: Math.max(0, rect.top - 16), behavior: 'smooth' })
+      }
+    },
     addHtmlCss() {
       let iframe = document.getElementsByTagName('iframe')[0]
       if (!iframe) return

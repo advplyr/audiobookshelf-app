@@ -10,7 +10,7 @@
         <button v-if="isComic || isEpub" type="button" class="inline-flex mx-2" @click.stop="clickTOCBtn">
           <span class="material-symbols text-2xl text-fg">format_list_bulleted</span>
         </button>
-        <button v-if="isEpub" type="button" class="inline-flex mx-2" @click.stop="clickTTSBtn">
+        <button v-if="ttsAvailable" type="button" class="inline-flex mx-2" @click.stop="clickTTSBtn">
           <span class="material-symbols text-2xl" :class="showTTSBar ? 'text-warning' : 'text-fg'">record_voice_over</span>
         </button>
         <button v-if="isEpub" type="button" class="inline-flex mx-2" @click.stop="clickSettingsBtn">
@@ -28,7 +28,7 @@
     <component v-if="readerComponentName" ref="readerComponent" :is="readerComponentName" :url="ebookUrl" :library-item="selectedLibraryItem" :is-local="isLocal" :keep-progress="keepProgress" :showing-toolbar="showingToolbar" @touchstart="touchstart" @touchend="touchend" @loaded="readerLoaded" @hook:mounted="readerMounted" @tts-state="ttsStateChanged" />
 
     <!-- read aloud (TTS) bar -->
-    <div v-if="showTTSBar && isEpub" class="fixed left-0 w-full z-30 px-4 py-2 flex items-center bg-bg text-fg" :style="{ bottom: ttsBarBottom, boxShadow: '0px -8px 8px #11111155' }" @touchstart.stop @mousedown.stop @touchend.stop @mouseup.stop>
+    <div v-if="showTTSBar && ttsAvailable" class="fixed left-0 w-full z-30 px-4 py-2 flex items-center bg-bg text-fg" :style="{ bottom: ttsBarBottom, boxShadow: '0px -8px 8px #11111155' }" @touchstart.stop @mousedown.stop @touchend.stop @mouseup.stop>
       <button type="button" :aria-label="$strings.ButtonPlay" class="inline-flex mx-1" @click.stop="clickTTSPlayPause">
         <span class="material-symbols fill text-4xl text-fg">{{ ttsState === 'playing' ? 'pause_circle' : 'play_circle' }}</span>
       </button>
@@ -277,7 +277,10 @@ export default {
       ]
     },
     ttsBarBottom() {
-      return this.isPlayerOpen ? '152px' : '32px'
+      const playerOffset = this.isPlayerOpen ? 120 : 0
+      // Epub and pdf readers show a bottom progress strip the bar sits above
+      const progressStripOffset = this.isEpub || this.isPdf ? 32 : 0
+      return `${playerOffset + progressStripOffset}px`
     },
     onOffToggleButtonItems() {
       return [
@@ -361,6 +364,9 @@ export default {
     isComic() {
       return this.ebookFormat == 'cbz' || this.ebookFormat == 'cbr'
     },
+    ttsAvailable() {
+      return this.isEpub || this.isMobi || this.isPdf
+    },
     isLocal() {
       return !!this.ebookFile?.isLocal || !!this.ebookFile?.localFileId
     },
@@ -402,9 +408,8 @@ export default {
       this.$refs.readerComponent?.goToChapter(href)
     },
     readerMounted() {
-      if (this.isEpub) {
-        this.loadEreaderSettings()
-      }
+      // All readers need the settings for TTS; the epub reader also uses them for styling
+      this.loadEreaderSettings()
     },
     readerLoaded(data) {
       if (this.isComic) {
