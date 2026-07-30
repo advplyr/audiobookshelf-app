@@ -82,6 +82,7 @@ class DownloadService : Service() {
   }
 
   private fun createChannel() {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
     val manager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
     manager.createNotificationChannel(
             NotificationChannel(
