@@ -95,7 +95,7 @@ class DownloadService : Service() {
 
   companion object {
     private const val CHANNEL_ID = "downloads"
-    private const val NOTIFICATION_ID = 4102
+    private const val NOTIFICATION_ID = 11
     private const val ACTION_CANCEL = "com.audiobookshelf.app.download.CANCEL"
     fun intent(context: Context) = Intent(context, DownloadService::class.java)
   }
