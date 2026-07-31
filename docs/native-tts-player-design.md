@@ -379,8 +379,12 @@ První řez F1 je v kódu (commit „Implement F1 slice…“):
   session přepne na engine (odpojený MediaSessionConnector, PlaybackState
   a metadata z TTSBook, routing dle A.3 vč. BT/headset tlačítek a seek
   lišty); ověřeno na zařízení (zamykací obrazovka, Android 14+)
-- [ ] Nativní sync průběhu na server (nyní se průběh dostane na server jen
-  přes otevřenou čtečku); mapování v A.6
+- [x] Nativní sync průběhu dle A.6 — `TTSProgressSyncer` (15s timer, flush při
+  pauze/stopu/konci knihy): lokální položky přes `DbManager` + event do
+  WebView, server `PATCH /api/me/progress/:id` (lokální navázané na server
+  i streamované; na metered síti po 60 s jako `MediaProgressSyncer`);
+  konec knihy hlásí 100 % (`endOfBookReached`); **ověření na zařízení zatím
+  neproběhlo**
 - [ ] F2: kategorie „E-knihy“ v `BrowseTree` + `onPlayFromMediaId`
 - [ ] F3/F4: iOS engine, CarPlay
 

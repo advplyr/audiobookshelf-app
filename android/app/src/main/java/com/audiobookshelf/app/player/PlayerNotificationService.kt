@@ -38,6 +38,7 @@ import com.audiobookshelf.app.managers.DbManager
 import com.audiobookshelf.app.managers.SleepTimerManager
 import com.audiobookshelf.app.media.MediaManager
 import com.audiobookshelf.app.media.MediaProgressSyncer
+import com.audiobookshelf.app.media.TTSProgressSyncer
 import com.audiobookshelf.app.media.getUriToAbsIconDrawable
 import com.audiobookshelf.app.media.getUriToDrawable
 import com.audiobookshelf.app.plugins.AbsLogger
@@ -196,6 +197,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
 
   var ttsClientEventEmitter: TTSClientEventEmitter? = null
   val ttsBookCache by lazy { TTSBookCache(this) }
+  val ttsProgressSyncer by lazy { TTSProgressSyncer(this, apiHandler) }
   var ttsEngine: TTSPlaybackEngine? = null
     private set
 
@@ -204,12 +206,22 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
       ttsEngine = TTSPlaybackEngine(this, object : TTSPlaybackEngine.Listener {
         override fun onTTSStateChange(state: TTSPlaybackEngine.TTSState) {
           when (state) {
-            TTSPlaybackEngine.TTSState.PLAYING, TTSPlaybackEngine.TTSState.PAUSED -> {
+            TTSPlaybackEngine.TTSState.PLAYING -> {
+              ttsProgressSyncer.start()
+              takeTTSMediaSession()
+              updateTTSMediaSessionState()
+              updateTTSNotification()
+            }
+            TTSPlaybackEngine.TTSState.PAUSED -> {
+              ttsProgressSyncer.stop()
               takeTTSMediaSession()
               updateTTSMediaSessionState()
               updateTTSNotification()
             }
             TTSPlaybackEngine.TTSState.STOPPED -> {
+              // End of book changes progress to 100% without a paragraph event
+              if (ttsEngine?.endOfBookReached == true) ttsProgressSyncer.paragraphReached()
+              ttsProgressSyncer.stop()
               stopTTSForeground()
               releaseTTSMediaSession()
             }
@@ -218,6 +230,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
         }
 
         override fun onTTSParagraph(chapterIndex: Int, paragraphIndex: Int, location: String?, progress: Double) {
+          ttsProgressSyncer.paragraphReached()
           if (isTTSMediaSessionTakeover) {
             updateTTSMediaSessionMetadata()
             updateTTSMediaSessionState()
@@ -419,6 +432,8 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
     playerNotificationManager.setPlayer(null)
     mPlayer.release()
     castPlayer?.release()
+    // Engine release bypasses the state listener - sync the final TTS position first
+    if (ttsEngine != null) ttsProgressSyncer.stop()
     ttsEngine?.release()
     mediaSession.release()
     mediaProgressSyncer.reset()
