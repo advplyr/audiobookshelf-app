@@ -7,7 +7,6 @@ import com.audiobookshelf.app.models.DownloadItem
 import com.audiobookshelf.app.plugins.AbsLog
 import com.audiobookshelf.app.plugins.AbsLogger
 import io.paperdb.Paper
-import java.io.File
 
 class DbManager {
   val tag = "DbManager"
@@ -148,7 +147,7 @@ class DbManager {
   }
 
   // Make sure all local file ids still exist
-  fun cleanLocalLibraryItems() {
+  fun cleanLocalLibraryItems(context: Context) {
     val localLibraryItems = getLocalLibraryItems()
 
     localLibraryItems.forEach { lli ->
@@ -157,15 +156,15 @@ class DbManager {
       // Check local files
       lli.localFiles =
               lli.localFiles.filter { localFile ->
-                val file = File(localFile.absolutePath)
-                if (!file.exists()) {
+                val exists = localFile.exists(context)
+                if (!exists) {
                   Log.d(
                           tag,
                           "cleanLocalLibraryItems: Local file ${localFile.absolutePath} was removed from library item ${lli.media.metadata.title}"
                   )
                   hasUpdates = true
                 }
-                file.exists()
+                exists
               } as
                       MutableList<LocalFile>
 
@@ -203,9 +202,11 @@ class DbManager {
 
       // Check cover still there
       lli.coverAbsolutePath?.let {
-        val coverFile = File(it)
-
-        if (!coverFile.exists()) {
+        val coverExists =
+                lli.localFiles.any { localFile ->
+                  localFile.absolutePath == it && localFile.exists(context)
+                }
+        if (!coverExists) {
           Log.d(
                   tag,
                   "cleanLocalLibraryItems: Cover $it was removed from library item ${lli.media.metadata.title}"
@@ -290,15 +291,13 @@ class DbManager {
     return sessions
   }
 
-  fun saveLog(log:AbsLog) {
+  fun saveLog(log: AbsLog) {
     Paper.book("log").write(log.id, log)
   }
-  fun getAllLogs() : List<AbsLog> {
-    val logs:MutableList<AbsLog> = mutableListOf()
+  fun getAllLogs(): List<AbsLog> {
+    val logs: MutableList<AbsLog> = mutableListOf()
     Paper.book("log").allKeys.forEach { logId ->
-      Paper.book("log").read<AbsLog>(logId)?.let {
-        logs.add(it)
-      }
+      Paper.book("log").read<AbsLog>(logId)?.let { logs.add(it) }
     }
     return logs.sortedBy { it.timestamp }
   }
@@ -317,7 +316,10 @@ class DbManager {
       }
     }
     if (logsRemoved > 0) {
-      AbsLogger.info("DbManager", "cleanLogs: Removed $logsRemoved logs older than $numberOfHoursToKeep hours")
+      AbsLogger.info(
+              "DbManager",
+              "cleanLogs: Removed $logsRemoved logs older than $numberOfHoursToKeep hours"
+      )
     }
   }
 }

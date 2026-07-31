@@ -42,9 +42,6 @@ class MainActivity : BridgeActivity() {
   val storage = SimpleStorage(this)
 
   val REQUEST_PERMISSIONS = 1
-  var PERMISSIONS_ALL = arrayOf(
-    Manifest.permission.READ_EXTERNAL_STORAGE
-  )
 
   public override fun onCreate(savedInstanceState: Bundle?) {
     DbManager.initialize(applicationContext)
@@ -101,11 +98,20 @@ class MainActivity : BridgeActivity() {
       }
     }
 
-    val permission = ActivityCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE)
-    if (permission != PackageManager.PERMISSION_GRANTED) {
-      ActivityCompat.requestPermissions(this,
-        PERMISSIONS_ALL,
-        REQUEST_PERMISSIONS)
+    requestNeededPermissions()
+  }
+
+  private fun requestNeededPermissions() {
+    val needed = mutableListOf<String>()
+    if (ActivityCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+      needed.add(Manifest.permission.READ_EXTERNAL_STORAGE)
+    }
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ActivityCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+      needed.add(Manifest.permission.POST_NOTIFICATIONS)
+    }
+    if (needed.isNotEmpty()) {
+      ActivityCompat.requestPermissions(this, needed.toTypedArray(), REQUEST_PERMISSIONS)
     }
   }
 

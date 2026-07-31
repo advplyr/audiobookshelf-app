@@ -14,7 +14,6 @@ data class LocalMediaItem(
         var mediaType: String,
         var folderId: String,
         var contentUrl: String,
-        var simplePath: String,
         var basePath: String,
         var absolutePath: String,
         var audioTracks: MutableList<AudioTrack>,
