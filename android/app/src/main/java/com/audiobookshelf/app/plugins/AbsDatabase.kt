@@ -40,7 +40,7 @@ class AbsDatabase : Plugin() {
     secureStorage = SecureStorage(mainActivity)
 
     DeviceManager.dbManager.cleanLocalMediaProgress()
-    DeviceManager.dbManager.cleanLocalLibraryItems()
+    DeviceManager.dbManager.cleanLocalLibraryItems(mainActivity)
     DeviceManager.dbManager.cleanLogs()
 
     // Nothing waits on this, so keep its per-blob disk I/O off the main thread.

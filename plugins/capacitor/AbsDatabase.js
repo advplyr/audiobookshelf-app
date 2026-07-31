@@ -119,7 +119,6 @@ class AbsDatabaseWeb extends WebPlugin {
           name: 'Audiobooks',
           contentUrl: 'test',
           absolutePath: '/audiobooks',
-          simplePath: 'audiobooks',
           storageType: 'primary',
           mediaType: 'book'
         }
@@ -196,7 +195,6 @@ class AbsDatabaseWeb extends WebPlugin {
               filename: 'lf1.mp3',
               contentUrl: 'test',
               absolutePath: 'test',
-              simplePath: 'test',
               mimeType: 'audio/mpeg',
               size: 39048290
             }
