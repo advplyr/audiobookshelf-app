@@ -248,7 +248,18 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
 
   fun prepareTTSBook(book: TTSBook) {
     ttsBookCache.save(book)
+    notifyEbooksChanged()
     getTTSEngine().prepare(book)
+  }
+
+  /**
+   * Android Auto caches browse results - tell it the cached ebooks changed so
+   * the Ebooks category and its list refresh (a book was prepared or removed)
+   */
+  fun notifyEbooksChanged() {
+    notifyChildrenChanged(EBOOKS_ROOT)
+    // The root list changes when the category (dis)appears with the first/last book
+    notifyChildrenChanged(AUTO_MEDIA_ROOT)
   }
 
   fun playTTS(libraryItemId: String?, chapterIndex: Int?, paragraphIndex: Int?) {
@@ -262,6 +273,11 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
         return
       }
       engine.prepare(cached)
+      // No explicit position (Android Auto pick) - resume where the reader
+      // or a previous read aloud session left off
+      if (chapterIndex == null) {
+        savedTTSPosition(cached)?.let { (ci, pi) -> engine.seekTo(ci, pi) }
+      }
     }
 
     // TTS and audio playback share the audio output - pause any playing audio
@@ -274,6 +290,28 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
     }
 
     engine.play(chapterIndex, paragraphIndex)
+  }
+
+  /**
+   * Last saved ebookLocation/ebookProgress for the item - the same progress the
+   * reader and TTSProgressSyncer write. Local items read the local db, streamed
+   * items the server progress loaded for Android Auto. Null when never opened.
+   */
+  private fun savedEbookProgress(libraryItemId: String): Pair<String?, Double>? {
+    if (libraryItemId.startsWith("local")) {
+      val progress = DeviceManager.dbManager.getLocalMediaProgress(libraryItemId) ?: return null
+      return Pair(progress.ebookLocation, progress.ebookProgress ?: 0.0)
+    }
+    val progress = mediaManager.serverUserMediaProgress.find { it.libraryItemId == libraryItemId } ?: return null
+    return Pair(progress.ebookLocation, progress.ebookProgress ?: 0.0)
+  }
+
+  /** Start position for a book resumed from the saved progress, null to start from the beginning */
+  private fun savedTTSPosition(book: TTSBook): Pair<Int, Int>? {
+    val (location, ebookProgress) = savedEbookProgress(book.libraryItemId) ?: return null
+    if (ebookProgress >= 1.0) return null // finished - start over
+    return book.positionForLocation(location)
+      ?: if (ebookProgress > 0.0) book.positionForProgress(ebookProgress) else null
   }
 
   // While the read aloud player is active it takes over the shared media session
@@ -1444,12 +1482,42 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
     result.detach()
 
     // Prevent crashing if app is restarted while browsing
-    if ((parentMediaId != DOWNLOADS_ROOT && parentMediaId != AUTO_MEDIA_ROOT) && !firstLoadDone) {
+    // (downloads and cached ebooks work without server data)
+    if ((parentMediaId != DOWNLOADS_ROOT && parentMediaId != EBOOKS_ROOT && parentMediaId != AUTO_MEDIA_ROOT) && !firstLoadDone) {
       result.sendResult(null)
       return
     }
 
-    if (parentMediaId == DOWNLOADS_ROOT) { // Load downloads
+    if (parentMediaId == EBOOKS_ROOT) { // Ebooks cached for the read aloud (TTS) player
+      val ebookBrowseItems = ttsBookCache.list().map { summary ->
+        val extras = Bundle()
+        savedEbookProgress(summary.libraryItemId)?.let { (_, ebookProgress) ->
+          if (ebookProgress >= 1.0) {
+            extras.putInt(
+              MediaConstants.DESCRIPTION_EXTRAS_KEY_COMPLETION_STATUS,
+              MediaConstants.DESCRIPTION_EXTRAS_VALUE_COMPLETION_STATUS_FULLY_PLAYED
+            )
+          } else if (ebookProgress > 0.0) {
+            extras.putInt(
+              MediaConstants.DESCRIPTION_EXTRAS_KEY_COMPLETION_STATUS,
+              MediaConstants.DESCRIPTION_EXTRAS_VALUE_COMPLETION_STATUS_PARTIALLY_PLAYED
+            )
+            extras.putDouble(
+              MediaConstants.DESCRIPTION_EXTRAS_KEY_COMPLETION_PERCENTAGE, ebookProgress
+            )
+          }
+        }
+        val description = MediaDescriptionCompat.Builder()
+          .setMediaId("$EBOOK_MEDIA_ID_PREFIX${summary.libraryItemId}")
+          .setTitle(summary.title)
+          .setSubtitle(summary.author ?: "")
+          .setIconUri(getUriToDrawable(ctx, R.drawable.md_book_open_blank_variant_outline))
+          .setExtras(extras)
+          .build()
+        MediaBrowserCompat.MediaItem(description, MediaBrowserCompat.MediaItem.FLAG_PLAYABLE)
+      }
+      result.sendResult(ebookBrowseItems.toMutableList())
+    } else if (parentMediaId == DOWNLOADS_ROOT) { // Load downloads
       val localBooks = DeviceManager.dbManager.getLocalLibraryItems("book")
       val localPodcasts = DeviceManager.dbManager.getLocalLibraryItems("podcast")
       val localBrowseItems: MutableList<MediaBrowserCompat.MediaItem> = mutableListOf()
@@ -1555,7 +1623,8 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
                           this,
                           mediaManager.serverItemsInProgress,
                           mediaManager.serverLibraries,
-                          mediaManager.allLibraryPersonalizationsDone
+                          mediaManager.allLibraryPersonalizationsDone,
+                          ttsBookCache.list()
                   )
           onBrowseTreeInitialized()
           val children =
@@ -1590,7 +1659,8 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
                         this,
                         mediaManager.serverItemsInProgress,
                         mediaManager.serverLibraries,
-                        mediaManager.allLibraryPersonalizationsDone
+                        mediaManager.allLibraryPersonalizationsDone,
+                        ttsBookCache.list()
                 )
         onBrowseTreeInitialized()
         val children =

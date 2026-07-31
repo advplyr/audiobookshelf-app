@@ -149,6 +149,15 @@ class MediaSessionCallback(var playerNotificationService:PlayerNotificationServi
 
   override fun onPlayFromMediaId(mediaId: String?, extras: Bundle?) {
     Log.d(tag, "ON PLAY FROM MEDIA ID $mediaId")
+
+    // Cached ebook picked from the Ebooks category - speak it with the read
+    // aloud (TTS) player, resuming from the saved progress (F2 in the design doc)
+    if (mediaId?.startsWith(EBOOK_MEDIA_ID_PREFIX) == true) {
+      val libraryItemId = mediaId.removePrefix(EBOOK_MEDIA_ID_PREFIX)
+      playerNotificationService.playTTS(libraryItemId, null, null)
+      return
+    }
+
     val libraryItemWrapper: LibraryItemWrapper?
     var podcastEpisode: PodcastEpisode? = null
 

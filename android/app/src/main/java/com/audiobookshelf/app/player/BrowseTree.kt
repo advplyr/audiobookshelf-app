@@ -11,7 +11,8 @@ class BrowseTree(
   val context: Context,
   itemsInProgress: List<ItemInProgress>,
   libraries: List<Library>,
-  recentsLoaded: Boolean
+  recentsLoaded: Boolean,
+  ttsBooks: List<TTSBookSummary>
 ) {
   private val mediaIdToChildren = mutableMapOf<String, MutableList<MediaMetadataCompat>>()
 
@@ -40,6 +41,13 @@ class BrowseTree(
       putString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID, LIBRARIES_ROOT)
       putString(MediaMetadataCompat.METADATA_KEY_TITLE, "Libraries")
       putString(MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, getUriToDrawable(context, R.drawable.icon_library_folder).toString())
+    }.build()
+
+    // Ebooks cached for the read aloud (TTS) player - playable without the WebView
+    val ebooksMetadata = MediaMetadataCompat.Builder().apply {
+      putString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID, EBOOKS_ROOT)
+      putString(MediaMetadataCompat.METADATA_KEY_TITLE, "Ebooks")
+      putString(MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, getUriToDrawable(context, R.drawable.md_book_open_blank_variant_outline).toString())
     }.build()
 
     if (itemsInProgress.isNotEmpty()) {
@@ -74,6 +82,10 @@ class BrowseTree(
 
     rootList += downloadsMetadata
 
+    if (ttsBooks.isNotEmpty()) {
+      rootList += ebooksMetadata
+    }
+
     mediaIdToChildren[AUTO_BROWSE_ROOT] = rootList
   }
 
@@ -85,3 +97,8 @@ const val CONTINUE_ROOT = "__CONTINUE__"
 const val DOWNLOADS_ROOT = "__DOWNLOADS__"
 const val LIBRARIES_ROOT = "__LIBRARIES__"
 const val RECENTLY_ROOT = "__RECENTLY__"
+const val EBOOKS_ROOT = "__EBOOKS__"
+
+// Media id prefix for cached ebooks played with the read aloud (TTS) player,
+// routed to the TTS engine in MediaSessionCallback.onPlayFromMediaId
+const val EBOOK_MEDIA_ID_PREFIX = "ebook__"

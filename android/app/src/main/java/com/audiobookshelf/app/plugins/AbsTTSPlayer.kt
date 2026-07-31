@@ -199,6 +199,7 @@ class AbsTTSPlayer : Plugin() {
     val libraryItemId = call.getString("libraryItemId") ?: return call.reject("Missing libraryItemId")
     mainHandler.post {
       playerNotificationService.ttsBookCache.remove(libraryItemId)
+      playerNotificationService.notifyEbooksChanged()
       call.resolve()
     }
   }
