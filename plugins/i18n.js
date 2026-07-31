@@ -1,10 +1,13 @@
 import Vue from 'vue'
+import { Capacitor } from '@capacitor/core'
+import { AbsDownloader, AbsFileSystem } from '@/plugins/capacitor'
 import enUsStrings from '../strings/en-us.json'
 
 const defaultCode = 'en-us'
 let $localStore = null
 
 const languageCodeMap = {
+  be: { label: 'Беларуская', dateFnsLocale: 'be' },
   bn: { label: 'বাংলা', dateFnsLocale: 'bn' },
   bg: { label: 'Български', dateFnsLocale: 'bg' },
   ca: { label: 'Català', dateFnsLocale: 'ca' },
@@ -38,6 +41,24 @@ function supplant(str, subs) {
     var r = subs[b]
     return typeof r === 'string' || typeof r === 'number' ? r : a
   })
+}
+
+function syncDownloadNotificationStrings() {
+  if (Capacitor.getPlatform() !== 'android') return
+  AbsDownloader.setDownloadNotificationStrings({
+    preparing: Vue.prototype.$strings.MessagePreparingDownloads,
+    downloadingFile: Vue.prototype.$strings.MessageDownloadingFile,
+    waitingForStorage: Vue.prototype.$strings.MessageWaitingForAvailableStorage,
+    downloads: Vue.prototype.$strings.HeaderDownloads,
+    cancel: Vue.prototype.$strings.ButtonCancel
+  }).catch((error) => console.warn('Failed to update download notification strings', error))
+  AbsFileSystem.setFolderPickerStrings({
+    writeAccessRequired: Vue.prototype.$strings.MessageStorageWriteAccessRequired,
+    allow: Vue.prototype.$strings.ButtonAllow,
+    cancel: Vue.prototype.$strings.ButtonCancel,
+    accessDenied: Vue.prototype.$strings.MessageStorageAccessDenied,
+    permissionDenied: Vue.prototype.$strings.MessageStoragePermissionDenied
+  }).catch((error) => console.warn('Failed to update folder picker strings', error))
 }
 
 Vue.prototype.$languageCodeOptions = Object.keys(languageCodeMap).map((code) => {
@@ -107,6 +128,7 @@ async function loadi18n(code) {
   }
 
   Vue.prototype.$setDateFnsLocale(languageCodeMap[code].dateFnsLocale)
+  syncDownloadNotificationStrings()
 
   this.$eventBus.$emit('change-lang', code)
   return true
@@ -144,5 +166,5 @@ async function initialize() {
 
 export default ({ app, store }, inject) => {
   $localStore = app.$localStore
-  initialize()
+  initialize().finally(syncDownloadNotificationStrings)
 }

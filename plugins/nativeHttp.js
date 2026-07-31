@@ -43,7 +43,8 @@ export default function ({ store, $db, $socket }, inject) {
         }
         if (res.status >= 400) {
           console.error(`[nativeHttp] ${res.status} status for url "${url}"`)
-          throw new Error(res.data)
+          const message = typeof res.data === 'string' ? res.data : `HTTP ${res.status}`
+          throw new Error(message)
         }
         return res.data
       })
@@ -100,7 +101,8 @@ export default function ({ store, $db, $socket }, inject) {
 
         if (retryResponse.status >= 400) {
           console.error(`[nativeHttp] Retry request failed with status ${retryResponse.status}`)
-          throw new Error(retryResponse.data)
+          const message = typeof retryResponse.data === 'string' ? retryResponse.data : `HTTP ${retryResponse.status}`
+          throw new Error(message)
         }
 
         return retryResponse.data

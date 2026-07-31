@@ -115,7 +115,7 @@
   "LabelAutoSleepTimerAutoRewindHelp": "Keď Auto časovač spánku skončí, pred nasledujúcim prehratím položky sa prehrávanie automaticky posunie.",
   "LabelAutoSleepTimerHelp": "keď sa prehrávanie začne vo vymedzenom časovom intervale, časovač spánku sa automaticky spustí tiež.",
   "LabelBooks": "Knihy",
-  "LabelByAuthor": "od",
+  "LabelByAuthor": "od {0}",
   "LabelChapterTrack": "Zvuková stopa kapitoly",
   "LabelChapters": "Kapitoly",
   "LabelClosePlayer": "Zavrieť prehrávač",

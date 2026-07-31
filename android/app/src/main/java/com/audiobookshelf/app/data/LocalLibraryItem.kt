@@ -80,7 +80,7 @@ class LocalLibraryItem(
   }
 
   @JsonIgnore
-  fun hasTracks(episode:PodcastEpisode?): Boolean {
+  fun hasTracks(ctx: Context, episode:PodcastEpisode?): Boolean {
     var audioTracks = media.getAudioTracks() as MutableList<AudioTrack>
     if (episode != null) { // Get podcast episode audio track
       episode.audioTrack?.let { at -> mutableListOf(at) }?.let { tracks -> audioTracks = tracks }
@@ -91,13 +91,16 @@ class LocalLibraryItem(
       if (it.metadata === null) {
         return false
       }
-      // Check that file exists
-      val file = File(it.metadata!!.path)
-      if (!file.exists()) {
+      if (!trackExists(ctx, it.contentUrl, it.metadata!!.path)) {
         return false
       }
     }
     return true
+  }
+
+  @JsonIgnore
+  private fun trackExists(ctx: Context, contentUrl: String?, path: String): Boolean {
+    return LocalFile("", null, contentUrl ?: "", "", path, null, 0).exists(ctx)
   }
 
   @JsonIgnore
