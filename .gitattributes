@@ -1,0 +1,4 @@
+# Shell scripts must keep LF endings - CRLF breaks bash when the repo is
+# cloned on Windows (core.autocrlf) and run from WSL
+*.sh text eol=lf
+gradlew text eol=lf
