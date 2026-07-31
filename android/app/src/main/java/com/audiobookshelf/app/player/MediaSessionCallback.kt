@@ -33,8 +33,19 @@ class MediaSessionCallback(var playerNotificationService:PlayerNotificationServi
     }
   }
 
+  // When a read aloud (TTS) session is active the shared media session is taken
+  // over by the TTS player - route transport controls to the engine instead of
+  // the audio player. Mapping per docs/native-tts-player-design.md (A.3)
+  private fun activeTTSEngine(): TTSPlaybackEngine? {
+    return playerNotificationService.ttsEngineIfSessionActive()
+  }
+
   override fun onPlay() {
     Log.d(tag, "ON PLAY MEDIA SESSION COMPAT")
+    activeTTSEngine()?.let {
+      it.play()
+      return
+    }
     playerNotificationService.play()
   }
 
@@ -61,30 +72,58 @@ class MediaSessionCallback(var playerNotificationService:PlayerNotificationServi
 
   override fun onPause() {
     Log.d(tag, "ON PAUSE MEDIA SESSION COMPAT")
+    activeTTSEngine()?.let {
+      it.pause()
+      return
+    }
     playerNotificationService.pause()
   }
 
   override fun onStop() {
+    activeTTSEngine()?.let {
+      it.stop()
+      return
+    }
     playerNotificationService.pause()
   }
 
   override fun onSkipToPrevious() {
+    activeTTSEngine()?.let {
+      it.seekChapter(-1)
+      return
+    }
     playerNotificationService.skipToPrevious()
   }
 
   override fun onSkipToNext() {
+    activeTTSEngine()?.let {
+      it.seekChapter(1)
+      return
+    }
     playerNotificationService.skipToNext()
   }
 
   override fun onFastForward() {
+    activeTTSEngine()?.let {
+      it.seekParagraph(1)
+      return
+    }
     playerNotificationService.jumpForward()
   }
 
   override fun onRewind() {
+    activeTTSEngine()?.let {
+      it.seekParagraph(-1)
+      return
+    }
     playerNotificationService.jumpBackward()
   }
 
   override fun onSeekTo(pos: Long) {
+    activeTTSEngine()?.let {
+      it.seekToPositionMs(pos)
+      return
+    }
     val currentTrackStartOffset = playerNotificationService.getCurrentTrackStartOffsetMs()
     playerNotificationService.seekPlayer(currentTrackStartOffset + pos)
   }
@@ -158,6 +197,11 @@ class MediaSessionCallback(var playerNotificationService:PlayerNotificationServi
       }
 
       Log.d(tag, "handleCallMediaButton keyEvent = $keyEvent | action ${keyEvent?.action}")
+
+      // Read aloud (TTS) session active - buttons control the TTS engine
+      activeTTSEngine()?.let { tts ->
+        return handleTTSMediaButton(tts, keyEvent)
+      }
 
       // Widget button intent is only sending the action down event
       if (keyEvent?.action == KeyEvent.ACTION_DOWN) {
@@ -241,6 +285,31 @@ class MediaSessionCallback(var playerNotificationService:PlayerNotificationServi
             return false
           }
         }
+      }
+    }
+    return true
+  }
+
+  private fun handleTTSMediaButton(tts: TTSPlaybackEngine, keyEvent: KeyEvent?): Boolean {
+    val isPlaying = tts.state == TTSPlaybackEngine.TTSState.PLAYING
+    // Mirrors the audio handling: widgets only send ACTION_DOWN for play/pause,
+    // headset/BT buttons arrive as ACTION_UP
+    if (keyEvent?.action == KeyEvent.ACTION_DOWN) {
+      when (keyEvent.keyCode) {
+        KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE -> if (isPlaying) tts.pause() else tts.play()
+        KeyEvent.KEYCODE_MEDIA_FAST_FORWARD -> tts.seekParagraph(1)
+        KeyEvent.KEYCODE_MEDIA_REWIND -> tts.seekParagraph(-1)
+      }
+    }
+    if (keyEvent?.action == KeyEvent.ACTION_UP) {
+      when (keyEvent.keyCode) {
+        KeyEvent.KEYCODE_HEADSETHOOK -> if (isPlaying) tts.pause() else tts.play()
+        KeyEvent.KEYCODE_MEDIA_PLAY -> tts.play()
+        KeyEvent.KEYCODE_MEDIA_PAUSE -> tts.pause()
+        KeyEvent.KEYCODE_MEDIA_NEXT -> tts.seekChapter(1)
+        KeyEvent.KEYCODE_MEDIA_PREVIOUS -> tts.seekChapter(-1)
+        KeyEvent.KEYCODE_MEDIA_STOP -> tts.stop()
+        else -> return false
       }
     }
     return true

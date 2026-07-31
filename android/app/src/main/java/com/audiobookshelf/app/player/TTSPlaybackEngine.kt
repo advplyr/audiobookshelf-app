@@ -69,6 +69,38 @@ class TTSPlaybackEngine(val context: Context, val listener: Listener) : TextToSp
       return currentBook.charsBefore(chapterIndex, paragraphIndex).toDouble() / currentBook.totalChars
     }
 
+  /** Estimated total duration in ms from character count and speaking rate, for media session metadata */
+  val estimatedDurationMs: Long
+    get() {
+      val currentBook = book ?: return 0L
+      return (currentBook.totalChars / (CHARS_PER_SECOND * rate) * 1000).toLong()
+    }
+
+  /** Estimated position in ms of the current paragraph start, for media session playback state */
+  val estimatedPositionMs: Long
+    get() {
+      val currentBook = book ?: return 0L
+      return (currentBook.charsBefore(chapterIndex, paragraphIndex) / (CHARS_PER_SECOND * rate) * 1000).toLong()
+    }
+
+  /** Seek from an estimated time position (media session seek bar) to the nearest paragraph */
+  fun seekToPositionMs(positionMs: Long) {
+    val currentBook = book ?: return
+    val targetChars = (positionMs / 1000.0 * CHARS_PER_SECOND * rate).toInt()
+    var chars = 0
+    currentBook.chapters.forEachIndexed { ci, chapter ->
+      chapter.paragraphs.forEachIndexed { pi, paragraph ->
+        chars += paragraph.chars
+        if (chars > targetChars) {
+          seekTo(ci, pi)
+          return
+        }
+      }
+    }
+    val lastChapterIndex = maxOf(0, currentBook.chapters.size - 1)
+    seekTo(lastChapterIndex, maxOf(0, (currentBook.chapters.lastOrNull()?.paragraphs?.size ?: 1) - 1))
+  }
+
   fun prepare(newBook: TTSBook) {
     interrupt()
     book = newBook

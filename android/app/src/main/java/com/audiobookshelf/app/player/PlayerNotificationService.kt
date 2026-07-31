@@ -204,13 +204,24 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
       ttsEngine = TTSPlaybackEngine(this, object : TTSPlaybackEngine.Listener {
         override fun onTTSStateChange(state: TTSPlaybackEngine.TTSState) {
           when (state) {
-            TTSPlaybackEngine.TTSState.PLAYING, TTSPlaybackEngine.TTSState.PAUSED -> updateTTSNotification()
-            TTSPlaybackEngine.TTSState.STOPPED -> stopTTSForeground()
+            TTSPlaybackEngine.TTSState.PLAYING, TTSPlaybackEngine.TTSState.PAUSED -> {
+              takeTTSMediaSession()
+              updateTTSMediaSessionState()
+              updateTTSNotification()
+            }
+            TTSPlaybackEngine.TTSState.STOPPED -> {
+              stopTTSForeground()
+              releaseTTSMediaSession()
+            }
           }
           ttsClientEventEmitter?.onTTSStateChange(state.value)
         }
 
         override fun onTTSParagraph(chapterIndex: Int, paragraphIndex: Int, location: String?, progress: Double) {
+          if (isTTSMediaSessionTakeover) {
+            updateTTSMediaSessionMetadata()
+            updateTTSMediaSessionState()
+          }
           ttsClientEventEmitter?.onTTSParagraph(chapterIndex, paragraphIndex, location, progress)
         }
 
@@ -250,6 +261,73 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
     }
 
     engine.play(chapterIndex, paragraphIndex)
+  }
+
+  // While the read aloud player is active it takes over the shared media session
+  // (one session per app - Android Auto requirement) so lock screen, notification
+  // and BT controls drive the TTS engine instead of the paused audio player.
+  // Reverted when TTS stops. See docs/native-tts-player-design.md (A.3)
+  var isTTSMediaSessionTakeover = false
+    private set
+
+  /** The TTS engine when a read aloud session is active (playing or paused), else null */
+  fun ttsEngineIfSessionActive(): TTSPlaybackEngine? {
+    val engine = ttsEngine ?: return null
+    if (engine.book == null || engine.state == TTSPlaybackEngine.TTSState.STOPPED) return null
+    return engine
+  }
+
+  private fun takeTTSMediaSession() {
+    if (isTTSMediaSessionTakeover) return
+    isTTSMediaSessionTakeover = true
+    // Detach the connector so it stops mirroring the paused audio player into the session
+    mediaSessionConnector.setPlayer(null)
+    updateTTSMediaSessionMetadata()
+  }
+
+  private fun releaseTTSMediaSession() {
+    if (!isTTSMediaSessionTakeover) return
+    isTTSMediaSessionTakeover = false
+    mediaSessionConnector.setPlayer(currentPlayer)
+    currentPlaybackSession?.let { mediaSession.setMetadata(it.getMediaMetadataCompat(ctx)) }
+  }
+
+  private fun updateTTSMediaSessionMetadata() {
+    val engine = ttsEngine ?: return
+    val book = engine.book ?: return
+    mediaSession.setMetadata(
+      MediaMetadataCompat.Builder()
+        .putString(MediaMetadataCompat.METADATA_KEY_TITLE, book.title)
+        .putString(MediaMetadataCompat.METADATA_KEY_ARTIST, book.author ?: "")
+        .putLong(MediaMetadataCompat.METADATA_KEY_DURATION, engine.estimatedDurationMs)
+        .build()
+    )
+  }
+
+  private fun updateTTSMediaSessionState() {
+    val engine = ttsEngine ?: return
+    val isPlaying = engine.state == TTSPlaybackEngine.TTSState.PLAYING
+    // Android 13+ builds the system media controls (incl. lock screen) from these
+    // actions - notification action buttons are ignored there
+    val state = PlaybackStateCompat.Builder()
+      .setActions(
+        PlaybackStateCompat.ACTION_PLAY or
+          PlaybackStateCompat.ACTION_PAUSE or
+          PlaybackStateCompat.ACTION_PLAY_PAUSE or
+          PlaybackStateCompat.ACTION_STOP or
+          PlaybackStateCompat.ACTION_FAST_FORWARD or
+          PlaybackStateCompat.ACTION_REWIND or
+          PlaybackStateCompat.ACTION_SKIP_TO_NEXT or
+          PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS or
+          PlaybackStateCompat.ACTION_SEEK_TO
+      )
+      .setState(
+        if (isPlaying) PlaybackStateCompat.STATE_PLAYING else PlaybackStateCompat.STATE_PAUSED,
+        engine.estimatedPositionMs,
+        if (isPlaying) engine.rate else 0f
+      )
+      .build()
+    mediaSession.setPlaybackState(state)
   }
 
   private fun buildTTSNotification(): Notification {
@@ -575,6 +653,9 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
     }
 
     isClosed = false
+
+    // Audio and read aloud share the output and media session - end any TTS session first
+    ttsEngineIfSessionActive()?.stop()
 
     val metadata = playbackSession.getMediaMetadataCompat(ctx)
     mediaSession.setMetadata(metadata)
@@ -1078,6 +1159,8 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
       Log.d(tag, "Already playing")
       return
     }
+    // Audio and read aloud share the output - end any TTS session first
+    ttsEngineIfSessionActive()?.stop()
     currentPlayer.volume = 1F
     currentPlayer.play()
   }
