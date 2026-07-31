@@ -36,6 +36,7 @@ import com.audiobookshelf.app.data.DeviceInfo
 import com.audiobookshelf.app.device.DeviceManager
 import com.audiobookshelf.app.managers.DbManager
 import com.audiobookshelf.app.managers.SleepTimerManager
+import com.audiobookshelf.app.media.EpubTextExtractor
 import com.audiobookshelf.app.media.MediaManager
 import com.audiobookshelf.app.media.MediaProgressSyncer
 import com.audiobookshelf.app.media.TTSProgressSyncer
@@ -55,6 +56,7 @@ import com.google.android.exoplayer2.source.ProgressiveMediaSource
 import com.google.android.exoplayer2.source.hls.HlsMediaSource
 import com.google.android.exoplayer2.ui.PlayerNotificationManager
 import com.google.android.exoplayer2.upstream.*
+import java.io.File
 import java.util.*
 import kotlin.concurrent.schedule
 import kotlinx.coroutines.runBlocking
@@ -260,6 +262,8 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
     notifyChildrenChanged(EBOOKS_ROOT)
     // The root list changes when the category (dis)appears with the first/last book
     notifyChildrenChanged(AUTO_MEDIA_ROOT)
+    // Partially read cached ebooks are listed in Continue
+    notifyChildrenChanged(CONTINUE_ROOT)
   }
 
   fun playTTS(libraryItemId: String?, chapterIndex: Int?, paragraphIndex: Int?) {
@@ -269,7 +273,9 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
     if (!libraryItemId.isNullOrEmpty() && engine.book?.libraryItemId != libraryItemId) {
       val cached = ttsBookCache.load(libraryItemId)
       if (cached == null) {
-        ttsClientEventEmitter?.onTTSError("Book not found in cache")
+        // Library ebook picked in Android Auto that was never cached - download
+        // the epub, extract its text natively and start speaking (F2+)
+        downloadAndPlayTTS(libraryItemId)
         return
       }
       engine.prepare(cached)
@@ -280,6 +286,10 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
       }
     }
 
+    startTTSPlayback(chapterIndex, paragraphIndex)
+  }
+
+  private fun startTTSPlayback(chapterIndex: Int?, paragraphIndex: Int?) {
     // TTS and audio playback share the audio output - pause any playing audio
     if (this::currentPlayer.isInitialized && currentPlayer.isPlaying) {
       currentPlayer.pause()
@@ -289,7 +299,159 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
       ContextCompat.startForegroundService(this, Intent(this, PlayerNotificationService::class.java))
     }
 
-    engine.play(chapterIndex, paragraphIndex)
+    getTTSEngine().play(chapterIndex, paragraphIndex)
+  }
+
+  // Guards against a second download starting while one runs (double click in the car)
+  private var ttsDownloadingItemId: String? = null
+
+  /**
+   * Ebook picked in Android Auto that is not in the TTS cache yet: download the
+   * epub from the server, extract its text natively (EpubTextExtractor), cache
+   * it and start reading aloud from the saved progress. The shared media
+   * session shows a buffering state while this runs so the car UI reacts to
+   * the click. See docs/native-tts-player-design.md (F2+)
+   */
+  private fun downloadAndPlayTTS(libraryItemId: String) {
+    if (ttsDownloadingItemId != null) {
+      Log.w(tag, "downloadAndPlayTTS: Already downloading $ttsDownloadingItemId - ignoring $libraryItemId")
+      return
+    }
+    if (libraryItemId.startsWith("local")) {
+      // Local items are cached by the reader; nothing in the browse tree leads here uncached
+      ttsClientEventEmitter?.onTTSError("Book not found in cache")
+      return
+    }
+    if (DeviceManager.serverAddress.isEmpty() || !DeviceManager.checkConnectivity(this)) {
+      ttsClientEventEmitter?.onTTSError("No server connection")
+      return
+    }
+
+    ttsDownloadingItemId = libraryItemId
+    setTTSLoadingState("Downloading ebook")
+
+    apiHandler.getLibraryItem(libraryItemId) { libraryItem ->
+      val ebookFile = (libraryItem?.media as? Book)?.ebookFile
+      if (libraryItem == null || ebookFile == null) {
+        finishTTSLoading("Ebook not found on server")
+        return@getLibraryItem
+      }
+      if (ebookFile.ebookFormat != "epub") {
+        finishTTSLoading("Only epub ebooks can be read aloud")
+        return@getLibraryItem
+      }
+      setTTSLoadingState(libraryItem.title)
+
+      val downloadDir = File(cacheDir, "tts-downloads")
+      downloadDir.mkdirs()
+      val destFile = File(downloadDir, "${System.currentTimeMillis()}.epub")
+      apiHandler.downloadEbookFile(libraryItemId, destFile) { success, error ->
+        if (!success) {
+          destFile.delete()
+          finishTTSLoading(error ?: "Download failed")
+          return@downloadEbookFile
+        }
+        // Extraction of a large book takes a few seconds - keep off the caller thread
+        Thread {
+          try {
+            val extracted = EpubTextExtractor.extract(destFile)
+            val book = TTSBook(
+              libraryItemId = libraryItemId,
+              serverAddress = DeviceManager.serverAddress,
+              // Item metadata over OPF metadata - matches what the app shows
+              title = libraryItem.title,
+              author = (libraryItem.media.metadata as? BookMetadata)?.authorName?.ifEmpty { null } ?: extracted.author,
+              language = ttsLanguageForBook(extracted.language, libraryItem),
+              rate = ttsEngine?.rate ?: 1f,
+              ebookFormat = "epub",
+              chapters = extracted.chapters,
+              totalChars = extracted.chapters.sumOf { chapter -> chapter.paragraphs.sumOf { it.chars } }
+            )
+            ttsBookCache.save(book) // still on the extraction thread - MB-sized JSON write
+            Handler(Looper.getMainLooper()).post {
+              notifyEbooksChanged()
+              finishTTSLoading(null)
+              val engine = getTTSEngine()
+              engine.prepare(book)
+              savedTTSPosition(book)?.let { (ci, pi) -> engine.seekTo(ci, pi) }
+              startTTSPlayback(null, null)
+            }
+          } catch (e: Exception) {
+            Log.e(tag, "downloadAndPlayTTS: Failed to extract $libraryItemId", e)
+            finishTTSLoading("Failed to extract ebook text")
+          } finally {
+            destFile.delete()
+          }
+        }.start()
+      }
+    }
+  }
+
+  /**
+   * TTS language for a natively extracted book: the epub dc:language, then the
+   * library item metadata language, then the current engine language. The
+   * reader extraction uses the user-picked reader setting instead, but that
+   * lives in WebView localStorage - the book's own language is the best
+   * native guess.
+   */
+  private fun ttsLanguageForBook(epubLanguage: String?, libraryItem: LibraryItem): String {
+    val metadataLanguage = (libraryItem.media.metadata as? BookMetadata)?.language
+    val language = epubLanguage?.trim().takeUnless { it.isNullOrEmpty() }
+      ?: metadataLanguage?.trim().takeUnless { it.isNullOrEmpty() }
+    return language ?: ttsEngine?.language ?: "en-US"
+  }
+
+  // While an Android Auto pick is downloading/extracting, the shared media
+  // session shows a buffering state (detached from the paused audio player);
+  // reverted on failure, or handed over to the TTS engine on success
+  private var isTTSLoadingTakeover = false
+
+  private fun setTTSLoadingState(title: String) {
+    Handler(Looper.getMainLooper()).post {
+      if (this::currentPlayer.isInitialized && currentPlayer.isPlaying) {
+        currentPlayer.pause()
+      }
+      if (!isTTSMediaSessionTakeover && !isTTSLoadingTakeover) {
+        mediaSessionConnector.setPlayer(null)
+      }
+      isTTSLoadingTakeover = true
+      mediaSession.setMetadata(
+        MediaMetadataCompat.Builder()
+          .putString(MediaMetadataCompat.METADATA_KEY_TITLE, title)
+          .build()
+      )
+      mediaSession.setPlaybackState(
+        PlaybackStateCompat.Builder()
+          .setState(PlaybackStateCompat.STATE_BUFFERING, 0, 0f)
+          .build()
+      )
+    }
+  }
+
+  /** End of the loading takeover: null message on success (the engine takes the session on play) */
+  private fun finishTTSLoading(errorMessage: String?) {
+    Handler(Looper.getMainLooper()).post {
+      ttsDownloadingItemId = null
+      if (errorMessage == null) {
+        isTTSLoadingTakeover = false
+        return@post
+      }
+      Log.e(tag, "finishTTSLoading: $errorMessage")
+      ttsClientEventEmitter?.onTTSError(errorMessage)
+      if (isTTSLoadingTakeover) {
+        isTTSLoadingTakeover = false
+        // Android Auto shows the error message from the playback state
+        mediaSession.setPlaybackState(
+          PlaybackStateCompat.Builder()
+            .setState(PlaybackStateCompat.STATE_ERROR, 0, 0f)
+            .setErrorMessage(PlaybackStateCompat.ERROR_CODE_UNKNOWN_ERROR, errorMessage)
+            .build()
+        )
+        if (!isTTSMediaSessionTakeover && this::currentPlayer.isInitialized) {
+          mediaSessionConnector.setPlayer(currentPlayer)
+        }
+      }
+    }
   }
 
   /**
@@ -312,6 +474,74 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
     if (ebookProgress >= 1.0) return null // finished - start over
     return book.positionForLocation(location)
       ?: if (ebookProgress > 0.0) book.positionForProgress(ebookProgress) else null
+  }
+
+  /** True when the TTS cache holds a partially read book - shows the Continue category */
+  fun hasInProgressCachedEbooks(): Boolean {
+    return ttsBookCache.list().any { summary ->
+      val ebookProgress = savedEbookProgress(summary.libraryItemId)?.second ?: 0.0
+      ebookProgress > 0.0 && ebookProgress < 1.0
+    }
+  }
+
+  /** Server cover art url for an item id, null for local items or without a server */
+  private fun serverCoverUri(libraryItemId: String): Uri? {
+    if (libraryItemId.startsWith("local") || DeviceManager.serverAddress.isEmpty()) return null
+    if (!DeviceManager.checkConnectivity(ctx)) return null // offline - callers fall back to the book icon
+    return if (DeviceManager.isServerVersionGreaterThanOrEqualTo("2.17.0")) {
+      Uri.parse("${DeviceManager.serverAddress}/api/items/$libraryItemId/cover")
+    } else {
+      Uri.parse("${DeviceManager.serverAddress}/api/items/$libraryItemId/cover?token=${DeviceManager.token}")
+    }
+  }
+
+  /**
+   * Playable browse item for an ebook spoken by the read aloud (TTS) player -
+   * media id ebook__<libraryItemId> routed to playTTS. Used by the Ebooks
+   * category, the Continue list and the per-library ebook lists.
+   */
+  private fun buildEbookBrowseItem(
+    libraryItemId: String,
+    title: String,
+    author: String?,
+    coverUri: Uri?,
+    groupTitle: String? = null
+  ): MediaBrowserCompat.MediaItem {
+    val extras = Bundle()
+    savedEbookProgress(libraryItemId)?.let { (_, ebookProgress) ->
+      if (ebookProgress >= 1.0) {
+        extras.putInt(
+          MediaConstants.DESCRIPTION_EXTRAS_KEY_COMPLETION_STATUS,
+          MediaConstants.DESCRIPTION_EXTRAS_VALUE_COMPLETION_STATUS_FULLY_PLAYED
+        )
+      } else if (ebookProgress > 0.0) {
+        extras.putInt(
+          MediaConstants.DESCRIPTION_EXTRAS_KEY_COMPLETION_STATUS,
+          MediaConstants.DESCRIPTION_EXTRAS_VALUE_COMPLETION_STATUS_PARTIALLY_PLAYED
+        )
+        extras.putDouble(
+          MediaConstants.DESCRIPTION_EXTRAS_KEY_COMPLETION_PERCENTAGE, ebookProgress
+        )
+      }
+    }
+    if (ttsBookCache.has(libraryItemId)) {
+      // Cached books play without a download (offline like Downloads)
+      extras.putLong(
+        MediaDescriptionCompat.EXTRA_DOWNLOAD_STATUS,
+        MediaDescriptionCompat.STATUS_DOWNLOADED
+      )
+    }
+    groupTitle?.let {
+      extras.putString(MediaConstants.DESCRIPTION_EXTRAS_KEY_CONTENT_STYLE_GROUP_TITLE, it)
+    }
+    val description = MediaDescriptionCompat.Builder()
+      .setMediaId("$EBOOK_MEDIA_ID_PREFIX$libraryItemId")
+      .setTitle(title)
+      .setSubtitle(author ?: "")
+      .setIconUri(coverUri ?: getUriToDrawable(ctx, R.drawable.md_book_open_blank_variant_outline))
+      .setExtras(extras)
+      .build()
+    return MediaBrowserCompat.MediaItem(description, MediaBrowserCompat.MediaItem.FLAG_PLAYABLE)
   }
 
   // While the read aloud player is active it takes over the shared media session
@@ -1490,31 +1720,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
 
     if (parentMediaId == EBOOKS_ROOT) { // Ebooks cached for the read aloud (TTS) player
       val ebookBrowseItems = ttsBookCache.list().map { summary ->
-        val extras = Bundle()
-        savedEbookProgress(summary.libraryItemId)?.let { (_, ebookProgress) ->
-          if (ebookProgress >= 1.0) {
-            extras.putInt(
-              MediaConstants.DESCRIPTION_EXTRAS_KEY_COMPLETION_STATUS,
-              MediaConstants.DESCRIPTION_EXTRAS_VALUE_COMPLETION_STATUS_FULLY_PLAYED
-            )
-          } else if (ebookProgress > 0.0) {
-            extras.putInt(
-              MediaConstants.DESCRIPTION_EXTRAS_KEY_COMPLETION_STATUS,
-              MediaConstants.DESCRIPTION_EXTRAS_VALUE_COMPLETION_STATUS_PARTIALLY_PLAYED
-            )
-            extras.putDouble(
-              MediaConstants.DESCRIPTION_EXTRAS_KEY_COMPLETION_PERCENTAGE, ebookProgress
-            )
-          }
-        }
-        val description = MediaDescriptionCompat.Builder()
-          .setMediaId("$EBOOK_MEDIA_ID_PREFIX${summary.libraryItemId}")
-          .setTitle(summary.title)
-          .setSubtitle(summary.author ?: "")
-          .setIconUri(getUriToDrawable(ctx, R.drawable.md_book_open_blank_variant_outline))
-          .setExtras(extras)
-          .build()
-        MediaBrowserCompat.MediaItem(description, MediaBrowserCompat.MediaItem.FLAG_PLAYABLE)
+        buildEbookBrowseItem(summary.libraryItemId, summary.title, summary.author, serverCoverUri(summary.libraryItemId))
       }
       result.sendResult(ebookBrowseItems.toMutableList())
     } else if (parentMediaId == DOWNLOADS_ROOT) { // Load downloads
@@ -1609,6 +1815,22 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
                         MediaBrowserCompat.MediaItem.FLAG_PLAYABLE
                 )
       }
+
+      // Partially read ebooks from the TTS cache - continue reading aloud in
+      // the car; grouped under an Ebooks header after the audio items
+      ttsBookCache.list().forEach { summary ->
+        val ebookProgress = savedEbookProgress(summary.libraryItemId)?.second ?: 0.0
+        if (ebookProgress <= 0.0 || ebookProgress >= 1.0) return@forEach
+        localBrowseItems +=
+                buildEbookBrowseItem(
+                        summary.libraryItemId,
+                        summary.title,
+                        summary.author,
+                        serverCoverUri(summary.libraryItemId),
+                        "Ebooks"
+                )
+      }
+
       result.sendResult(localBrowseItems)
     } else if (parentMediaId == AUTO_MEDIA_ROOT) {
       Log.d(tag, "Trying to initialize browseTree.")
@@ -1624,7 +1846,8 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
                           mediaManager.serverItemsInProgress,
                           mediaManager.serverLibraries,
                           mediaManager.allLibraryPersonalizationsDone,
-                          ttsBookCache.list()
+                          ttsBookCache.list(),
+                          hasInProgressCachedEbooks()
                   )
           onBrowseTreeInitialized()
           val children =
@@ -1660,7 +1883,8 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
                         mediaManager.serverItemsInProgress,
                         mediaManager.serverLibraries,
                         mediaManager.allLibraryPersonalizationsDone,
-                        ttsBookCache.list()
+                        ttsBookCache.list(),
+                        hasInProgressCachedEbooks()
                 )
         onBrowseTreeInitialized()
         val children =
@@ -1770,6 +1994,23 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
                   )
           )
         }
+        // Epub ebooks playable with the read aloud (TTS) player - picking one
+        // downloads it into the TTS cache and starts speaking (F2+)
+        children.add(
+                MediaBrowserCompat.MediaItem(
+                        MediaDescriptionCompat.Builder()
+                                .setTitle("Ebooks")
+                                .setMediaId("__LIBRARY__${parentMediaId}__EBOOKS")
+                                .setIconUri(
+                                        getUriToDrawable(
+                                                ctx,
+                                                R.drawable.md_book_open_blank_variant_outline
+                                        )
+                                )
+                                .build(),
+                        MediaBrowserCompat.MediaItem.FLAG_BROWSABLE
+                )
+        )
         result.sendResult(children as MutableList<MediaBrowserCompat.MediaItem>?)
       }
     } else if (parentMediaId.startsWith(RECENTLY_ROOT)) {
@@ -1969,7 +2210,21 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
         return
       }
       Log.d(tag, "$mediaIdParts")
-      if (mediaIdParts[3] == "SERIES_LIST" && mediaIdParts.size == 5) {
+      if (mediaIdParts[3] == "EBOOKS") {
+        // Epub ebooks in the library, spoken by the read aloud (TTS) player
+        mediaManager.loadLibraryEbooks(mediaIdParts[2]) { libraryItems ->
+          val children =
+                  libraryItems.map { libraryItem ->
+                    buildEbookBrowseItem(
+                            libraryItem.id,
+                            libraryItem.title,
+                            libraryItem.authorName,
+                            libraryItem.getCoverUri()
+                    )
+                  }
+          result.sendResult(children.toMutableList())
+        }
+      } else if (mediaIdParts[3] == "SERIES_LIST" && mediaIdParts.size == 5) {
         Log.d(tag, "Loading series from library ${mediaIdParts[2]} with paging ${mediaIdParts[4]}")
         mediaManager.loadLibrarySeriesWithAudio(mediaIdParts[2], mediaIdParts[4]) { seriesItems ->
           Log.d(tag, "Received ${seriesItems.size} series")

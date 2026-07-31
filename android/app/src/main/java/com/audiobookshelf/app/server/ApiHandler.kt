@@ -45,6 +45,12 @@ class ApiHandler(var ctx:Context) {
 
   private var defaultClient = OkHttpClient()
   private var pingClient = OkHttpClient.Builder().callTimeout(3, TimeUnit.SECONDS).build()
+  // Ebook downloads for the read aloud (TTS) player - generous timeouts for slow connections
+  private var downloadClient = OkHttpClient.Builder()
+    .connectTimeout(10, TimeUnit.SECONDS)
+    .readTimeout(30, TimeUnit.SECONDS)
+    .callTimeout(5, TimeUnit.MINUTES)
+    .build()
   private var jacksonMapper = jacksonObjectMapper().enable(JsonReadFeature.ALLOW_UNESCAPED_CONTROL_CHARS.mappedFeature())
   private var secureStorage = SecureStorage(ctx)
 
@@ -509,6 +515,58 @@ class ApiHandler(var ctx:Context) {
       }
       cb(items)
     }
+  }
+
+  /** Library items with an ebook file, for the read aloud (TTS) player browse in Android Auto */
+  fun getLibraryItemsWithEbooks(libraryId:String, cb: (List<LibraryItem>) -> Unit) {
+    val ebookFilterBase64 = Base64.encodeToString("ebook".toByteArray(), Base64.NO_WRAP)
+    getRequest("/api/libraries/$libraryId/items?limit=1000&minified=1&filter=ebooks.$ebookFilterBase64&sort=media.metadata.title", null, null) {
+      val items = mutableListOf<LibraryItem>()
+      if (it.has("results")) {
+        val array = it.getJSONArray("results")
+        for (i in 0 until array.length()) {
+          val item = jacksonMapper.readValue<LibraryItem>(array.get(i).toString())
+          items.add(item)
+        }
+      }
+      cb(items)
+    }
+  }
+
+  /**
+   * Download the ebook file of a library item to [destFile] (the endpoint the
+   * WebView reader streams from). Used to cache a book for the read aloud
+   * (TTS) player when it is picked in Android Auto without being cached yet.
+   */
+  fun downloadEbookFile(libraryItemId:String, destFile:java.io.File, cb: (Boolean, String?) -> Unit) {
+    val request = Request.Builder()
+      .url("${DeviceManager.serverAddress}/api/items/$libraryItemId/ebook")
+      .addHeader("Authorization", "Bearer ${DeviceManager.token}")
+      .build()
+    downloadClient.newCall(request).enqueue(object : Callback {
+      override fun onFailure(call: Call, e: IOException) {
+        Log.e(tag, "downloadEbookFile: Failed to connect", e)
+        cb(false, "Failed to connect")
+      }
+
+      override fun onResponse(call: Call, response: Response) {
+        response.use {
+          if (!it.isSuccessful) {
+            cb(false, "Download failed with code ${it.code}")
+            return
+          }
+          try {
+            destFile.outputStream().use { output ->
+              it.body!!.byteStream().copyTo(output)
+            }
+            cb(true, null)
+          } catch (e: Exception) {
+            Log.e(tag, "downloadEbookFile: Failed to write file", e)
+            cb(false, "Failed to save the download")
+          }
+        }
+      }
+    })
   }
 
   fun getLibrarySeries(libraryId:String, cb: (List<LibrarySeriesItem>) -> Unit) {

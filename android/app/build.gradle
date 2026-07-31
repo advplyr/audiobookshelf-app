@@ -60,6 +60,10 @@ android {
       proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
     }
   }
+  testOptions {
+    // android.util.Log calls in tested classes no-op instead of throwing
+    unitTests.returnDefaultValues = true
+  }
 }
 
 repositories {
@@ -128,6 +132,10 @@ dependencies {
 
   // Jackson for JSON
   implementation 'com.fasterxml.jackson.module:jackson-module-kotlin:2.12.2'
+
+  testImplementation "junit:junit:$junit_version"
+  // Real XmlPullParser implementation for unit tests (the mockable android.jar stubs it out)
+  testImplementation 'net.sf.kxml:kxml2:2.3.0'
 }
 
 apply from: 'capacitor.build.gradle'

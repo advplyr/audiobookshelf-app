@@ -73,6 +73,10 @@ class TTSBookCache(val context: Context) {
     }
   }
 
+  fun has(libraryItemId: String): Boolean {
+    return bookFile(libraryItemId).exists()
+  }
+
   fun list(): List<TTSBookSummary> {
     val summaries = mutableListOf<TTSBookSummary>()
     cacheDir.listFiles { file -> file.name.endsWith(".meta.json") }?.forEach { file ->

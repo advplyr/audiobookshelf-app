@@ -32,6 +32,7 @@ class MediaManager(private var apiHandler: ApiHandler, var ctx: Context) {
   private var cachedLibraryDiscovery : MutableMap<String, MutableList<LibraryItem>> = hashMapOf()
   private var cachedLibraryPodcasts : MutableMap<String, MutableMap<String, LibraryItem>> = hashMapOf()
   private var isLibraryPodcastsCached : MutableMap<String, Boolean> = hashMapOf()
+  private var cachedLibraryEbooks : MutableMap<String, List<LibraryItem>> = hashMapOf()
   var allLibraryPersonalizationsDone : Boolean = false
   private var libraryPersonalizationsDone : Int = 0
 
@@ -150,6 +151,7 @@ class MediaManager(private var apiHandler: ApiHandler, var ctx: Context) {
       cachedLibraryDiscovery = hashMapOf()
       cachedLibraryPodcasts = hashMapOf()
       isLibraryPodcastsCached = hashMapOf()
+      cachedLibraryEbooks = hashMapOf()
       serverItemsInProgress = listOf()
       allLibraryPersonalizationsDone = false
       libraryPersonalizationsDone = 0
@@ -632,6 +634,23 @@ class MediaManager(private var apiHandler: ApiHandler, var ctx: Context) {
         Log.d(tag, "loadLibraryItem: Got library item $libraryItem")
         cb(libraryItem)
       }
+    }
+  }
+
+  /**
+   * Epub ebooks in [libraryId] for the read aloud (TTS) player browse in
+   * Android Auto. Only epub can be extracted natively, other formats are
+   * left out so every listed book actually plays.
+   */
+  fun loadLibraryEbooks(libraryId:String, cb: (List<LibraryItem>) -> Unit) {
+    cachedLibraryEbooks[libraryId]?.let {
+      cb(it)
+      return
+    }
+    apiHandler.getLibraryItemsWithEbooks(libraryId) { libraryItems ->
+      val epubItems = libraryItems.filter { (it.media as? Book)?.getEbookFormatValue() == "epub" }
+      cachedLibraryEbooks[libraryId] = epubItems
+      cb(epubItems)
     }
   }
 

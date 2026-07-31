@@ -181,8 +181,8 @@ media session na aplikaci je i požadavek Android Auto).
 | --- | --- | --- |
 | **F1** | Plugin `AbsTTSPlayer` + Android `TTSPlaybackEngine` v `PlayerNotificationService`, notifikace, media session, cache, progress sync. Čtečka přepnuta z v1 smyčky na plugin (mixin hooky zůstávají pro extrakci a follow-along). | největší kus práce |
 | **F2** | Android Auto: kategorie „E-knihy" v `BrowseTree`, výběr a ovládání z auta. | malá až střední (staví na F1) |
-| **F3** | iOS `TTSPlayer` + Now Playing + remote commands (background/zamčená obrazovka na iOS). | střední |
-| **F4** | CarPlay: entitlement, scéna, šablony (ideálně vč. audioknih). | střední + externí závislost na Apple |
+| **F3** | iOS `TTSPlayer` + Now Playing + remote commands (background/zamčená obrazovka na iOS). **Odloženo na neurčito** — není k dispozici iPhone na testování (a koupě se neplánuje). | střední |
+| **F4** | CarPlay: entitlement, scéna, šablony (ideálně vč. audioknih). **Odloženo na neurčito** — stejný důvod jako F3. | střední + externí závislost na Apple |
 
 Fallback: WebView smyčka z v1 zůstane v kódu jako záloha pro případ, že
 nativní vrstva není dostupná (např. starý build), a pro okamžité čtení bez
@@ -405,11 +405,34 @@ První řez F1 je v kódu (commit „Implement F1 slice…“):
   (Remote Submix), ale v autě bylo ticho, dokud si fokus nevzala
   audiokniha; transient loss pauzne a po GAIN naváže, permanentní loss
   zastaví; vedlejší přínos: TTS už nemluví přes jiné hrající aplikace
-- [ ] F2+: e-knihovní knihovny v „Libraries“ (dnes je skrývá upstream
-  filtr `numAudioFiles == 0` v `BrowseTree`) vč. přehrání nenacachovaných
-  knih — vyžaduje nativní extrakci textu (EPUB parsing bez WebView),
-  případně on-demand extrakci přes otevřenou aplikaci
-- [ ] F3/F4: iOS engine, CarPlay
+- [x] F2+: e-knihy v Android Auto knihovnách a v Continue:
+  - `EpubTextExtractor` — nativní extrakce textu z EPUBu (bez WebView):
+    container.xml → OPF (spine, metadata, toc) přes XmlPullParser; obsahové
+    XHTML dokumenty se záměrně neparsují jako XML (reálné EPUBy porušují
+    well-formedness — nedeklarované entity apod.), text se získává
+    odstraněním tagů, kde uzavření blokového elementu tvoří hranici
+    odstavce; entity dekódovány (numerické + běžné pojmenované), kódování
+    dle BOM/XML deklarace. Odstavce nemají CFI (potřebovalo by DOM) —
+    `location=null`, resume ve čtečce přes href kapitoly
+    (`startLocation`), resume TTS přes poměr znaků z `ebookProgress`
+  - „Ebooks“ uzel v každé knihovně typu book (`__LIBRARY__<id>__EBOOKS`,
+    server filtr `ebooks.<b64>`, jen epub — jiné formáty nativně extrahovat
+    neumíme); klik na nenacachovanou knihu → stažení
+    `/api/items/<id>/ebook` do dočasného souboru → extrakce → uložení do
+    `TTSBookCache` → přehrávání od uloženého progressu; média session
+    ukazuje během stahování STATE_BUFFERING a při chybě STATE_ERROR
+    (`downloadAndPlayTTS` v `PlayerNotificationService`)
+  - Continue kategorie zahrnuje rozečtené e-knihy z TTS cache
+    (0 < ebookProgress < 1) pod hlavičkou „Ebooks“; kategorie se zobrazí
+    i bez rozposlouchaných audioknih; cache změny volají
+    `notifyChildrenChanged(CONTINUE_ROOT)`
+  - `BrowseTree` už neskrývá knihovny bez audio souborů, pokud jde o book
+    knihovnu s položkami (čistě e-knihovní knihovny); nacachované e-knihy
+    mají v seznamech ikonu staženo (EXTRA_DOWNLOAD_STATUS) a cover art ze
+    serveru (offline fallback na ikonu knihy)
+  - **ověření na DHU zatím neproběhlo**
+- [ ] F3/F4: iOS engine, CarPlay — **odloženo na neurčito** (není iPhone
+  na testování)
 
 ### A.9 Testovací plán F1
 

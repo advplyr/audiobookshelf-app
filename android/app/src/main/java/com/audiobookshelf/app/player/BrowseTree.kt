@@ -12,7 +12,8 @@ class BrowseTree(
   itemsInProgress: List<ItemInProgress>,
   libraries: List<Library>,
   recentsLoaded: Boolean,
-  ttsBooks: List<TTSBookSummary>
+  ttsBooks: List<TTSBookSummary>,
+  hasEbooksInProgress: Boolean
 ) {
   private val mediaIdToChildren = mutableMapOf<String, MutableList<MediaMetadataCompat>>()
 
@@ -50,7 +51,8 @@ class BrowseTree(
       putString(MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, getUriToDrawable(context, R.drawable.md_book_open_blank_variant_outline).toString())
     }.build()
 
-    if (itemsInProgress.isNotEmpty()) {
+    // Shown for audio items in progress and for partially read ebooks in the TTS cache
+    if (itemsInProgress.isNotEmpty() || hasEbooksInProgress) {
       rootList += continueListeningMetadata
     }
 
@@ -61,8 +63,11 @@ class BrowseTree(
       rootList += librariesMetadata
 
       libraries.forEach { library ->
-        // Skip libraries without audio content
-        if (library.stats?.numAudioFiles == 0) return@forEach
+        // Skip libraries without playable content - audio, or ebooks in book
+        // libraries (playable with the read aloud/TTS player)
+        val hasAudio = library.stats?.numAudioFiles != 0
+        val hasEbooks = library.mediaType == "book" && library.stats?.totalItems != 0
+        if (!hasAudio && !hasEbooks) return@forEach
         Log.d("BrowseTree", "Library $library | ${library.icon}")
         // Generate library list items for Libraries menu
         val libraryMediaMetadata = library.getMediaMetadata(context)

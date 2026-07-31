@@ -138,7 +138,8 @@ class Book(
   var ebookFile: EBookFile?,
   var size:Long?,
   var duration:Double?,
-  var numTracks:Int?
+  var numTracks:Int?,
+  var ebookFormat:String? // Only in minified responses (expanded responses have ebookFile)
 ) : MediaType(metadata, coverPath) {
   @JsonIgnore
   override fun getAudioTracks():List<AudioTrack> {
@@ -189,12 +190,18 @@ class Book(
   }
   @JsonIgnore
   override fun getLocalCopy(): Book {
-    return Book(metadata as BookMetadata,coverPath,tags, mutableListOf(),chapters,mutableListOf(), ebookFile, null,null, 0)
+    return Book(metadata as BookMetadata,coverPath,tags, mutableListOf(),chapters,mutableListOf(), ebookFile, null,null, 0, ebookFormat)
   }
 
   @JsonIgnore
   override fun checkHasTracks():Boolean {
     return (tracks?.size ?: numTracks ?: 0) > 0
+  }
+
+  /** Ebook format regardless of response shape (minified or expanded) */
+  @JsonIgnore
+  fun getEbookFormatValue():String? {
+    return ebookFormat ?: ebookFile?.ebookFormat
   }
 }
 
