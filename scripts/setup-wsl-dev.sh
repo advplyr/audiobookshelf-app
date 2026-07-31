@@ -72,21 +72,28 @@ yes | "$SDKMANAGER" --sdk_root="$ANDROID_HOME" --licenses >/dev/null || true
   "build-tools;35.0.0" >/dev/null
 
 # ---------------------------------------------------------------- shell env
-SHELL_RC="$HOME/.bashrc"
-if ! grep -q "ANDROID_HOME" "$SHELL_RC" 2>/dev/null; then
-  log "Adding ANDROID_HOME and JAVA_HOME to $SHELL_RC"
-  {
-    echo ''
-    echo '# Audiobookshelf app dev environment'
-    echo "export ANDROID_HOME=\"$ANDROID_HOME\""
-    echo "export JAVA_HOME=\"$JAVA_HOME_17\""
-    echo 'export PATH="$ANDROID_HOME/platform-tools:$ANDROID_HOME/cmdline-tools/latest/bin:$PATH"'
-  } >> "$SHELL_RC"
-fi
+# Write env into every shell rc present (bash AND zsh - WSL users often run zsh)
+SHELL_RCS=("$HOME/.bashrc")
+[[ -f "$HOME/.zshrc" || "${SHELL:-}" == *zsh* ]] && SHELL_RCS+=("$HOME/.zshrc")
+for SHELL_RC in "${SHELL_RCS[@]}"; do
+  if ! grep -q "ANDROID_HOME" "$SHELL_RC" 2>/dev/null; then
+    log "Adding ANDROID_HOME and JAVA_HOME to $SHELL_RC"
+    {
+      echo ''
+      echo '# Audiobookshelf app dev environment'
+      echo "export ANDROID_HOME=\"$ANDROID_HOME\""
+      echo "export JAVA_HOME=\"$JAVA_HOME_17\""
+      echo 'export PATH="$ANDROID_HOME/platform-tools:$ANDROID_HOME/cmdline-tools/latest/bin:$PATH"'
+    } >> "$SHELL_RC"
+  fi
+done
 
 # ---------------------------------------------------------------- project
 log "Installing npm dependencies"
 npm ci
+
+log "Building web assets (nuxt generate - takes a few minutes)"
+npm run generate
 
 log "Syncing Capacitor Android project"
 npx cap sync android || warn "cap sync android failed - check the Android SDK setup"
@@ -94,8 +101,8 @@ npx cap sync android || warn "cap sync android failed - check the Android SDK se
 log "Done"
 cat <<'EOT'
 
-Build the app:
-  npm run generate                # build the web assets
+Open a NEW terminal (so PATH picks up adb), then build the app:
+  npm run generate                # rebuild web assets after making changes
   npx cap sync android
   cd android && ./gradlew assembleDebug
   # APK: android/app/build/outputs/apk/debug/app-debug.apk
@@ -103,9 +110,10 @@ Build the app:
 Connecting a physical phone (e.g. Pixel) from WSL - two options:
 
   A) Wireless debugging (simplest, no Windows-side setup):
-     On the phone: Settings -> Developer options -> Wireless debugging -> Pair
-     In WSL:  adb pair <ip>:<pair-port>   (enter the pairing code)
-              adb connect <ip>:<port>
+     On the phone: Settings -> Developer options -> Wireless debugging
+     -> Pair device with pairing code (shows ip, port and a code)
+     In WSL:  adb pair <ip>:<pairing-port>    # port from the pairing dialog
+              adb connect <ip>:<port>         # port from the main screen
               adb devices
 
   B) USB passthrough via usbipd-win (run in Windows PowerShell as admin):

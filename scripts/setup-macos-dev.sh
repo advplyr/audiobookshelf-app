@@ -90,6 +90,9 @@ fi
 log "Installing npm dependencies"
 npm ci
 
+log "Building web assets (nuxt generate - takes a few minutes)"
+npm run generate
+
 log "Syncing Capacitor Android project"
 npx cap sync android || warn "cap sync android failed - check the Android SDK setup"
 
