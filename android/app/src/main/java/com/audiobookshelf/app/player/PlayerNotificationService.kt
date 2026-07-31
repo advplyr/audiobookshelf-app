@@ -29,6 +29,8 @@ import androidx.media.MediaBrowserServiceCompat
 import androidx.media.utils.MediaConstants
 import com.audiobookshelf.app.BuildConfig
 import com.audiobookshelf.app.R
+// app R class is non-transitive (AGP 8); exo_icon_play/pause/stop only exist in the exoplayer-ui library
+import com.google.android.exoplayer2.ui.R as ExoUiR
 import com.audiobookshelf.app.data.*
 import com.audiobookshelf.app.data.DeviceInfo
 import com.audiobookshelf.app.device.DeviceManager
@@ -276,11 +278,11 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
       .setOnlyAlertOnce(true)
       .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
       .addAction(
-        if (isPlaying) R.drawable.exo_icon_pause else R.drawable.exo_icon_play,
+        if (isPlaying) ExoUiR.drawable.exo_icon_pause else ExoUiR.drawable.exo_icon_play,
         if (isPlaying) "Pause" else "Play",
         playPauseIntent
       )
-      .addAction(R.drawable.exo_icon_stop, "Stop", stopIntent)
+      .addAction(ExoUiR.drawable.exo_icon_stop, "Stop", stopIntent)
       .setStyle(
         androidx.media.app.NotificationCompat.MediaStyle()
           .setMediaSession(mediaSession.sessionToken)
