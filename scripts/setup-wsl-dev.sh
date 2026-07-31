@@ -71,6 +71,13 @@ yes | "$SDKMANAGER" --sdk_root="$ANDROID_HOME" --licenses >/dev/null || true
   "platforms;android-35" \
   "build-tools;35.0.0" >/dev/null
 
+# ---------------------------------------------------------------- gradle SDK path
+# local.properties points gradle at the SDK independent of shell env vars
+if [[ ! -f "$REPO_DIR/android/local.properties" ]]; then
+  log "Writing android/local.properties (sdk.dir)"
+  echo "sdk.dir=$ANDROID_HOME" > "$REPO_DIR/android/local.properties"
+fi
+
 # ---------------------------------------------------------------- shell env
 # Write env into every shell rc present (bash AND zsh - WSL users often run zsh)
 SHELL_RCS=("$HOME/.bashrc")
