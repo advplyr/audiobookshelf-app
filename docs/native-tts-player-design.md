@@ -385,7 +385,30 @@ První řez F1 je v kódu (commit „Implement F1 slice…“):
   i streamované; na metered síti po 60 s jako `MediaProgressSyncer`);
   konec knihy hlásí 100 % (`endOfBookReached`); **ověření na zařízení zatím
   neproběhlo**
-- [ ] F2: kategorie „E-knihy“ v `BrowseTree` + `onPlayFromMediaId`
+- [x] F2: kategorie „Ebooks“ v `BrowseTree` (zobrazí se, když má
+  `TTSBookCache` obsah) + položky z `TTSBookCache.list()` v `onLoadChildren`
+  (media id `ebook__<libraryItemId>`, progress bar z uloženého
+  `ebookProgress`, funguje i bez serveru jako Downloads);
+  `onPlayFromMediaId` routuje `ebook__` id na `playTTS`, který obnoví
+  poslední pozici z uloženého progressu (`ebookLocation`, fallback poměr
+  znaků z `ebookProgress`; lokální položky z DB, streamované z progressu
+  načteného pro Android Auto); po `prepareBook`/`removeCachedBook` se volá
+  `notifyEbooksChanged()` (`notifyChildrenChanged`), jinak Android Auto
+  drží stale browse cache; debug build má label „ABS Debug“, aby šel
+  v Autu rozeznat od produkční aplikace; **ověřeno na DHU** (browse,
+  výběr, resume od poslední pozice, now-playing metadata, refresh
+  seznamu po nacachování další knihy)
+- [x] Audio focus pro TTS engine (`AudioFocusRequestCompat`,
+  USAGE_MEDIA/CONTENT_TYPE_SPEECH, žádost při play, uvolnění při každém
+  stopu vč. konce knihy a chyb): bez drženého fokusu Android Auto
+  neotevře media stream do auta — TTS mluvil do projection sinku
+  (Remote Submix), ale v autě bylo ticho, dokud si fokus nevzala
+  audiokniha; transient loss pauzne a po GAIN naváže, permanentní loss
+  zastaví; vedlejší přínos: TTS už nemluví přes jiné hrající aplikace
+- [ ] F2+: e-knihovní knihovny v „Libraries“ (dnes je skrývá upstream
+  filtr `numAudioFiles == 0` v `BrowseTree`) vč. přehrání nenacachovaných
+  knih — vyžaduje nativní extrakci textu (EPUB parsing bez WebView),
+  případně on-demand extrakci přes otevřenou aplikaci
 - [ ] F3/F4: iOS engine, CarPlay
 
 ### A.9 Testovací plán F1
@@ -398,6 +421,12 @@ První řez F1 je v kódu (commit „Implement F1 slice…“):
   a jazyka za běhu / kniha bez českého hlasu / prázdné kapitoly / restart
   služby systémem (`onStartCommand` recovery).
 - **Android Auto (F2):** Desktop Head Unit (DHU) — browse, výběr, ovládání,
-  metadata, obnovení po odpojení.
+  metadata, obnovení po odpojení. Pozn.: s Android Auto 17.x funguje DHU
+  jen v **USB accessory režimu** (`desktop-head-unit --usb`, telefon na
+  kabelu, zapnuté Ladění USB; na Windows ručně přiřadit WinUSB driver na
+  „Android Accessory Interface“ ve Správci zařízení). Head unit server
+  přes `adb forward tcp:5277` je mrtvá cesta — server spojení přijme,
+  ale handshake nikdy nepřečte. DHU spouštět s vlastní konzolí
+  (`Start-Process`), na zavřeném stdin se ukončí.
 - **Regrese:** přehrávání audioknih (focus, notifikace, Cast) nesmí být
   TTS režimem dotčeno.

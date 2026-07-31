@@ -1,11 +1,15 @@
 package com.audiobookshelf.app.player
 
 import android.content.Context
+import android.media.AudioManager
 import android.os.Handler
 import android.os.Looper
 import android.speech.tts.TextToSpeech
 import android.speech.tts.UtteranceProgressListener
 import android.util.Log
+import androidx.media.AudioAttributesCompat
+import androidx.media.AudioFocusRequestCompat
+import androidx.media.AudioManagerCompat
 import com.audiobookshelf.app.data.TTSBook
 import java.util.Locale
 
@@ -58,6 +62,67 @@ class TTSPlaybackEngine(val context: Context, val listener: Listener) : TextToSp
   private var chunkIndex = 0
   // Incremented on every interruption so stale utterance callbacks are ignored
   private var sessionId = 0
+
+  private val audioManager by lazy { context.getSystemService(Context.AUDIO_SERVICE) as AudioManager }
+  private var hasAudioFocus = false
+  private var resumeOnFocusGain = false
+
+  // Ducked speech is unintelligible, so a transient loss pauses and gain resumes
+  private val audioFocusListener = AudioManager.OnAudioFocusChangeListener { change ->
+    mainHandler.post {
+      when (change) {
+        AudioManager.AUDIOFOCUS_LOSS -> {
+          resumeOnFocusGain = false
+          pause()
+          abandonAudioFocus()
+        }
+        AudioManager.AUDIOFOCUS_LOSS_TRANSIENT,
+        AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> {
+          if (state == TTSState.PLAYING) {
+            resumeOnFocusGain = true
+            pause()
+          }
+        }
+        AudioManager.AUDIOFOCUS_GAIN -> {
+          if (resumeOnFocusGain) {
+            resumeOnFocusGain = false
+            play()
+          }
+        }
+      }
+    }
+  }
+
+  private val audioFocusRequest: AudioFocusRequestCompat by lazy {
+    AudioFocusRequestCompat.Builder(AudioManagerCompat.AUDIOFOCUS_GAIN)
+      .setAudioAttributes(
+        AudioAttributesCompat.Builder()
+          .setUsage(AudioAttributesCompat.USAGE_MEDIA)
+          .setContentType(AudioAttributesCompat.CONTENT_TYPE_SPEECH)
+          .build()
+      )
+      .setOnAudioFocusChangeListener(audioFocusListener)
+      .build()
+  }
+
+  /**
+   * Media audio focus - besides pausing other audio apps, Android Auto only
+   * opens the car media stream for the focus holder (without it the engine
+   * speaks into the projection sink but the car stays silent)
+   */
+  private fun requestAudioFocus(): Boolean {
+    if (hasAudioFocus) return true
+    val result = AudioManagerCompat.requestAudioFocus(audioManager, audioFocusRequest)
+    hasAudioFocus = result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
+    if (!hasAudioFocus) Log.w(tag, "Audio focus request denied")
+    return hasAudioFocus
+  }
+
+  private fun abandonAudioFocus() {
+    if (!hasAudioFocus) return
+    hasAudioFocus = false
+    AudioManagerCompat.abandonAudioFocusRequest(audioManager, audioFocusRequest)
+  }
   // Position stays on the last paragraph when the book ends; this makes progress report 100%
   var endOfBookReached = false
     private set
@@ -131,6 +196,11 @@ class TTSPlaybackEngine(val context: Context, val listener: Listener) : TextToSp
       endOfBookReached = false
     }
 
+    if (!requestAudioFocus()) {
+      listener.onTTSError("Audio focus denied")
+      return
+    }
+
     interrupt()
     setState(TTSState.PLAYING)
     withTTS {
@@ -155,6 +225,8 @@ class TTSPlaybackEngine(val context: Context, val listener: Listener) : TextToSp
   }
 
   fun release() {
+    resumeOnFocusGain = false
+    abandonAudioFocus()
     interrupt()
     state = TTSState.STOPPED
     tts?.shutdown()
@@ -252,6 +324,11 @@ class TTSPlaybackEngine(val context: Context, val listener: Listener) : TextToSp
   private fun setState(newState: TTSState) {
     if (state == newState) return
     state = newState
+    // Every stop path (user stop, end of book, speech errors) releases the focus
+    if (newState == TTSState.STOPPED) {
+      resumeOnFocusGain = false
+      abandonAudioFocus()
+    }
     listener.onTTSStateChange(newState)
   }
 

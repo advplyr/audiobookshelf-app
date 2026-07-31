@@ -34,6 +34,31 @@ data class TTSBook(
     }
     return chars
   }
+
+  /** Position of the paragraph with the given saved ebookLocation, or null when not found */
+  fun positionForLocation(location: String?): Pair<Int, Int>? {
+    if (location.isNullOrEmpty()) return null
+    chapters.forEachIndexed { ci, chapter ->
+      chapter.paragraphs.forEachIndexed { pi, paragraph ->
+        if (paragraph.location == location) return Pair(ci, pi)
+      }
+    }
+    return null
+  }
+
+  /** Position of the paragraph containing the given ebookProgress ratio (by character count) */
+  fun positionForProgress(progressRatio: Double): Pair<Int, Int> {
+    val targetChars = (progressRatio.coerceIn(0.0, 1.0) * totalChars).toInt()
+    var chars = 0
+    chapters.forEachIndexed { ci, chapter ->
+      chapter.paragraphs.forEachIndexed { pi, paragraph ->
+        chars += paragraph.chars
+        if (chars > targetChars) return Pair(ci, pi)
+      }
+    }
+    val lastChapterIndex = maxOf(0, chapters.size - 1)
+    return Pair(lastChapterIndex, maxOf(0, (chapters.lastOrNull()?.paragraphs?.size ?: 1) - 1))
+  }
 }
 
 @JsonIgnoreProperties(ignoreUnknown = true)
