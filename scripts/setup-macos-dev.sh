@@ -73,6 +73,12 @@ fi
 log "Installing Android Studio (IDE, optional but recommended)"
 brew list --cask android-studio >/dev/null 2>&1 || brew install --cask android-studio
 
+# local.properties points gradle at the SDK independent of shell env vars
+if [[ ! -f "$REPO_DIR/android/local.properties" ]]; then
+  log "Writing android/local.properties (sdk.dir)"
+  echo "sdk.dir=$ANDROID_HOME" > "$REPO_DIR/android/local.properties"
+fi
+
 # Persist environment for future shells
 SHELL_RC="$HOME/.zshrc"
 if ! grep -q "ANDROID_HOME" "$SHELL_RC" 2>/dev/null; then
@@ -89,6 +95,9 @@ fi
 # ---------------------------------------------------------------- Project
 log "Installing npm dependencies"
 npm ci
+
+log "Building web assets (nuxt generate - takes a few minutes)"
+npm run generate
 
 log "Syncing Capacitor Android project"
 npx cap sync android || warn "cap sync android failed - check the Android SDK setup"
