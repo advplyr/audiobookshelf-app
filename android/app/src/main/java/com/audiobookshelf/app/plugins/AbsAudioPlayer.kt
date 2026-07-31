@@ -246,7 +246,7 @@ class AbsAudioPlayer : Plugin() {
             return call.resolve(JSObject("{\"error\":\"Podcast episode not found\"}"))
           }
         }
-        if (!it.hasTracks(episode)) {
+        if (!it.hasTracks(mainActivity, episode)) {
           return call.resolve(JSObject("{\"error\":\"No audio files found on device. Download book again to fix.\"}"))
         }
 

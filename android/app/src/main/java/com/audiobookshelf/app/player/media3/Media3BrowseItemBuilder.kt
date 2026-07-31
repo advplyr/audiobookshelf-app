@@ -158,7 +158,7 @@ class Media3BrowseItemBuilder(
     val progressById = DeviceManager.dbManager.getAllLocalMediaProgress().associateBy { it.id }
 
     val bookItems = localBooks.mapNotNull { libraryItem ->
-      if (!libraryItem.hasTracks(null)) return@mapNotNull null
+      if (!libraryItem.hasTracks(context, null)) return@mapNotNull null
       val progress = progressById[libraryItem.id]
       libraryItem.getMediaItem(progress, context).withDownloadArtwork(libraryItem, context)
     }
