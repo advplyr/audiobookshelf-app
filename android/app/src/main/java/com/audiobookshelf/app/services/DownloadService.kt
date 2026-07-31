@@ -74,11 +74,23 @@ class DownloadService : Service() {
             .setSmallIcon(R.drawable.icon)
             .setContentTitle(DownloadServiceHost.notificationStrings(this).downloads)
             .setContentText(text)
+            .setContentIntent(appLaunchIntent())
+            .setCategory(NotificationCompat.CATEGORY_PROGRESS)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setOnlyAlertOnce(true)
             .setOngoing(true)
+            .setAutoCancel(false)
             .setProgress(100, progress, !determinate)
             .addAction(0, DownloadServiceHost.notificationStrings(this).cancel, cancelIntent)
             .build()
+  }
+
+  private fun appLaunchIntent(): PendingIntent {
+    val intent = Intent(this, com.audiobookshelf.app.MainActivity::class.java)
+            .setAction(Intent.ACTION_MAIN)
+            .addCategory(Intent.CATEGORY_LAUNCHER)
+            .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+    return PendingIntent.getActivity(this, 0, intent, pendingIntentFlags())
   }
 
   private fun createChannel() {
