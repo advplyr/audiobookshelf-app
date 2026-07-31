@@ -2,7 +2,7 @@
 #
 # Development environment setup for the Audiobookshelf mobile app on
 # WSL (Windows Subsystem for Linux, Ubuntu/Debian based distro).
-# Installs the Android toolchain: Node.js 20, OpenJDK 17, Android SDK
+# Installs the Android toolchain: Node.js 20, OpenJDK 21, Android SDK
 # (cmdline tools + API 35), project npm dependencies and the Capacitor
 # Android project sync.
 #
@@ -29,12 +29,12 @@ REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$REPO_DIR"
 
 # ---------------------------------------------------------------- base packages
-log "Installing base packages (curl, unzip, git, OpenJDK 17)"
+log "Installing base packages (curl, unzip, git, OpenJDK 21)"
 sudo apt-get update
-sudo apt-get install -y curl wget unzip zip git openjdk-17-jdk-headless
+sudo apt-get install -y curl wget unzip zip git openjdk-21-jdk-headless
 
-JAVA_HOME_17="$(dirname "$(dirname "$(readlink -f "$(command -v javac)")")")"
-export JAVA_HOME="$JAVA_HOME_17"
+JAVA_HOME_21="/usr/lib/jvm/java-21-openjdk-amd64"
+export JAVA_HOME="$JAVA_HOME_21"
 
 # ---------------------------------------------------------------- Node.js 20
 if ! command -v node >/dev/null 2>&1 || [[ "$(node -v | cut -d. -f1 | tr -d v)" -lt 20 ]]; then
@@ -83,13 +83,15 @@ fi
 SHELL_RCS=("$HOME/.bashrc")
 [[ -f "$HOME/.zshrc" || "${SHELL:-}" == *zsh* ]] && SHELL_RCS+=("$HOME/.zshrc")
 for SHELL_RC in "${SHELL_RCS[@]}"; do
+  # migrate JAVA_HOME from the JDK 17 this script used to install
+  sed -i 's|export JAVA_HOME="/usr/lib/jvm/java-17-openjdk-amd64"|export JAVA_HOME="'"$JAVA_HOME_21"'"|' "$SHELL_RC" 2>/dev/null || true
   if ! grep -q "ANDROID_HOME" "$SHELL_RC" 2>/dev/null; then
     log "Adding ANDROID_HOME and JAVA_HOME to $SHELL_RC"
     {
       echo ''
       echo '# Audiobookshelf app dev environment'
       echo "export ANDROID_HOME=\"$ANDROID_HOME\""
-      echo "export JAVA_HOME=\"$JAVA_HOME_17\""
+      echo "export JAVA_HOME=\"$JAVA_HOME_21\""
       echo 'export PATH="$ANDROID_HOME/platform-tools:$ANDROID_HOME/cmdline-tools/latest/bin:$PATH"'
     } >> "$SHELL_RC"
   fi

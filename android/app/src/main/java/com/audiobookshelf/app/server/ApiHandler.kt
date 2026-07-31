@@ -664,6 +664,21 @@ class ApiHandler(var ctx:Context) {
     }
   }
 
+  fun updateEbookProgress(libraryItemId:String, ebookLocation:String?, ebookProgress:Double, lastUpdate:Long, cb: (Boolean, String?) -> Unit) {
+    val payload = JSObject()
+    ebookLocation?.let { payload.put("ebookLocation", it) }
+    payload.put("ebookProgress", ebookProgress)
+    payload.put("lastUpdate", lastUpdate)
+
+    patchRequest("/api/me/progress/$libraryItemId", payload) {
+      if (!it.getString("error").isNullOrEmpty()) {
+        cb(false, it.getString("error"))
+      } else {
+        cb(true, null)
+      }
+    }
+  }
+
   fun updateMediaProgress(libraryItemId:String,episodeId:String?,updatePayload:JSObject, cb: () -> Unit) {
     Log.d(tag, "updateMediaProgress $libraryItemId $episodeId $updatePayload")
     val endpoint = if(episodeId.isNullOrEmpty()) "/api/me/progress/$libraryItemId" else "/api/me/progress/$libraryItemId/$episodeId"
