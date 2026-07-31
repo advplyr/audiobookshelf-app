@@ -14,8 +14,8 @@
     "devlive": "ionic cap run -l --external --port=1337"
   },
   "dependencies": {
-    "@webnativellc/capacitor-filesharer": "7.0.4",
     "@capacitor-community/keep-awake": "^7.0.0",
+    "@capacitor-community/text-to-speech": "^6.1.0",
     "@capacitor-community/volume-buttons": "^7.0.0",
     "@capacitor/android": "^7.0.0",
     "@capacitor/app": "^7.0.0",
@@ -30,6 +30,7 @@
     "@capacitor/status-bar": "^7.0.0",
     "@nuxtjs/axios": "^5.13.6",
     "@teckel/vue-pdf": "^4.3.5",
+    "@webnativellc/capacitor-filesharer": "7.0.4",
     "buffer": "^6.0.3",
     "cordova-plugin-screen-orientation": "^3.0.4",
     "core-js": "^3.15.1",

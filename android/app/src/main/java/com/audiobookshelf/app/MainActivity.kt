@@ -20,6 +20,7 @@ import com.anggrayudi.storage.SimpleStorageHelper
 import com.audiobookshelf.app.managers.DbManager
 import com.audiobookshelf.app.player.PlayerNotificationService
 import com.audiobookshelf.app.plugins.AbsAudioPlayer
+import com.audiobookshelf.app.plugins.AbsTTSPlayer
 import com.audiobookshelf.app.plugins.AbsDatabase
 import com.audiobookshelf.app.plugins.AbsDownloader
 import com.audiobookshelf.app.plugins.AbsFileSystem
@@ -34,7 +35,8 @@ class MainActivity : BridgeActivity() {
   lateinit var foregroundService : PlayerNotificationService
   private lateinit var mConnection : ServiceConnection
 
-  lateinit var pluginCallback : () -> Unit
+  // Plugins register here to be notified when the player service is connected
+  val pluginCallbacks = mutableListOf<() -> Unit>()
 
   val storageHelper = SimpleStorageHelper(this)
   val storage = SimpleStorage(this)
@@ -48,6 +50,7 @@ class MainActivity : BridgeActivity() {
     DbManager.initialize(applicationContext)
 
     registerPlugin(AbsAudioPlayer::class.java)
+    registerPlugin(AbsTTSPlayer::class.java)
     registerPlugin(AbsDownloader::class.java)
     registerPlugin(AbsFileSystem::class.java)
     registerPlugin(AbsDatabase::class.java)
@@ -127,8 +130,8 @@ class MainActivity : BridgeActivity() {
         val mLocalBinder = service as PlayerNotificationService.LocalBinder
         foregroundService = mLocalBinder.getService()
 
-        // Let NativeAudio know foreground service is ready and setup event listener
-        pluginCallback()
+        // Let the plugins know the foreground service is ready and setup event listeners
+        pluginCallbacks.forEach { it() }
       }
     }
 

@@ -27,11 +27,13 @@
 
 <script>
 import pdf from '@teckel/vue-pdf'
+import TTSPlayer from '@/mixins/ttsPlayer'
 
 export default {
   components: {
     pdf
   },
+  mixins: [TTSPlayer],
   props: {
     url: String,
     libraryItem: {
@@ -117,6 +119,90 @@ export default {
     }
   },
   methods: {
+    /**
+     * TTS hook: the unit is a pdf page, spoken as a single paragraph of the
+     * page text layer. Scanned pdfs without a text layer cannot be read.
+     */
+    ttsCollectParagraphs() {
+      return this.ttsGetPageParagraphs(this.page)
+    },
+    /** TTS hook: turn to the next page with readable text */
+    async ttsAdvanceUnit() {
+      while (this.page < this.numPages) {
+        this.page++
+        this.updateProgress()
+        const paragraphs = await this.ttsGetPageParagraphs(this.page)
+        if (paragraphs.length) return paragraphs
+      }
+      return null
+    },
+    /** @returns {Promise<Array<{ text: string, ref: number }>>} */
+    async ttsGetPageParagraphs(pageNum) {
+      if (!this.pdfDocInitParams?.promise) return []
+      const doc = await this.pdfDocInitParams.promise
+      const page = await doc.getPage(pageNum)
+      const textContent = await page.getTextContent()
+      const text = this.ttsTextFromContent(textContent)
+      return text ? [{ text, ref: pageNum }] : []
+    },
+    /** Native TTS hook: chapter per page with a text layer; location is the page number */
+    async ttsExtractBook() {
+      if (!this.pdfDocInitParams?.promise || !this.numPages) return null
+      const doc = await this.pdfDocInitParams.promise
+      const chapters = []
+      for (let pageNum = 1; pageNum <= this.numPages; pageNum++) {
+        const page = await doc.getPage(pageNum)
+        const textContent = await page.getTextContent()
+        const text = this.ttsTextFromContent(textContent)
+        if (!text) continue
+        chapters.push({
+          title: String(pageNum),
+          startLocation: String(pageNum),
+          paragraphs: [{ text, location: String(pageNum), chars: text.length }]
+        })
+      }
+      return { ebookFormat: 'pdf', chapters }
+    },
+    /** Native TTS hook: start at the first chapter at/after the current page */
+    ttsNativeStartPosition(book) {
+      const chapterIndex = book.chapters.findIndex((c) => Number(c.startLocation) >= this.page)
+      return { chapterIndex: Math.max(0, chapterIndex), paragraphIndex: 0 }
+    },
+    /** Native TTS hook: turn to the spoken page */
+    ttsNativeFollow(event) {
+      const pageNum = Number(event.location)
+      if (pageNum && pageNum !== this.page) {
+        this.page = pageNum
+        this.updateProgress()
+      }
+    },
+    /** Reconstruct plain text from the pdfjs text layer items */
+    ttsTextFromContent(textContent) {
+      // Group items into lines by their y coordinate
+      const lines = []
+      let line = ''
+      let lastY = null
+      for (const item of textContent?.items || []) {
+        const str = item.str || ''
+        const y = item.transform?.[5]
+        if (lastY !== null && y !== undefined && Math.abs(y - lastY) > 2) {
+          if (line.trim()) lines.push(line.trim())
+          line = str
+        } else {
+          line += (line && str && !line.endsWith(' ') && !str.startsWith(' ') ? ' ' : '') + str
+        }
+        if (y !== undefined) lastY = y
+      }
+      if (line.trim()) lines.push(line.trim())
+
+      // Join lines, merging words hyphenated across line breaks
+      let text = ''
+      for (const l of lines) {
+        if (text.endsWith('-')) text = text.slice(0, -1) + l
+        else text += (text ? ' ' : '') + l
+      }
+      return text.replace(/\s+/g, ' ').trim()
+    },
     async updateProgress() {
       if (!this.keepProgress) return
 
@@ -204,13 +290,13 @@ export default {
         return
       }
 
-      // Force Vue to re-render the PDF component by creating a new object
-      this.pdfDocInitParams = {
+      // Force Vue to re-render the PDF component by creating a new loading task
+      this.pdfDocInitParams = pdf.createLoadingTask({
         url: this.ebookUrl,
         httpHeaders: {
           Authorization: `Bearer ${newAccessToken}`
         }
-      }
+      })
       this.isRefreshing = false
     },
     async error(err) {
@@ -226,12 +312,22 @@ export default {
       this.windowHeight = window.innerHeight
     },
     init() {
-      this.pdfDocInitParams = {
-        url: this.ebookUrl,
-        httpHeaders: {
-          Authorization: `Bearer ${this.userToken}`
+      // A loading task (instead of doc init params) lets the TTS engine share
+      // the loaded document with the pdf component for text extraction
+      this.pdfDocInitParams = pdf.createLoadingTask(
+        {
+          url: this.ebookUrl,
+          httpHeaders: {
+            Authorization: `Bearer ${this.userToken}`
+          }
+        },
+        {
+          // The pdf component does not attach progress to an existing loading task
+          onProgress: (status) => {
+            this.loadedRatio = Math.min(status.loaded / status.total, 1)
+          }
         }
-      }
+      )
     }
   },
   mounted() {

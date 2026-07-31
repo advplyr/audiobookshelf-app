@@ -8,6 +8,9 @@ project(':webnativellc-capacitor-filesharer').projectDir = new File('../node_mod
 include ':capacitor-community-keep-awake'
 project(':capacitor-community-keep-awake').projectDir = new File('../node_modules/@capacitor-community/keep-awake/android')
 
+include ':capacitor-community-text-to-speech'
+project(':capacitor-community-text-to-speech').projectDir = new File('../node_modules/@capacitor-community/text-to-speech/android')
+
 include ':capacitor-community-volume-buttons'
 project(':capacitor-community-volume-buttons').projectDir = new File('../node_modules/@capacitor-community/volume-buttons/android')
 

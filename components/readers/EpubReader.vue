@@ -11,9 +11,11 @@
 </template>
 
 <script>
-import ePub from 'epubjs'
+import ePub, { EpubCFI } from 'epubjs'
+import TTSPlayer from '@/mixins/ttsPlayer'
 
 export default {
+  mixins: [TTSPlayer],
   props: {
     url: String,
     libraryItem: {
@@ -35,12 +37,15 @@ export default {
       currentLocationCfi: null,
       inittingDisplay: true,
       isRefreshingUI: false,
+      ttsSectionIndex: 0,
       ereaderSettings: {
         theme: 'dark',
         font: 'serif',
         fontScale: 100,
         lineSpacing: 115,
-        textStroke: 0
+        textStroke: 0,
+        ttsLanguage: 'en-US',
+        ttsRate: 1
       }
     }
   },
@@ -127,6 +132,7 @@ export default {
   },
   methods: {
     updateSettings(settings) {
+      this.ttsHandleSettingsChange(settings)
       this.ereaderSettings = settings
 
       if (!this.rendition) return
@@ -140,6 +146,150 @@ export default {
     },
     goToChapter(href) {
       return this.rendition?.display(href)
+    },
+    /**
+     * TTS hook: paragraphs of the section at the current reading location.
+     * Paragraph `ref` is the epub cfi of the element, used to follow along.
+     */
+    ttsCollectParagraphs() {
+      const location = this.rendition?.currentLocation()
+      if (!location?.start) return []
+      this.ttsSectionIndex = location.start.index
+      return this.ttsCollectSectionParagraphs()
+    },
+    /** TTS hook: start from the first paragraph on the currently visible page */
+    ttsStartIndex(paragraphs) {
+      const location = this.rendition?.currentLocation()
+      if (!location?.start?.cfi) return 0
+      const cfiCompare = new EpubCFI()
+      const startIndex = paragraphs.findIndex((p) => {
+        try {
+          return p.ref && cfiCompare.compare(p.ref, location.start.cfi) >= 0
+        } catch (error) {
+          return false
+        }
+      })
+      return startIndex < 0 ? paragraphs.length - 1 : startIndex
+    },
+    /** TTS hook: display the next spine section, skipping ones with no readable text */
+    async ttsAdvanceUnit() {
+      let nextSection = this.book.spine.get(this.ttsSectionIndex + 1)
+      while (nextSection) {
+        this.ttsSectionIndex = nextSection.index
+        const session = this.ttsSessionId
+        await this.rendition.display(nextSection.href).catch((error) => {
+          console.error('[EpubReader] TTS failed to display section', error)
+        })
+        if (session !== this.ttsSessionId) return null
+
+        const paragraphs = this.ttsCollectSectionParagraphs()
+        if (paragraphs.length) return paragraphs
+        nextSection = this.book.spine.get(this.ttsSectionIndex + 1)
+      }
+      return null
+    },
+    /** TTS hook: turn the page when the spoken paragraph is not on the visible page */
+    ttsFollowParagraph(paragraph) {
+      const cfi = paragraph.ref
+      if (!cfi) return
+      const location = this.rendition?.currentLocation()
+      if (!location?.start?.cfi || !location?.end?.cfi) return
+      try {
+        const cfiCompare = new EpubCFI()
+        if (cfiCompare.compare(cfi, location.end.cfi) >= 0 || cfiCompare.compare(cfi, location.start.cfi) < 0) {
+          this.rendition.display(cfi).catch((error) => {
+            console.error('[EpubReader] TTS failed to follow location', error)
+          })
+        }
+      } catch (error) {
+        console.error('[EpubReader] TTS failed to compare locations', error)
+      }
+    },
+    /** @returns {Array<{ text: string, ref: string }>} paragraphs with their cfi as ref */
+    ttsCollectSectionParagraphs() {
+      const contents = this.getTTSSectionContents()
+      if (!contents) return []
+      return this.ttsCollectHtmlParagraphs(contents.document?.body).map((p) => {
+        let cfi = null
+        try {
+          cfi = contents.cfiFromNode(p.ref)
+        } catch (error) {
+          console.error('[EpubReader] TTS failed to get cfi for element', error)
+        }
+        return { text: p.text, ref: cfi }
+      })
+    },
+    getTTSSectionContents() {
+      const contents = this.rendition?.getContents() || []
+      return contents.find((c) => c.sectionIndex === this.ttsSectionIndex) || contents[0] || null
+    },
+    /**
+     * Native TTS hook: extract the whole book by walking the spine without
+     * rendering. Paragraph location is the epub cfi of the element.
+     */
+    async ttsExtractBook() {
+      if (!this.book?.spine) return null
+
+      // Map spine hrefs to chapter titles from the toc
+      const tocTitles = {}
+      const addTocItems = (items) => {
+        for (const item of items || []) {
+          const href = (item.href || '').split('#')[0]
+          if (href && !tocTitles[href]) tocTitles[href] = item.label?.trim() || ''
+          addTocItems(item.subitems)
+        }
+      }
+      addTocItems(this.chapters)
+
+      const chapters = []
+      for (const section of this.book.spine.spineItems || []) {
+        if (section.linear === false || section.linear === 'no') continue
+        try {
+          const doc = await section.load(this.book.load.bind(this.book))
+          const body = doc?.querySelector?.('body') || doc?.getElementsByTagName?.('body')?.[0] || doc
+          const paragraphs = this.ttsCollectHtmlParagraphs(body).map((p) => {
+            let cfi = null
+            try {
+              cfi = new EpubCFI(p.ref, section.cfiBase).toString()
+            } catch (error) {
+              // paragraph stays speakable without follow-along
+            }
+            return { text: p.text, location: cfi, chars: p.text.length }
+          })
+          section.unload()
+          if (!paragraphs.length) continue
+          chapters.push({
+            title: tocTitles[(section.href || '').split('#')[0]] || '',
+            startLocation: section.href || '',
+            paragraphs
+          })
+        } catch (error) {
+          console.error('[EpubReader] ttsExtractBook failed to load section', section.href, error)
+        }
+      }
+      return { ebookFormat: 'epub', chapters }
+    },
+    /** Native TTS hook: start at the chapter/paragraph of the visible page */
+    ttsNativeStartPosition(book) {
+      const location = this.rendition?.currentLocation()
+      const currentHref = this.book?.spine?.get(location?.start?.index)?.href
+      const chapterIndex = book.chapters.findIndex((c) => c.startLocation === currentHref)
+      if (chapterIndex < 0) return { chapterIndex: 0, paragraphIndex: 0 }
+
+      const cfiCompare = new EpubCFI()
+      let paragraphIndex = book.chapters[chapterIndex].paragraphs.findIndex((p) => {
+        try {
+          return p.location && cfiCompare.compare(p.location, location.start.cfi) >= 0
+        } catch (error) {
+          return false
+        }
+      })
+      if (paragraphIndex < 0) paragraphIndex = 0
+      return { chapterIndex, paragraphIndex }
+    },
+    /** Native TTS hook: follow the spoken paragraph while the reader is open */
+    ttsNativeFollow(event) {
+      if (event.location) this.ttsFollowParagraph({ ref: event.location })
     },
     prev() {
       if (this.rendition) {

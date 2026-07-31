@@ -8,6 +8,10 @@
 		"classpath": "com.getcapacitor.community.keepawake.KeepAwakePlugin"
 	},
 	{
+		"pkg": "@capacitor-community/text-to-speech",
+		"classpath": "com.getcapacitor.community.tts.TextToSpeechPlugin"
+	},
+	{
 		"pkg": "@capacitor-community/volume-buttons",
 		"classpath": "com.ryltsov.alex.plugins.volume.buttons.VolumeButtonsPlugin"
 	},
