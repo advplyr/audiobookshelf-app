@@ -77,14 +77,28 @@ export default function ({ store, $db, $socket }, inject) {
         }
 
         // Attempt to refresh the token
-        const newTokens = await this.refreshAccessToken(refreshToken, serverConnectionConfig.address)
-        if (!newTokens?.accessToken) {
+        const refreshResult = await this.refreshAccessToken(refreshToken, serverConnectionConfig.address)
+        if (refreshResult?._permanentFailure) {
+          console.error('[nativeHttp] Token refresh permanently rejected - logging out')
+          const err = new Error('Token refresh permanently failed (server rejected refresh token)')
+          err.permanent = true
+          throw err
+        }
+        if (refreshResult?._transientFailure) {
+          console.error('[nativeHttp] Token refresh failed (transient): keeping credentials')
+          const err = new Error('Token refresh failed with status ' + refreshResult.status + ' (server may be temporarily unavailable)')
+          err.transient = true
+          throw err
+        }
+        if (!refreshResult?.accessToken) {
           console.error('[nativeHttp] Failed to refresh access token')
-          throw new Error('Failed to refresh access token')
+          const err = new Error('Failed to refresh access token')
+          err.permanent = true
+          throw err
         }
 
         // Update the store with new tokens
-        await this.updateTokens(newTokens, serverConnectionConfig)
+        await this.updateTokens(refreshResult, serverConnectionConfig)
 
         // Retry the original request with the new token
         console.log('[nativeHttp] Retrying original request with new token...')
@@ -94,7 +108,7 @@ export default function ({ store, $db, $socket }, inject) {
           data,
           headers: {
             ...headers,
-            Authorization: `Bearer ${newTokens.accessToken}`
+            Authorization: `Bearer ${refreshResult.accessToken}`
           },
           ...options
         })
@@ -109,8 +123,10 @@ export default function ({ store, $db, $socket }, inject) {
       } catch (error) {
         console.error('[nativeHttp] Token refresh failed:', error)
 
-        // If refresh fails, redirect to login
-        await this.handleRefreshFailure(serverConnectionConfig?.id)
+        // Only log out on permanent rejection (401); transient errors keep credentials
+        if (!error?.transient) {
+          await this.handleRefreshFailure(serverConnectionConfig?.id)
+        }
         throw error
       }
     },
@@ -138,9 +154,13 @@ export default function ({ store, $db, $socket }, inject) {
           data: {}
         })
 
+        if (response.status === 401) {
+          console.error('[nativeHttp] Token refresh request rejected (401): returning permanent failure')
+          return { _permanentFailure: true }
+        }
         if (response.status !== 200) {
-          console.error('[nativeHttp] Token refresh request failed:', response.status)
-          return null
+          console.error('[nativeHttp] Token refresh request failed with status', response.status, '(transient, keeping credentials)')
+          return { _transientFailure: true, status: response.status }
         }
 
         const userResponseData = response.data
@@ -157,7 +177,9 @@ export default function ({ store, $db, $socket }, inject) {
         }
       } catch (error) {
         console.error('[nativeHttp] Failed to refresh access token:', error)
-        return null
+        // A thrown exception here is a transport-level failure (network down, DNS, timeout, etc.),
+        // not a genuine token rejection — treat it as transient and keep credentials.
+        return { _transientFailure: true, status: 0, error: error?.message }
       }
     },
 

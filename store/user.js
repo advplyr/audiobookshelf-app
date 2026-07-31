@@ -182,9 +182,13 @@ export const actions = {
       data: {}
     })
 
+    if (response.status === 401) {
+      console.error('[user] Token refresh request rejected (401): returning permanent failure')
+      return null // null signals permanent failure to axios.js
+    }
     if (response.status !== 200) {
-      console.error('[user] Token refresh request failed:', response.status)
-      return null
+      console.error('[user] Token refresh request failed with status', response.status, '(transient, keeping credentials)')
+      return { _transientFailure: true, status: response.status }
     }
 
     const userResponseData = response.data

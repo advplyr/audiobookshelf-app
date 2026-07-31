@@ -213,51 +213,62 @@ class ApiHandler(var ctx:Context) {
       client.newCall(refreshRequest).enqueue(object : Callback {
         override fun onFailure(call: Call, e: IOException) {
           Log.e(tag, "handleTokenRefresh: Failed to connect to refresh endpoint", e)
-          AbsLogger.error(tag, "handleTokenRefresh: Failed to connect to refresh endpoint for server ${DeviceManager.serverConnectionConfigString} (error: ${e.message})")
-          handleRefreshFailure(callback)
+          AbsLogger.error(tag, "handleTokenRefresh: Failed to connect to refresh endpoint for server ${DeviceManager.serverConnectionConfigString} (transient: ${e.message})")
+          // Network error is transient — keep credentials, return error to caller
+          val errorObj = JSObject()
+          errorObj.put("error", "Server temporarily unavailable (network error)")
+          errorObj.put("transient", true)
+          callback(errorObj)
         }
 
         override fun onResponse(call: Call, response: Response) {
           response.use {
-            if (!it.isSuccessful) {
-              AbsLogger.error(tag, "handleTokenRefresh: Refresh request failed with status ${it.code} for server ${DeviceManager.serverConnectionConfigString}")
+            if (it.code == 401) {
+              // Refresh token is genuinely invalid — log out
+              AbsLogger.error(tag, "handleTokenRefresh: Refresh request rejected (401) for server ${DeviceManager.serverConnectionConfigString}")
               handleRefreshFailure(callback)
-              return
-            }
+            } else if (!it.isSuccessful) {
+              // Any other non-2xx (403/404/5xx) is transient — server may be rebooting
+              AbsLogger.error(tag, "handleTokenRefresh: Refresh request failed with status ${it.code} for server ${DeviceManager.serverConnectionConfigString} (transient, keeping credentials)")
+              val errorObj = JSObject()
+              errorObj.put("error", "Server temporarily unavailable (status ${it.code})")
+              errorObj.put("transient", true)
+              callback(errorObj)
+            } else {
+              val bodyString = it.body!!.string()
+              try {
+                val responseJson = JSONObject(bodyString)
+                val userObj = responseJson.optJSONObject("user")
 
-            val bodyString = it.body!!.string()
-            try {
-              val responseJson = JSONObject(bodyString)
-              val userObj = responseJson.optJSONObject("user")
+                if (userObj == null) {
+                  AbsLogger.error(tag, "handleTokenRefresh: No user object in refresh response for server ${DeviceManager.serverConnectionConfigString}")
+                  handleRefreshFailure(callback)
+                  return
+                }
 
-              if (userObj == null) {
-                AbsLogger.error(tag, "handleTokenRefresh: No user object in refresh response for server ${DeviceManager.serverConnectionConfigString}")
+                val newAccessToken = userObj.optString("accessToken")
+                val newRefreshToken = userObj.optString("refreshToken")
+
+                if (newAccessToken.isEmpty()) {
+                  AbsLogger.error(tag, "handleTokenRefresh: No access token in refresh response for server ${DeviceManager.serverConnectionConfigString}")
+                  handleRefreshFailure(callback)
+                  return
+                }
+
+                Log.d(tag, "handleTokenRefresh: Successfully obtained new access token")
+
+                // Update tokens in secure storage and device manager
+                updateTokens(newAccessToken, newRefreshToken.ifEmpty { refreshToken }, serverConnectionConfigId)
+
+                // Retry the original request with the new access token
+                Log.d(tag, "handleTokenRefresh: Retrying original request with new token")
+                retryOriginalRequest(originalRequest, newAccessToken, httpClient, callback)
+
+              } catch (e: Exception) {
+                Log.e(tag, "handleTokenRefresh: Failed to parse refresh response", e)
+                AbsLogger.error(tag, "handleTokenRefresh: Failed to parse refresh response for server ${DeviceManager.serverConnectionConfigString} (error: ${e.message})")
                 handleRefreshFailure(callback)
-                return
               }
-
-              val newAccessToken = userObj.optString("accessToken")
-              val newRefreshToken = userObj.optString("refreshToken")
-
-              if (newAccessToken.isEmpty()) {
-                AbsLogger.error(tag, "handleTokenRefresh: No access token in refresh response for server ${DeviceManager.serverConnectionConfigString}")
-                handleRefreshFailure(callback)
-                return
-              }
-
-              Log.d(tag, "handleTokenRefresh: Successfully obtained new access token")
-
-              // Update tokens in secure storage and device manager
-              updateTokens(newAccessToken, newRefreshToken.ifEmpty { refreshToken }, serverConnectionConfigId)
-
-              // Retry the original request with the new access token
-              Log.d(tag, "handleTokenRefresh: Retrying original request with new token")
-              retryOriginalRequest(originalRequest, newAccessToken, httpClient, callback)
-
-            } catch (e: Exception) {
-              Log.e(tag, "handleTokenRefresh: Failed to parse refresh response", e)
-              AbsLogger.error(tag, "handleTokenRefresh: Failed to parse refresh response for server ${DeviceManager.serverConnectionConfigString} (error: ${e.message})")
-              handleRefreshFailure(callback)
             }
           }
         }
@@ -389,13 +400,15 @@ class ApiHandler(var ctx:Context) {
     try {
       Log.d(tag, "handleRefreshFailure: Token refresh failed, clearing session")
 
+      // Capture config ID before clearing so the refresh token can be removed
+      val serverConnectionConfigId = DeviceManager.serverConnectionConfigId
+
       // Clear the current server connection
       DeviceManager.serverConnectionConfig = null
       DeviceManager.deviceData.lastServerConnectionConfigId = null
       DeviceManager.dbManager.saveDeviceData(DeviceManager.deviceData)
 
       // Remove refresh token from secure storage
-      val serverConnectionConfigId = DeviceManager.serverConnectionConfigId
       if (serverConnectionConfigId.isNotEmpty()) {
         secureStorage.removeRefreshToken(serverConnectionConfigId)
       }
