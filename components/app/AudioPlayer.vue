@@ -33,7 +33,7 @@
         <p class="font-mono text-fg" style="font-size: 0.8rem">{{ totalTimeRemainingPretty }}</p>
       </div>
       <div class="w-full">
-        <div class="h-1 w-full bg-track/50 relative rounded-full">
+        <div class="h-1 w-full bg-track/50 relative rounded-full overflow-hidden">
           <div ref="totalReadyTrack" class="h-full bg-track-buffered absolute top-0 left-0 pointer-events-none rounded-full" />
           <div ref="totalBufferedTrack" class="h-full bg-track absolute top-0 left-0 pointer-events-none rounded-full" />
           <div ref="totalPlayedTrack" class="h-full bg-track-cursor absolute top-0 left-0 pointer-events-none rounded-full" />
@@ -111,7 +111,7 @@
           <div class="flex-grow" />
           <p class="font-mono text-fg" style="font-size: 0.8rem">{{ timeRemainingPretty }}</p>
         </div>
-        <div ref="track" class="h-1.5 w-full bg-track/50 relative rounded-full" :class="{ 'animate-pulse': showLoadingState }" @click.stop>
+        <div ref="track" class="h-1.5 w-full bg-track/50 relative rounded-full overflow-hidden" :class="{ 'animate-pulse': showLoadingState }" @click.stop>
           <div ref="readyTrack" class="h-full bg-track-buffered absolute top-0 left-0 rounded-full pointer-events-none" />
           <div ref="bufferedTrack" class="h-full bg-track absolute top-0 left-0 rounded-full pointer-events-none" />
           <div ref="playedTrack" class="h-full bg-track-cursor absolute top-0 left-0 rounded-full pointer-events-none" />
@@ -468,9 +468,8 @@ export default {
       this.showFullscreen = true
       if (this.titleMarquee) this.titleMarquee.reset()
 
-      // Update track for total time bar if useChapterTrack is set
       this.$nextTick(() => {
-        this.updateTrack()
+        this.measureAndUpdateTrackWidth()
       })
     },
     collapseFullscreen() {
@@ -550,13 +549,17 @@ export default {
       this.updateReadyTrack()
     },
     updateReadyTrack() {
+      if (!this.$refs.readyTrack) return
+
       if (this.playerSettings.useChapterTrack) {
-        if (this.$refs.totalReadyTrack) {
-          this.$refs.totalReadyTrack.style.width = this.readyTrackWidth + 'px'
+        if (this.$refs.totalReadyTrack && this.trackWidth) {
+          const readyPercent = (this.readyTrackWidth / this.trackWidth) * 100
+          this.$refs.totalReadyTrack.style.width = readyPercent + '%'
         }
-        this.$refs.readyTrack.style.width = this.trackWidth + 'px'
-      } else {
-        this.$refs.readyTrack.style.width = this.readyTrackWidth + 'px'
+        this.$refs.readyTrack.style.width = '100%'
+      } else if (this.trackWidth) {
+        const readyPercent = (this.readyTrackWidth / this.trackWidth) * 100
+        this.$refs.readyTrack.style.width = readyPercent + '%'
       }
     },
     updateTimestamp() {
@@ -608,21 +611,23 @@ export default {
         bufferedPercent = Math.max(0, Math.min(1, (this.bufferedTime - this.currentChapter.start) / this.currentChapterDuration))
       }
 
-      const ptWidth = Math.round(percentDone * this.trackWidth)
+      const playedPercent = percentDone * 100
+      const bufferedPercentWidth = bufferedPercent * 100
       if (this.$refs.playedTrack) {
-        this.$refs.playedTrack.style.width = ptWidth + 'px'
+        this.$refs.playedTrack.style.width = playedPercent + '%'
       }
       if (this.$refs.bufferedTrack) {
-        this.$refs.bufferedTrack.style.width = Math.round(bufferedPercent * this.trackWidth) + 'px'
+        this.$refs.bufferedTrack.style.width = bufferedPercentWidth + '%'
       }
 
-      if (this.$refs.trackCursor) {
-        this.$refs.trackCursor.style.left = ptWidth - 14 + 'px'
+      if (this.$refs.trackCursor && this.$refs.track) {
+        const trackWidth = this.$refs.track.clientWidth
+        this.$refs.trackCursor.style.left = Math.round(percentDone * trackWidth) - 14 + 'px'
       }
 
       if (this.playerSettings.useChapterTrack) {
-        if (this.$refs.totalPlayedTrack) this.$refs.totalPlayedTrack.style.width = Math.round(totalPercentDone * this.trackWidth) + 'px'
-        if (this.$refs.totalBufferedTrack) this.$refs.totalBufferedTrack.style.width = Math.round(totalBufferedPercent * this.trackWidth) + 'px'
+        if (this.$refs.totalPlayedTrack) this.$refs.totalPlayedTrack.style.width = totalPercentDone * 100 + '%'
+        if (this.$refs.totalBufferedTrack) this.$refs.totalBufferedTrack.style.width = totalBufferedPercent * 100 + '%'
       }
     },
     seek(time) {
@@ -640,8 +645,7 @@ export default {
 
       if (this.$refs.playedTrack) {
         const perc = time / this.totalDuration
-        const ptWidth = Math.round(perc * this.trackWidth)
-        this.$refs.playedTrack.style.width = ptWidth + 'px'
+        this.$refs.playedTrack.style.width = perc * 100 + '%'
 
         this.$refs.playedTrack.classList.remove('bg-gray-200')
         this.$refs.playedTrack.classList.add('bg-yellow-300')
@@ -750,7 +754,8 @@ export default {
         maxTime = minTime + duration
       }
 
-      const timePerPixel = duration / this.trackWidth
+      const trackWidth = this.$refs.track?.clientWidth || this.trackWidth
+      const timePerPixel = duration / trackWidth
       const newTime = this.draggingTouchStartTime + timePerPixel * distanceMoved
       this.draggingCurrentTime = Math.min(maxTime, Math.max(minTime, newTime))
 
@@ -888,11 +893,7 @@ export default {
         this.titleMarquee = new WrappingMarquee(this.$refs.titlewrapper)
         this.titleMarquee.init(this.title)
 
-        if (this.$refs.track) {
-          this.trackWidth = this.$refs.track.clientWidth
-        } else {
-          console.error('Track not loaded', this.$refs)
-        }
+        this.measureAndUpdateTrackWidth()
       })
     },
     onPlaybackClosed() {
@@ -938,15 +939,26 @@ export default {
         }
       }
 
+      // playerContainer width transition is 150ms, remeasure after layout settles
+      await new Promise((resolve) => setTimeout(resolve, 200))
+      this.refreshUI()
+
       this.isRefreshingUI = false
+    },
+    measureAndUpdateTrackWidth() {
+      if (!this.$refs.track) {
+        console.error('Track not loaded', this.$refs)
+        return
+      }
+      this.trackWidth = this.$refs.track.clientWidth
+      this.updateTrack()
+      this.updateReadyTrack()
     },
     refreshUI() {
       this.updateScreenSize()
-      if (this.$refs.track) {
-        this.trackWidth = this.$refs.track.clientWidth
-        this.updateTrack()
-        this.updateReadyTrack()
-      }
+      this.$nextTick(() => {
+        this.measureAndUpdateTrackWidth()
+      })
     },
     updateScreenSize() {
       setTimeout(() => {
@@ -1054,6 +1066,7 @@ export default {
   transition: all 0.15s cubic-bezier(0.39, 0.575, 0.565, 1);
   transition-property: margin;
   bottom: 35px;
+  max-width: 100%;
 }
 .fullscreen #playerTrack {
   bottom: unset;
