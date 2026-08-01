@@ -28,9 +28,18 @@ end
 target 'Audiobookshelf' do
   capacitor_pods
   # Add your Pods here
-  
+
   pod 'RealmSwift', '~> 10'
-  pod 'Alamofire', '~> 5.5'
+  # Alamofire removed in Phase 6 of the ABSApiClient migration — all HTTP now goes through the
+  # generated ABSApiClient (SwiftPM). See ios/ABSApiClient/README.md.
+
+  # App-hosted unit tests. inherit! :search_paths gives the test target the framework /
+  # header search paths for the app's pods (RealmSwift, Capacitor) so that
+  # `@testable import Audiobookshelf` resolves their modules, without re-linking the pods
+  # into the test bundle (their symbols come from the host app via bundle_loader).
+  target 'AudiobookshelfUnitTests' do
+    inherit! :search_paths
+  end
 end
 
 
