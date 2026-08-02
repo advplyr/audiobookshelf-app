@@ -15,6 +15,7 @@ import com.audiobookshelf.app.player.PlaybackConstants
 import com.audiobookshelf.app.plugins.AbsLogger
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import com.fasterxml.jackson.core.json.JsonReadFeature
+import com.fasterxml.jackson.databind.node.ObjectNode
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import com.getcapacitor.JSArray
@@ -46,7 +47,6 @@ class ApiHandler(var ctx:Context) {
   private var jacksonMapper = jacksonObjectMapper().enable(JsonReadFeature.ALLOW_UNESCAPED_CONTROL_CHARS.mappedFeature())
   private var secureStorage = SecureStorage(ctx)
 
-  data class LocalSessionsSyncRequestPayload(val sessions:List<PlaybackSession>, val deviceInfo:DeviceInfo)
   @JsonIgnoreProperties(ignoreUnknown = true)
   data class LocalSessionSyncResult(val id:String, val success:Boolean, val progressSynced:Boolean?, val error:String?)
   data class LocalSessionsSyncResponsePayload(val results:List<LocalSessionSyncResult>)
@@ -653,10 +653,29 @@ class ApiHandler(var ctx:Context) {
     }
   }
 
-  fun sendLocalProgressSync(playbackSession:PlaybackSession, cb: (Boolean, String?) -> Unit) {
-    val payload = JSObject(jacksonMapper.writeValueAsString(playbackSession))
+  private fun createPartialPlaybackSession(playbackSession: PlaybackSession): ObjectNode {
+    val json = jacksonMapper.createObjectNode()
+    json.put("id", playbackSession.id)
+    json.put("userId", playbackSession.userId)
+    json.put("libraryItemId", playbackSession.libraryItemId)
+    json.put("episodeId", playbackSession.episodeId)
+    json.put("mediaType", playbackSession.mediaType)
+    json.put("displayTitle", playbackSession.displayTitle)
+    json.put("displayAuthor", playbackSession.displayAuthor)
+    json.put("duration", playbackSession.duration)
+    json.put("playMethod", playbackSession.playMethod)
+    json.put("startedAt", playbackSession.startedAt)
+    json.put("updatedAt", playbackSession.updatedAt)
+    json.put("timeListening", playbackSession.timeListening)
+    json.put("currentTime", playbackSession.currentTime)
+    json.put("mediaPlayer", playbackSession.mediaPlayer)
+    return json
+  }
 
-    postRequest("/api/session/local", payload, null) {
+  fun sendLocalProgressSync(playbackSession:PlaybackSession, cb: (Boolean, String?) -> Unit) {
+    val partialSession = createPartialPlaybackSession(playbackSession)
+    partialSession.set<ObjectNode>("deviceInfo", jacksonMapper.valueToTree(playbackSession.deviceInfo))
+    postRequest("/api/session/local", JSObject(partialSession.toString()), null) {
       val error = it.getString("error")
       if (!error.isNullOrEmpty()) {
         Log.w(tag, "sendLocalProgressSync failed for session=${playbackSession.id}: $error")
@@ -750,10 +769,12 @@ class ApiHandler(var ctx:Context) {
   fun sendSyncLocalSessions(playbackSessions:List<PlaybackSession>, cb: (Boolean, String?) -> Unit) {
     val deviceInfo = PlaybackConstants.buildDeviceInfo(ctx)
 
-    val payload = JSObject(jacksonMapper.writeValueAsString(LocalSessionsSyncRequestPayload(playbackSessions, deviceInfo)))
+    val json = jacksonMapper.createObjectNode();
+    json.putArray("sessions").addAll(playbackSessions.map(::createPartialPlaybackSession))
+    json.set<ObjectNode>("deviceInfo", jacksonMapper.valueToTree(deviceInfo))
     AbsLogger.info("ApiHandler", "sendSyncLocalSessions: Sending ${playbackSessions.size} saved local playback sessions to server (${DeviceManager.serverConnectionConfigName})")
 
-    postRequest("/api/session/local-all", payload, null) {
+    postRequest("/api/session/local-all", JSObject(json.toString()), null) {
       if (!it.getString("error").isNullOrEmpty()) {
         AbsLogger.error("ApiHandler", "sendSyncLocalSessions: Failed to sync local sessions. (${it.getString("error")})")
         cb(false, it.getString("error"))
