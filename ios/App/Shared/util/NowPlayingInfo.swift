@@ -61,7 +61,7 @@ class NowPlayingInfo {
             self.setMetadata(artwork: artwork, metadata: metadata)
         }
     }
-    public func update(duration: Double, currentTime: Double, rate: Float, defaultRate: Float, chapterName: String? = nil, chapterNumber: Int? = nil, chapterCount: Int? = nil) {
+    public func update(duration: Double, currentTime: Double, rate: Float, defaultRate: Float, chapterName: String? = nil, chapterNumber: Int? = nil, chapterCount: Int? = nil, artist: String? = nil) {
         // Update on the main to prevent access collisions
         DispatchQueue.main.async { [weak self] in
             if let self = self {
@@ -69,8 +69,11 @@ class NowPlayingInfo {
                 self.nowPlayingInfo[MPNowPlayingInfoPropertyElapsedPlaybackTime] = currentTime
                 self.nowPlayingInfo[MPNowPlayingInfoPropertyPlaybackRate] = rate
                 self.nowPlayingInfo[MPNowPlayingInfoPropertyDefaultPlaybackRate] = defaultRate
-                    
-                
+
+                if let artist = artist {
+                    self.nowPlayingInfo[MPMediaItemPropertyArtist] = artist
+                }
+
                 if let chapterName = chapterName, let chapterNumber = chapterNumber, let chapterCount = chapterCount {
                     self.nowPlayingInfo[MPMediaItemPropertyTitle] = chapterName
                     self.nowPlayingInfo[MPNowPlayingInfoPropertyChapterNumber] = chapterNumber
@@ -81,7 +84,7 @@ class NowPlayingInfo {
                     self.nowPlayingInfo[MPNowPlayingInfoPropertyChapterNumber] = nil
                     self.nowPlayingInfo[MPNowPlayingInfoPropertyChapterCount] = nil
                 }
-                
+
                 MPNowPlayingInfoCenter.default().nowPlayingInfo = self.nowPlayingInfo
             }
         }

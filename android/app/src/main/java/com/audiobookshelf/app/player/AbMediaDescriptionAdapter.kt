@@ -9,6 +9,8 @@ import android.provider.MediaStore
 import android.support.v4.media.session.MediaControllerCompat
 import com.audiobookshelf.app.BuildConfig
 import com.audiobookshelf.app.R
+import com.audiobookshelf.app.data.BookChapter
+import com.audiobookshelf.app.data.PlaybackSession
 import com.bumptech.glide.Glide
 import com.google.android.exoplayer2.Player
 import com.google.android.exoplayer2.ui.PlayerNotificationManager
@@ -26,9 +28,36 @@ class AbMediaDescriptionAdapter (private val controller: MediaControllerCompat, 
   override fun createCurrentContentIntent(player: Player): PendingIntent? =
     controller.sessionActivity
 
-  override fun getCurrentContentText(player: Player) = controller.metadata.description.subtitle.toString()
+  // Read directly from the playback session — bypassing controller.metadata
+  // avoids the MediaMetadataCompat.getDescription() display-vs-fallback rules
+  // and keeps the in-shade title/text in sync with what the metadata provider
+  // emits for Android Auto / lock-screen.
+  override fun getCurrentContentTitle(player: Player): CharSequence {
+    val session: PlaybackSession = playerNotificationService.currentPlaybackSession ?: return ""
+    if (playerNotificationService.isChapterTrackEnabled()) {
+      val chapter: BookChapter? = session.getChapterForTime(playerNotificationService.getCurrentTime())
+      if (chapter != null) {
+        return chapter.title?.takeIf { it.isNotBlank() }
+                ?: "Chapter ${session.getChapterDisplayNumber(chapter)}"
+      }
+    }
+    return session.displayTitle ?: ""
+  }
 
-  override fun getCurrentContentTitle(player: Player) = controller.metadata.description.title.toString()
+  override fun getCurrentContentText(player: Player): CharSequence {
+    val session: PlaybackSession = playerNotificationService.currentPlaybackSession ?: return ""
+    if (playerNotificationService.isChapterTrackEnabled()) {
+      val chapter: BookChapter? = session.getChapterForTime(playerNotificationService.getCurrentTime())
+      if (chapter != null) {
+        return if (playerNotificationService.isUseAuthorAsChapterSubtitleEnabled()) {
+          session.displayAuthor ?: ""
+        } else {
+          session.displayTitle ?: ""
+        }
+      }
+    }
+    return session.displayAuthor ?: ""
+  }
 
   override fun getCurrentLargeIcon(
     player: Player,

@@ -6,7 +6,9 @@ import android.os.*
 import android.support.v4.media.session.MediaSessionCompat
 import android.util.Log
 import android.view.KeyEvent
+import com.audiobookshelf.app.data.BookChapter
 import com.audiobookshelf.app.data.LibraryItemWrapper
+import com.audiobookshelf.app.data.PlaybackSession
 import com.audiobookshelf.app.data.PodcastEpisode
 import java.util.*
 import kotlin.concurrent.schedule
@@ -85,7 +87,18 @@ class MediaSessionCallback(var playerNotificationService:PlayerNotificationServi
   }
 
   override fun onSeekTo(pos: Long) {
-    val currentTrackStartOffset = playerNotificationService.getCurrentTrackStartOffsetMs()
+    // In chapter-track mode the seek bar is chapter-relative; otherwise it's track-relative.
+    if (playerNotificationService.isChapterTrackEnabled()) {
+      val session: PlaybackSession? = playerNotificationService.currentPlaybackSession
+      val chapter: BookChapter? = session?.getChapterForTime(playerNotificationService.getCurrentTime())
+      if (chapter != null) {
+        val chapterDur: Long = chapter.endMs - chapter.startMs
+        val clamped: Long = pos.coerceIn(0L, chapterDur)
+        playerNotificationService.seekPlayer(chapter.startMs + clamped)
+        return
+      }
+    }
+    val currentTrackStartOffset: Long = playerNotificationService.getCurrentTrackStartOffsetMs()
     playerNotificationService.seekPlayer(currentTrackStartOffset + pos)
   }
 

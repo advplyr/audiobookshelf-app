@@ -1,11 +1,13 @@
 package com.audiobookshelf.app.data
 
 import android.content.Context
+import android.content.Intent
 import android.graphics.ImageDecoder
 import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
 import android.support.v4.media.MediaMetadataCompat
+import android.util.Log
 import androidx.core.content.FileProvider
 import androidx.core.net.toFile
 import com.audiobookshelf.app.BuildConfig
@@ -110,6 +112,13 @@ class PlaybackSession(
     return chapters.find { time >= it.startMs && it.endMs > time }
   }
 
+  // 1-based index of the chapter within [chapters], or 0 if not present
+  @JsonIgnore
+  fun getChapterDisplayNumber(chapter: BookChapter): Int {
+    val idx: Int = chapters.indexOf(chapter)
+    return if (idx < 0) 0 else idx + 1
+  }
+
   @JsonIgnore
   fun getCurrentTrackEndTime(): Long {
     val currentTrack = audioTracks[this.getCurrentTrackIndex()]
@@ -186,6 +195,25 @@ class PlaybackSession(
     return Uri.parse("$serverAddress/api/items/$libraryItemId/cover?token=${DeviceManager.token}")
   }
 
+  // Grants read permission on a local cover URI to the system processes that
+  // need to resolve it off the session metadata. Skipped for non-FileProvider
+  // URIs (server URLs, app resources) since they don't need a grant.
+  @JsonIgnore
+  fun grantCoverUriPermissions(ctx: Context, coverUri: Uri) {
+    if (coverUri.scheme != "content") return
+    val targets: List<String> = listOf(
+      "com.android.systemui",
+      "com.google.android.projection.gearhead"
+    )
+    for (pkg in targets) {
+      try {
+        ctx.grantUriPermission(pkg, coverUri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+      } catch (error: Exception) {
+        Log.e("PlaybackSession", "grantCoverUriPermissions error for $pkg: $error")
+      }
+    }
+  }
+
   @JsonIgnore
   fun getContentUri(audioTrack: AudioTrack): Uri {
     if (isLocal) return Uri.parse(audioTrack.contentUrl) // Local content url
@@ -203,26 +231,52 @@ class PlaybackSession(
   }
 
   @JsonIgnore
-  fun getMediaMetadataCompat(ctx: Context): MediaMetadataCompat {
-    val coverUri = getCoverUri(ctx)
+  fun getMediaMetadataCompat(ctx: Context, chapterTrackEnabled: Boolean = false, useAuthorAsChapterSubtitle: Boolean = false, currentTimeOverrideMs: Long? = null): MediaMetadataCompat {
+    val coverUri: Uri = getCoverUri(ctx)
 
-    val metadataBuilder =
+    // Local FileProvider URIs need explicit read permission for any process
+    // that will resolve them off the session metadata (lock screen, Android Auto)
+    grantCoverUriPermissions(ctx, coverUri)
+
+    // Match iOS NowPlayingInfo: chapter goes in the main title slot, secondary
+    // slot is book title (default) or author (when useAuthorAsChapterSubtitle on)
+    val activeChapter: BookChapter? = if (chapterTrackEnabled) {
+      val ms: Long = currentTimeOverrideMs ?: currentTimeMs
+      getChapterForTime(ms)
+    } else null
+
+    val chapterTitle: String? = activeChapter?.title?.takeIf { it.isNotBlank() }
+        ?: activeChapter?.let { "Chapter ${getChapterDisplayNumber(it)}" }
+    val title: String? = chapterTitle ?: displayTitle
+    // Notification.MediaStyle pulls the secondary line from METADATA_KEY_ARTIST
+    // directly off the session, hence the secondaryFieldValue plumbing here.
+    val secondaryFieldValue: String? = if (activeChapter != null) {
+      if (useAuthorAsChapterSubtitle) displayAuthor else displayTitle
+    } else displayAuthor
+
+    val metadataBuilder: MediaMetadataCompat.Builder =
             MediaMetadataCompat.Builder()
-                    .putString(MediaMetadataCompat.METADATA_KEY_TITLE, displayTitle)
-                    .putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_TITLE, displayTitle)
-                    .putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_SUBTITLE, displayAuthor)
+                    .putString(MediaMetadataCompat.METADATA_KEY_TITLE, title)
+                    .putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_TITLE, title)
+                    .putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_SUBTITLE, secondaryFieldValue)
                     .putString(MediaMetadataCompat.METADATA_KEY_AUTHOR, displayAuthor)
-                    .putString(MediaMetadataCompat.METADATA_KEY_ARTIST, displayAuthor)
-                    .putString(MediaMetadataCompat.METADATA_KEY_ALBUM, displayAuthor)
+                    .putString(MediaMetadataCompat.METADATA_KEY_ARTIST, secondaryFieldValue)
+                    .putString(MediaMetadataCompat.METADATA_KEY_ALBUM, secondaryFieldValue)
                     .putString(MediaMetadataCompat.METADATA_KEY_ALBUM_ARTIST, displayAuthor)
                     .putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_DESCRIPTION, displayAuthor)
                     .putString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID, id)
                     .putString(MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, coverUri.toString())
                     .putString(MediaMetadataCompat.METADATA_KEY_ART_URI, coverUri.toString())
-                    .putString(
-                            MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON_URI,
-                            coverUri.toString()
-                    )
+                    .putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON_URI, coverUri.toString())
+
+    if (activeChapter != null) {
+      val chapterDurationMs: Long = activeChapter.endMs - activeChapter.startMs
+      metadataBuilder.putLong(MediaMetadataCompat.METADATA_KEY_DURATION, chapterDurationMs)
+      metadataBuilder.putLong(MediaMetadataCompat.METADATA_KEY_TRACK_NUMBER, getChapterDisplayNumber(activeChapter).toLong())
+      metadataBuilder.putLong(MediaMetadataCompat.METADATA_KEY_NUM_TRACKS, chapters.size.toLong())
+    } else {
+      metadataBuilder.putLong(MediaMetadataCompat.METADATA_KEY_DURATION, totalDurationMs)
+    }
 
     // Local covers get bitmap
     if (localLibraryItem?.coverContentUrl != null) {
