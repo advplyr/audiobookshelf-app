@@ -48,7 +48,7 @@ export const getters = {
     return state.user.bookmarks.filter((bm) => bm.libraryItemId === libraryItemId)
   },
   getUserSetting: (state) => (key) => {
-    return state.settings?.[key] || null
+    return state.settings?.[key] ?? null
   },
   getUserCanUpdate: (state) => {
     return !!state.user?.permissions?.update

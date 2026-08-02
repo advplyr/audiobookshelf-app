@@ -234,8 +234,8 @@ export default {
     },
     sortDesc: {
       get() {
-        const desc = this.$store.state.user.settings.podcastEpisodesOrderDesc
-        if (desc === null || desc === undefined) return this.mediaMetadata.type === 'episodic'
+        const desc = this.$store.getters['user/getUserSetting']('podcastEpisodesOrderDesc')
+        if (desc == null) return this.mediaMetadata.type === 'episodic'
         return desc
       },
       set(val) {
