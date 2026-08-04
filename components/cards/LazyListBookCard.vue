@@ -49,6 +49,7 @@
 
 <script>
 import { Capacitor } from '@capacitor/core'
+import { wasDragGesture } from '@/utils/tapGuard'
 
 export default {
   props: {
@@ -285,6 +286,9 @@ export default {
       this.localLibraryItem = localLibraryItem
     },
     clickCard(e) {
+      // Ignore the click iOS synthesizes for a quick flick used to scroll
+      if (wasDragGesture()) return
+
       if (this.isSelectionMode) {
         e.stopPropagation()
         e.preventDefault()

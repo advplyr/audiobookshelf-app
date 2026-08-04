@@ -13,6 +13,8 @@
 </template>
 
 <script>
+import { wasDragGesture } from '@/utils/tapGuard'
+
 export default {
   props: {
     index: Number,
@@ -61,6 +63,8 @@ export default {
       this.isSelectionMode = val
     },
     clickCard() {
+      // Ignore the click iOS synthesizes for a quick flick used to scroll
+      if (wasDragGesture()) return
       if (!this.playlist) return
       var router = this.$router || this.$nuxt.$router
       router.push(`/playlist/${this.playlist.id}`)
