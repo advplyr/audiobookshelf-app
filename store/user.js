@@ -209,9 +209,9 @@ export const actions = {
     // Update the store
     commit('setAccessToken', userResponseData.user.accessToken)
 
-    // Re-authenticate socket if necessary
-    if (this.$socket?.connected && !this.$socket.isAuthenticated) {
-      this.$socket.sendAuthenticate()
+    // Re-authenticate or reconnect the socket with the new access token
+    if (this.$socket) {
+      this.$socket.ensureConnected(serverAddress, 'token-refreshed')
     } else if (!this.$socket) {
       console.warn('[user] Socket not available, cannot re-authenticate')
     }
