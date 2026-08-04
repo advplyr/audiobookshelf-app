@@ -6,6 +6,7 @@ import android.graphics.ImageDecoder
 import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
+import android.support.v4.media.MediaMetadataCompat
 import android.support.v4.media.session.MediaControllerCompat
 import com.google.android.exoplayer2.Player
 import com.google.android.exoplayer2.ui.PlayerNotificationManager
@@ -33,7 +34,9 @@ class AbMediaDescriptionAdapter (private val controller: MediaControllerCompat, 
   ): Bitmap? {
     val albumArtUri = controller.metadata.description.iconUri
     val albumBitmap = controller.metadata.description.iconBitmap
+      ?: controller.metadata.getBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART)
 
+    // Reuse bitmap from queue navigator (local) or PlaybackSession.resolveCoverBitmapAsync (streaming)
     // For local cover images, bitmap is set in PlayerNotificationService TimelineQueueNavigator.getMediaDescription
     if (albumBitmap != null) {
       return albumBitmap
