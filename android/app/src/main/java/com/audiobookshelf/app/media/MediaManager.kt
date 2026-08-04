@@ -9,8 +9,11 @@ import com.audiobookshelf.app.device.DeviceManager
 import com.audiobookshelf.app.server.ApiHandler
 import com.getcapacitor.JSObject
 import java.util.*
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.launch
 import org.json.JSONException
 import org.json.JSONObject
 import kotlin.coroutines.resume
@@ -45,6 +48,16 @@ class MediaManager(private var apiHandler: ApiHandler, var ctx: Context) {
   var serverLibraries = listOf<Library>()
 
   var userSettingsPlaybackRate:Float? = null
+
+  // Android Auto browses on the media browser service main thread, so the server pings
+  // and authorize call must not run there or they block it and trigger an ANR
+  private val androidAutoIOScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+
+  // Android Auto re-requests the browse root every ~2s and multiple clients do so at once,
+  // so overlapping loads are coalesced into one to avoid racing on the shared server state
+  private var isLoadingAndroidAutoItems = false
+  private val pendingAndroidAutoLoadCallbacks = mutableListOf<() -> Unit>()
+  private val androidAutoLoadLock = Any()
 
   fun getIsLibrary(id:String) : Boolean {
     return serverLibraries.find { it.id == id } != null
@@ -136,7 +149,7 @@ class MediaManager(private var apiHandler: ApiHandler, var ctx: Context) {
     //   and reset any server data already set
     val serverConnConfig = if (DeviceManager.isConnectedToServer) DeviceManager.serverConnectionConfig else DeviceManager.deviceData.getLastServerConnectionConfig()
 
-    if (!DeviceManager.isConnectedToServer || !DeviceManager.checkConnectivity(ctx) || serverConnConfig == null || serverConnConfig.id !== serverConfigIdUsed) {
+    if (!DeviceManager.isConnectedToServer || !DeviceManager.checkConnectivity(ctx) || serverConnConfig == null || serverConnConfig.id != serverConfigIdUsed) {
       podcastEpisodeLibraryItemMap = mutableMapOf()
       serverLibraries = listOf()
       serverLibraryItems = mutableListOf()
@@ -730,7 +743,10 @@ class MediaManager(private var apiHandler: ApiHandler, var ctx: Context) {
     return mediaProgress
   }
 
-  private fun checkSetValidServerConnectionConfig(cb: (Boolean) -> Unit) = runBlocking {
+  // Runs on [androidAutoIOScope] rather than blocking the caller: this is reached from
+  // onLoadChildren on the media browser service main thread, and the pings/authorize below
+  // are network calls, so runBlocking here caused ANRs while browsing in Android Auto
+  private fun checkSetValidServerConnectionConfig(cb: (Boolean) -> Unit) = androidAutoIOScope.launch {
     Log.d(tag, "checkSetValidServerConnectionConfig | serverConfigIdUsed=$serverConfigIdUsed | lastServerConnectionConfigId=${DeviceManager.deviceData.lastServerConnectionConfigId}")
 
     coroutineScope {
@@ -835,6 +851,26 @@ class MediaManager(private var apiHandler: ApiHandler, var ctx: Context) {
   fun loadAndroidAutoItems(cb: () -> Unit) {
     Log.d(tag, "Load android auto items")
 
+    // Coalesce overlapping calls into a single load, every caller still gets its callback
+    synchronized(androidAutoLoadLock) {
+      pendingAndroidAutoLoadCallbacks.add(cb)
+      if (isLoadingAndroidAutoItems) {
+        Log.d(tag, "loadAndroidAutoItems: Load already in progress, queued callback")
+        return
+      }
+      isLoadingAndroidAutoItems = true
+    }
+
+    val onLoadFinished = {
+      val callbacks: List<() -> Unit>
+      synchronized(androidAutoLoadLock) {
+        isLoadingAndroidAutoItems = false
+        callbacks = pendingAndroidAutoLoadCallbacks.toList()
+        pendingAndroidAutoLoadCallbacks.clear()
+      }
+      callbacks.forEach { it() }
+    }
+
     // Check if any valid server connection if not use locally downloaded books
     checkSetValidServerConnectionConfig { isConnected ->
       if (isConnected) {
@@ -844,14 +880,14 @@ class MediaManager(private var apiHandler: ApiHandler, var ctx: Context) {
         loadLibraries { libraries ->
           if (libraries.isEmpty()) {
             Log.w(tag, "No libraries returned from server request")
-            cb()
+            onLoadFinished()
           } else {
-            cb() // Fully loaded
+            onLoadFinished() // Fully loaded
           }
         }
       } else { // Not connected to server
         Log.d(tag, "loadAndroidAutoItems: Not connected to server")
-        cb()
+        onLoadFinished()
       }
     }
   }
