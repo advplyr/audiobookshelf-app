@@ -6,15 +6,17 @@ import android.graphics.ImageDecoder
 import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
-import android.support.v4.media.session.MediaControllerCompat
+import androidx.annotation.OptIn
 import com.audiobookshelf.app.BuildConfig
 import com.audiobookshelf.app.R
 import com.bumptech.glide.Glide
-import com.google.android.exoplayer2.Player
-import com.google.android.exoplayer2.ui.PlayerNotificationManager
+import androidx.media3.common.Player
+import androidx.media3.common.util.UnstableApi
+import androidx.media3.ui.PlayerNotificationManager
 import kotlinx.coroutines.*
 
-class AbMediaDescriptionAdapter (private val controller: MediaControllerCompat, private val playerNotificationService: PlayerNotificationService) : PlayerNotificationManager.MediaDescriptionAdapter {
+@OptIn(UnstableApi::class)
+class AbMediaDescriptionAdapter (private val playerNotificationService: PlayerNotificationService) : PlayerNotificationManager.MediaDescriptionAdapter {
   private val tag = "MediaDescriptionAdapter"
 
   private var currentIconUri: Uri? = null
@@ -24,27 +26,37 @@ class AbMediaDescriptionAdapter (private val controller: MediaControllerCompat, 
   private val serviceScope = CoroutineScope(Dispatchers.Main + serviceJob)
 
   override fun createCurrentContentIntent(player: Player): PendingIntent? =
-    controller.sessionActivity
+    playerNotificationService.mediaSession.sessionActivity
 
-  override fun getCurrentContentText(player: Player) = controller.metadata.description.subtitle.toString()
+  override fun getCurrentContentText(player: Player): CharSequence =
+    playerNotificationService.currentPlaybackSession?.displayAuthor ?: ""
 
-  override fun getCurrentContentTitle(player: Player) = controller.metadata.description.title.toString()
+  override fun getCurrentContentTitle(player: Player): CharSequence =
+    playerNotificationService.currentPlaybackSession?.displayTitle ?: ""
 
   override fun getCurrentLargeIcon(
     player: Player,
     callback: PlayerNotificationManager.BitmapCallback
   ): Bitmap? {
-    val albumArtUri = controller.metadata.description.iconUri
-    val albumBitmap = controller.metadata.description.iconBitmap
+    val session = playerNotificationService.currentPlaybackSession ?: return null
+    val albumArtUri = session.getCoverUri(playerNotificationService.getContext())
 
-    // For local cover images, bitmap is set in PlayerNotificationService TimelineQueueNavigator.getMediaDescription
-    if (albumBitmap != null) {
-      return albumBitmap
+    // For local cover images, load bitmap directly
+    if (session.localLibraryItem?.coverContentUrl != null) {
+      return try {
+        if (Build.VERSION.SDK_INT < 28) {
+          @Suppress("DEPRECATION")
+          MediaStore.Images.Media.getBitmap(playerNotificationService.contentResolver, albumArtUri)
+        } else {
+          val source: ImageDecoder.Source = ImageDecoder.createSource(playerNotificationService.contentResolver, albumArtUri)
+          ImageDecoder.decodeBitmap(source)
+        }
+      } catch (e: Exception) {
+        null
+      }
     }
 
     return if (currentIconUri != albumArtUri || currentBitmap == null) {
-      // Cache the bitmap for the current audiobook so that successive calls to
-      // `getCurrentLargeIcon` don't cause the bitmap to be recreated.
       currentIconUri = albumArtUri
 
       if (currentIconUri.toString().startsWith("content://")) {

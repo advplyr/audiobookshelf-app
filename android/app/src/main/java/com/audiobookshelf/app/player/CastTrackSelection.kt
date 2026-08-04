@@ -15,11 +15,13 @@
  */
 package com.audiobookshelf.app.player
 
-import com.google.android.exoplayer2.C
-import com.google.android.exoplayer2.Format
-import com.google.android.exoplayer2.source.TrackGroup
-import com.google.android.exoplayer2.trackselection.TrackSelection
-import com.google.android.exoplayer2.util.Assertions
+import androidx.annotation.OptIn
+import androidx.media3.common.C
+import androidx.media3.common.Format
+import androidx.media3.common.TrackGroup
+import androidx.media3.exoplayer.trackselection.TrackSelection
+import androidx.media3.common.util.Assertions
+import androidx.media3.common.util.UnstableApi
 
 /**
  * [TrackSelection] that only selects the first track of the provided [TrackGroup].
@@ -28,6 +30,7 @@ import com.google.android.exoplayer2.util.Assertions
  * This relies on [CastPlayer] track groups only having one track.
  */
 /* package */
+@OptIn(UnstableApi::class)
 internal class CastTrackSelection
 /** @param trackGroup The [TrackGroup] from which the first track will only be selected.
  */(private val trackGroup: TrackGroup) : TrackSelection {
