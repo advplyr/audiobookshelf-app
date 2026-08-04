@@ -1,6 +1,7 @@
 package com.audiobookshelf.app.data
 
 import android.content.Context
+import android.graphics.Bitmap
 import android.graphics.ImageDecoder
 import android.net.Uri
 import android.os.Build
@@ -20,6 +21,9 @@ import com.google.android.exoplayer2.MediaMetadata
 import com.google.android.gms.cast.MediaInfo
 import com.google.android.gms.cast.MediaQueueItem
 import com.google.android.gms.common.images.WebImage
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 class PlaybackSession(
@@ -202,6 +206,13 @@ class PlaybackSession(
     return Uri.parse("$serverAddress${audioTrack.contentUrl}?token=${DeviceManager.token}")
   }
 
+  /** Bitmap for the cover art, once resolved */
+  @JsonIgnore
+  private var resolvedCoverBitmap: Bitmap? = null
+
+  /**
+   * Builds the current session metadata, including the cover art bitmap if it has already been resolved.
+   */
   @JsonIgnore
   fun getMediaMetadataCompat(ctx: Context): MediaMetadataCompat {
     val coverUri = getCoverUri(ctx)
@@ -217,16 +228,41 @@ class PlaybackSession(
                     .putString(MediaMetadataCompat.METADATA_KEY_ALBUM_ARTIST, displayAuthor)
                     .putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_DESCRIPTION, displayAuthor)
                     .putString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID, id)
-                    .putString(MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, coverUri.toString())
-                    .putString(MediaMetadataCompat.METADATA_KEY_ART_URI, coverUri.toString())
                     .putString(
                             MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON_URI,
                             coverUri.toString()
                     )
 
-    // Local covers get bitmap
+    if (resolvedCoverBitmap != null) {
+      metadataBuilder
+        .putBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART, resolvedCoverBitmap)
+        .putBitmap(MediaMetadataCompat.METADATA_KEY_ART, resolvedCoverBitmap)
+    } else {
+      metadataBuilder
+        .putString(MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, coverUri.toString())
+        .putString(MediaMetadataCompat.METADATA_KEY_ART_URI, coverUri.toString())
+    }
+
+    return metadataBuilder.build()
+  }
+
+  /**
+   * Resolves the cover art bitmap (local covers are decoded synchronously, server-side covers
+   * are fetched asynchronously) and calls `onArtResolved` once it's available
+   *
+   * Returns the Job for the async fetch, or `null` if the bitmap was resolved synchronously.
+   */
+  @JsonIgnore
+  fun resolveCoverBitmapAsync(
+          ctx: Context,
+          coroutineScope: CoroutineScope,
+          onArtResolved: () -> Unit
+  ): Job? {
+    val coverUri = getCoverUri(ctx)
+
+    // Local covers get bitmap synchronously, no async fetch needed
     if (localLibraryItem?.coverContentUrl != null) {
-      val bitmap =
+      resolvedCoverBitmap =
               if (Build.VERSION.SDK_INT < 28) {
                 MediaStore.Images.Media.getBitmap(ctx.contentResolver, coverUri)
               } else {
@@ -234,11 +270,18 @@ class PlaybackSession(
                         ImageDecoder.createSource(ctx.contentResolver, coverUri)
                 ImageDecoder.decodeBitmap(source)
               }
-      metadataBuilder.putBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART, bitmap)
-      metadataBuilder.putBitmap(MediaMetadataCompat.METADATA_KEY_ART, bitmap)
+      onArtResolved()
+      return null
     }
 
-    return metadataBuilder.build()
+    // Server-side cover: resolve the art bitmap async
+    return coroutineScope.launch {
+      val bitmap = resolveUriAsBitmap(ctx, coverUri)
+      bitmap?.let {
+        resolvedCoverBitmap = it
+        onArtResolved()
+      }
+    }
   }
 
   @JsonIgnore
