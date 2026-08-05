@@ -1,9 +1,7 @@
 package com.audiobookshelf.app.managers
 
 import android.content.Context
-import android.net.Uri
 import android.util.Log
-import androidx.documentfile.provider.DocumentFile
 import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
@@ -40,7 +38,12 @@ object IncompleteDownloadCleanup {
     DeviceManager.dbManager.getDownloadItems()
             .filter { item -> isEligible(item, now) }
             .forEach { item ->
-              deleteItem(context, item)
+              item.downloadItemParts.forEach { part ->
+                deleteAppOwnedFile(context, File(part.destinationPath))
+              }
+              DeviceManager.dbManager.removeDownloadItem(item.id)
+              cancel(context, item.id)
+              Log.i(tag, "Deleted terminally failed download item ${item.id}")
             }
   }
 
@@ -50,26 +53,6 @@ object IncompleteDownloadCleanup {
     return item.downloadItemParts.all { part ->
       part.moved || (part.failed && !part.isMoving)
     }
-  }
-
-  private fun deleteItem(context: Context, item: DownloadItem) {
-    item.downloadItemParts.forEach { part ->
-      deleteAppOwnedFile(context, File(part.destinationPath))
-      if (part.isInternalStorage && part.moved) {
-        deleteAppOwnedFile(context, File(part.finalDestinationPath))
-      } else if (!part.isInternalStorage && part.moved) {
-        part.completedDestinationUri?.let { uriString ->
-          try {
-            DocumentFile.fromSingleUri(context, Uri.parse(uriString))?.delete()
-          } catch (e: Exception) {
-            Log.w(tag, "Could not delete expired SAF document for ${part.filename}", e)
-          }
-        }
-      }
-    }
-    DeviceManager.dbManager.removeDownloadItem(item.id)
-    cancel(context, item.id)
-    Log.i(tag, "Deleted terminally failed download item ${item.id}")
   }
 
   private fun deleteAppOwnedFile(context: Context, file: File) {
