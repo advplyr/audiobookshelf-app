@@ -15,7 +15,7 @@ import java.util.concurrent.TimeUnit
 /** Removes terminally failed downloads after their retention window elapses. */
 object IncompleteDownloadCleanup {
   private const val tag = "IncompleteDownloadCleanup"
-  private const val RETENTION_MS = 5L * 60L * 1000L
+  private const val RETENTION_MS = 24L * 60L * 60L * 1000L
   private const val WORK_PREFIX = "incomplete-download-"
 
   fun schedule(context: Context, item: DownloadItem) {
