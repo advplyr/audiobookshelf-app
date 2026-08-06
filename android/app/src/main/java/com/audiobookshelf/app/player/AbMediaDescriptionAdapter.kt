@@ -6,10 +6,8 @@ import android.graphics.ImageDecoder
 import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
+import android.support.v4.media.MediaMetadataCompat
 import android.support.v4.media.session.MediaControllerCompat
-import com.audiobookshelf.app.BuildConfig
-import com.audiobookshelf.app.R
-import com.bumptech.glide.Glide
 import com.google.android.exoplayer2.Player
 import com.google.android.exoplayer2.ui.PlayerNotificationManager
 import kotlinx.coroutines.*
@@ -36,7 +34,9 @@ class AbMediaDescriptionAdapter (private val controller: MediaControllerCompat, 
   ): Bitmap? {
     val albumArtUri = controller.metadata.description.iconUri
     val albumBitmap = controller.metadata.description.iconBitmap
+      ?: controller.metadata.getBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART)
 
+    // Reuse bitmap from queue navigator (local) or PlaybackSession.resolveCoverBitmapAsync (streaming)
     // For local cover images, bitmap is set in PlayerNotificationService TimelineQueueNavigator.getMediaDescription
     if (albumBitmap != null) {
       return albumBitmap
@@ -59,7 +59,7 @@ class AbMediaDescriptionAdapter (private val controller: MediaControllerCompat, 
       } else {
         serviceScope.launch {
           currentBitmap = albumArtUri?.let {
-            resolveUriAsBitmap(it)
+            resolveUriAsBitmap(playerNotificationService, it)
           }
           currentBitmap?.let { callback.onBitmap(it) }
         }
@@ -67,28 +67,6 @@ class AbMediaDescriptionAdapter (private val controller: MediaControllerCompat, 
       }
     } else {
       currentBitmap
-    }
-  }
-
-  private suspend fun resolveUriAsBitmap(uri: Uri): Bitmap? {
-    return withContext(Dispatchers.IO) {
-      try {
-        Glide.with(playerNotificationService)
-          .asBitmap()
-          .load(uri)
-          .placeholder(R.drawable.icon)
-          .error(R.drawable.icon)
-          .submit()
-          .get()
-      } catch (e: Exception) {
-        e.printStackTrace()
-
-        Glide.with(playerNotificationService)
-          .asBitmap()
-          .load(Uri.parse("android.resource://${BuildConfig.APPLICATION_ID}/" + R.drawable.icon))
-          .submit()
-          .get()
-      }
     }
   }
 }
