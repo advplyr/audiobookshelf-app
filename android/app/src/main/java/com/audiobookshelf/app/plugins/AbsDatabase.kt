@@ -42,6 +42,15 @@ class AbsDatabase : Plugin() {
     DeviceManager.dbManager.cleanLocalMediaProgress()
     DeviceManager.dbManager.cleanLocalLibraryItems(mainActivity)
     DeviceManager.dbManager.cleanLogs()
+
+    // Nothing waits on this, so keep its per-blob disk I/O off the main thread.
+    GlobalScope.launch(Dispatchers.IO) {
+      try {
+        DeviceManager.dbManager.cleanMigratedHistoryBlobs()
+      } catch (e: Exception) {
+        Log.e(tag, "cleanMigratedHistoryBlobs failed", e)
+      }
+    }
   }
 
   @PluginMethod
@@ -587,5 +596,26 @@ class AbsDatabase : Plugin() {
         call.resolve(JSObject(jacksonMapper.writeValueAsString(mediaItemHistory)))
       }
     }
+  }
+
+  /**
+   * Fire-and-forget: migrates off the main thread. Reads still merge the legacy blob until this
+   * finishes, so it must never block playback or history.
+   */
+  @PluginMethod
+  fun ensureHistoryMigrated(call:PluginCall) {
+    val mediaId = call.getString("mediaId")
+    if (mediaId.isNullOrEmpty()) {
+      call.reject("mediaId is required")
+      return
+    }
+    GlobalScope.launch(Dispatchers.IO) {
+      try {
+        DeviceManager.dbManager.ensureHistoryMigrated(mediaId)
+      } catch (e: Exception) {
+        Log.e(tag, "ensureHistoryMigrated failed for $mediaId", e)
+      }
+    }
+    call.resolve()
   }
 }
