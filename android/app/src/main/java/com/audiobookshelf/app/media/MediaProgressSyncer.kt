@@ -14,7 +14,7 @@ import java.util.*
 import kotlin.concurrent.schedule
 
 data class MediaProgressSyncData(
-        var timeListened: Long, // seconds
+        var timeListened: Double, // seconds
         var duration: Double, // seconds
         var currentTime: Double // seconds
 )
@@ -230,10 +230,10 @@ class MediaProgressSyncer(
     }
 
     val diffSinceLastSync = System.currentTimeMillis() - lastSyncTime
-    if (diffSinceLastSync < 1000L) {
+    if (diffSinceLastSync <= 1000L) {
       return cb(null)
     }
-    val listeningTimeToAdd = diffSinceLastSync / 1000L
+    val listeningTimeToAdd = diffSinceLastSync / 1000.0
 
     val syncData = MediaProgressSyncData(listeningTimeToAdd, currentPlaybackDuration, currentTime)
     currentPlaybackSession?.syncData(syncData)
@@ -297,16 +297,17 @@ class MediaProgressSyncer(
       }
     } else if (hasNetworkConnection && shouldSyncServer) {
       AbsLogger.info("MediaProgressSyncer", "sync: Sending progress sync to server (title: \"$currentDisplayTitle\") (currentTime: $currentTime) (session id: ${currentSessionId}) (${DeviceManager.serverConnectionConfigName})")
-
+      val tmpSyncTime = lastSyncTime;
+      lastSyncTime = System.currentTimeMillis()
       apiHandler.sendProgressSync(currentSessionId, syncData) { syncSuccess, errorMsg ->
         if (syncSuccess) {
           AbsLogger.info("MediaProgressSyncer", "sync: Successfully synced progress (title: \"$currentDisplayTitle\") (currentTime: $currentTime) (session id: ${currentSessionId}) (${DeviceManager.serverConnectionConfigName})")
 
           failedSyncs = 0
           playerNotificationService.alertSyncSuccess()
-          lastSyncTime = System.currentTimeMillis()
           DeviceManager.dbManager.removePlaybackSession(currentSessionId) // Remove session from db
         } else {
+          lastSyncTime = tmpSyncTime;
           failedSyncs++
           if (failedSyncs == 2) {
             playerNotificationService.alertSyncFailing() // Show alert in client
