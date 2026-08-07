@@ -57,6 +57,12 @@ class MediaManager(private var apiHandler: ApiHandler, var ctx: Context) {
     }
   }
 
+  // Android Auto re-requests the browse root every ~2s and multiple clients do so at once,
+  // so overlapping loads are coalesced into one to avoid racing on the shared server state
+  private var isLoadingAndroidAutoItems = false
+  private val pendingAndroidAutoLoadCallbacks = mutableListOf<() -> Unit>()
+  private val androidAutoLoadLock = Any()
+
   fun getIsLibrary(id:String) : Boolean {
     return serverLibraries.find { it.id == id } != null
   }
@@ -147,7 +153,7 @@ class MediaManager(private var apiHandler: ApiHandler, var ctx: Context) {
     //   and reset any server data already set
     val serverConnConfig = if (DeviceManager.isConnectedToServer) DeviceManager.serverConnectionConfig else DeviceManager.deviceData.getLastServerConnectionConfig()
 
-    if (!DeviceManager.isConnectedToServer || !DeviceManager.checkConnectivity(ctx) || serverConnConfig == null || serverConnConfig.id !== serverConfigIdUsed) {
+    if (!DeviceManager.isConnectedToServer || !DeviceManager.checkConnectivity(ctx) || serverConnConfig == null || serverConnConfig.id != serverConfigIdUsed) {
       podcastEpisodeLibraryItemMap = mutableMapOf()
       serverLibraries = listOf()
       serverLibraryItems = mutableListOf()
@@ -951,6 +957,26 @@ class MediaManager(private var apiHandler: ApiHandler, var ctx: Context) {
   suspend fun loadAndroidAutoItems(cb: () -> Unit) {
     Log.d(tag, "Load android auto items")
 
+    // Coalesce overlapping calls into a single load, every caller still gets its callback
+    synchronized(androidAutoLoadLock) {
+      pendingAndroidAutoLoadCallbacks.add(cb)
+      if (isLoadingAndroidAutoItems) {
+        Log.d(tag, "loadAndroidAutoItems: Load already in progress, queued callback")
+        return
+      }
+      isLoadingAndroidAutoItems = true
+    }
+
+    val onLoadFinished = {
+      val callbacks: List<() -> Unit>
+      synchronized(androidAutoLoadLock) {
+        isLoadingAndroidAutoItems = false
+        callbacks = pendingAndroidAutoLoadCallbacks.toList()
+        pendingAndroidAutoLoadCallbacks.clear()
+      }
+      callbacks.forEach { it() }
+    }
+
     // Check if any valid server connection if not use locally downloaded books
     val isConnected = checkSetValidServerConnectionConfig()
     if (isConnected) {
@@ -960,15 +986,15 @@ class MediaManager(private var apiHandler: ApiHandler, var ctx: Context) {
       loadLibraries { libraries ->
         if (libraries.isEmpty()) {
           Log.w(tag, "No libraries returned from server request")
-          cb()
+          onLoadFinished()
         } else {
           isAutoDataLoaded = true
-          cb() // Fully loaded
+          onLoadFinished() // Fully loaded
         }
       }
     } else { // Not connected to server
       Log.d(tag, "loadAndroidAutoItems: Not connected to server")
-      cb()
+      onLoadFinished()
     }
   }
 

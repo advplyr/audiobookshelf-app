@@ -116,7 +116,7 @@ class LocalLibraryItem(
     // Get current progress for local media
     val mediaProgressId = if (localEpisodeId.isNullOrEmpty()) id else "$id-$localEpisodeId"
     val mediaProgress = DeviceManager.dbManager.getLocalMediaProgress(mediaProgressId)
-    val currentTime = mediaProgress?.currentTime ?: 0.0
+    val currentTime = if (mediaProgress?.isFinished == true) 0.0 else mediaProgress?.currentTime ?: 0.0
 
     val mediaMetadata = media.metadata
     var chapters = if (mediaType == "book") (media as Book).chapters else mutableListOf()

@@ -52,7 +52,9 @@ import com.google.android.exoplayer2.ui.PlayerNotificationManager
 import com.google.android.exoplayer2.upstream.*
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 
@@ -127,6 +129,9 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
 
   var currentPlaybackSession: PlaybackSession? = null
   private var initialPlaybackRate: Float? = null
+
+  private val metadataScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
+  private var metadataArtJob: Job? = null
 
   private var isAndroidAuto = false
 
@@ -239,6 +244,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
     mediaSession.release()
     mediaProgressSyncer.reset()
     sleepTimerCoordinator.release()
+    metadataScope.cancel()
 
     super.onDestroy()
   }
@@ -342,6 +348,12 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
     transportControls = mediaController.transportControls
 
     mediaSessionConnector = MediaSessionConnector(mediaSession)
+    // Without this, the connector's default metadata provider rebuilds metadata from the
+    // player's own state on media item transitions/timeline changes, dropping the cover art
+    // bitmap that PlaybackSession.resolveCoverBitmapAsync resolves separately.
+    mediaSessionConnector.setMediaMetadataProvider { _ ->
+      currentPlaybackSession?.getMediaMetadataCompat(ctx) ?: MediaMetadataCompat.Builder().build()
+    }
     val queueNavigator: TimelineQueueNavigator =
             object : TimelineQueueNavigator(mediaSession) {
               override fun getSupportedQueueNavigatorActions(player: Player): Long {
@@ -522,6 +534,13 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetry
     if (this::mediaManager.isInitialized) {
       mediaManager.updateLatestServerItemFromSession(playbackSession)
     }
+
+    metadataArtJob?.cancel()
+    metadataArtJob =
+            playbackSession.resolveCoverBitmapAsync(ctx, metadataScope) {
+              mediaSessionConnector.invalidateMediaSessionMetadata()
+            }
+    mediaSessionConnector.invalidateMediaSessionMetadata()
 
     AbsLogger.info("PlayerNotificationService", "preparePlayer: Started playback session for item ${currentPlaybackSession?.mediaItemId}. MediaPlayer ${currentPlaybackSession?.mediaPlayer}")
     // Notify client

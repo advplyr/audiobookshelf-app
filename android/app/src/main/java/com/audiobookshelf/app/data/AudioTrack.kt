@@ -10,7 +10,7 @@ data class AudioTrack(
         var duration: Double,
         var title: String,
         var contentUrl: String,
-        var mimeType: String,
+        var mimeType: String?,
         var metadata: FileMetadata?,
         var isLocal: Boolean,
         var localFileId: String?,
