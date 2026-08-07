@@ -4,16 +4,13 @@ import android.app.Activity
 import android.content.Context
 import android.support.v4.media.MediaBrowserCompat
 import android.util.Log
+import androidx.media3.common.MediaItem
 import com.audiobookshelf.app.data.*
 import com.audiobookshelf.app.device.DeviceManager
 import com.audiobookshelf.app.server.ApiHandler
 import com.getcapacitor.JSObject
 import java.util.*
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
 import org.json.JSONException
 import org.json.JSONObject
 import kotlin.coroutines.resume
@@ -45,13 +42,20 @@ class MediaManager(private var apiHandler: ApiHandler, var ctx: Context) {
   private var serverConfigLastPing:Long = 0L
   var serverUserMediaProgress:MutableList<MediaProgress> = mutableListOf()
   var serverItemsInProgress = listOf<ItemInProgress>()
+  var latestServerItemInProgress: ItemInProgress? = null
   var serverLibraries = listOf<Library>()
 
   var userSettingsPlaybackRate:Float? = null
 
-  // Android Auto browses on the media browser service main thread, so the server pings
-  // and authorize call must not run there or they block it and trigger an ANR
-  private val androidAutoIOScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+  var isAutoDataLoaded = false
+
+  suspend fun getLibraryItems(libraryId: String): List<LibraryItem> {
+    return suspendCoroutine { continuation ->
+      apiHandler.getLibraryItems(libraryId) { items ->
+        continuation.resume(items)
+      }
+    }
+  }
 
   // Android Auto re-requests the browse root every ~2s and multiple clients do so at once,
   // so overlapping loads are coalesced into one to avoid racing on the shared server state
@@ -164,6 +168,7 @@ class MediaManager(private var apiHandler: ApiHandler, var ctx: Context) {
       cachedLibraryPodcasts = hashMapOf()
       isLibraryPodcastsCached = hashMapOf()
       serverItemsInProgress = listOf()
+      latestServerItemInProgress = null
       allLibraryPersonalizationsDone = false
       libraryPersonalizationsDone = 0
       return true
@@ -173,6 +178,7 @@ class MediaManager(private var apiHandler: ApiHandler, var ctx: Context) {
 
   private fun loadItemsInProgressForAllLibraries(cb: (List<ItemInProgress>) -> Unit) {
     if (serverItemsInProgress.isNotEmpty()) {
+      latestServerItemInProgress = serverItemsInProgress.maxByOrNull { it.progressLastUpdate }
       cb(serverItemsInProgress)
     } else {
       apiHandler.getAllItemsInProgress { itemsInProgress ->
@@ -180,9 +186,50 @@ class MediaManager(private var apiHandler: ApiHandler, var ctx: Context) {
           val libraryItem = it.libraryItemWrapper as LibraryItem
           libraryItem.checkHasTracks()
         }
+        latestServerItemInProgress = serverItemsInProgress.maxByOrNull { it.progressLastUpdate }
         cb(serverItemsInProgress)
       }
     }
+  }
+
+  fun updateLatestServerItemFromSession(session: PlaybackSession) {
+    val (wrapper, episode) = resolveWrapperAndEpisode(session) ?: return
+    latestServerItemInProgress = ItemInProgress(
+      libraryItemWrapper = wrapper,
+      episode = episode,
+      progressLastUpdate = System.currentTimeMillis(),
+      isLocal = session.isLocal
+    )
+  }
+
+  private fun resolveWrapperAndEpisode(
+    session: PlaybackSession
+  ): Pair<LibraryItemWrapper, PodcastEpisode?>? {
+    val episodeId = session.episodeId
+    if (!episodeId.isNullOrBlank()) {
+      val resolved = getPodcastWithEpisodeByEpisodeId(episodeId)
+      if (resolved != null) {
+        return resolved.libraryItemWrapper to resolved.episode
+      }
+    }
+    val wrapper = resolveWrapperForSession(session) ?: return null
+    return wrapper to null
+  }
+
+  private fun resolveWrapperForSession(session: PlaybackSession): LibraryItemWrapper? {
+    session.libraryItem?.let { return it }
+    session.localLibraryItem?.let { return it }
+    val candidates = mutableListOf<String>()
+    session.libraryItemId?.let { candidates.add(it) }
+    val localId = session.localLibraryItem?.id
+    if (!localId.isNullOrBlank()) {
+      candidates.add(localId)
+    }
+    for (id in candidates) {
+      val wrapper = getById(id)
+      if (wrapper != null) return wrapper
+    }
+    return null
   }
 
   /**
@@ -704,6 +751,71 @@ class MediaManager(private var apiHandler: ApiHandler, var ctx: Context) {
   }
 
   /**
+   * Modern method for Media3. Fetches podcast episodes and returns them as a list of fully-formed MediaItems.
+   *
+   * @param podcastId The ID of the podcast to fetch episodes for.
+   * @param ctx The application context needed by getMediaItem.
+   * @return A list of MediaItems ready for use in Media3.
+   */
+  suspend fun loadPodcastEpisodes(podcastId: String, ctx: Context): List<MediaItem>? =
+    suspendCancellableCoroutine { continuation ->
+      loadLibraryItem(podcastId) { libraryItemWrapper ->
+        if (!continuation.isActive) return@loadLibraryItem
+
+        val mediaItems: List<MediaItem>? = when (val wrapper = libraryItemWrapper) {
+
+          is LocalLibraryItem -> {
+            if (wrapper.mediaType != "podcast" || wrapper.media.getAudioTracks().isEmpty()) {
+              emptyList()
+            } else {
+              val podcast = wrapper.media as Podcast
+              selectedLibraryItemId = wrapper.id
+              selectedPodcast = podcast
+              // Map over the episodes and call the new getMediaItem method.
+              podcast.episodes?.map { podcastEpisode ->
+                val progress =
+                  DeviceManager.dbManager.getLocalMediaProgress("${wrapper.id}-${podcastEpisode.id}")
+                podcastEpisode.getMediaItem(wrapper, progress, ctx)
+              }
+            }
+          }
+
+          is LibraryItem -> {
+            if (wrapper.mediaType != "podcast" || wrapper.media.getAudioTracks().isEmpty()) {
+              emptyList()
+            } else {
+              val podcast = wrapper.media as Podcast
+              selectedLibraryItemId = wrapper.id
+              selectedPodcast = podcast
+
+              val localLibraryItem = DeviceManager.dbManager.getLocalLibraryItemByLId(wrapper.id)
+
+              podcast.episodes?.sortedByDescending { it.publishedAt }?.map { podcastEpisode ->
+                podcastEpisodeLibraryItemMap[podcastEpisode.id] =
+                  LibraryItemWithEpisode(wrapper, podcastEpisode)
+                val progress =
+                  serverUserMediaProgress.find { it.libraryItemId == wrapper.id && it.episodeId == podcastEpisode.id }
+
+                localLibraryItem?.let { lli ->
+                  val localEpisode =
+                    (lli.media as? Podcast)?.episodes?.find { it.serverEpisodeId == podcastEpisode.id }
+                  podcastEpisode.localEpisodeId = localEpisode?.id
+                }
+                podcastEpisode.getMediaItem(wrapper, progress, ctx)
+              }
+            }
+          }
+
+          else -> null
+        }
+
+        if (continuation.isActive) {
+          continuation.resume(mediaItems)
+        }
+      }
+    }
+
+  /**
    * Loads libraries for selected server with stats
    */
   private fun loadLibraries(cb: (List<Library>) -> Unit) {
@@ -743,73 +855,67 @@ class MediaManager(private var apiHandler: ApiHandler, var ctx: Context) {
     return mediaProgress
   }
 
-  // Runs on [androidAutoIOScope] rather than blocking the caller: this is reached from
-  // onLoadChildren on the media browser service main thread, and the pings/authorize below
-  // are network calls, so runBlocking here caused ANRs while browsing in Android Auto
-  private fun checkSetValidServerConnectionConfig(cb: (Boolean) -> Unit) = androidAutoIOScope.launch {
+  private suspend fun checkSetValidServerConnectionConfig(): Boolean {
     Log.d(tag, "checkSetValidServerConnectionConfig | serverConfigIdUsed=$serverConfigIdUsed | lastServerConnectionConfigId=${DeviceManager.deviceData.lastServerConnectionConfigId}")
 
-    coroutineScope {
-      if (!DeviceManager.checkConnectivity(ctx)) {
-        serverUserMediaProgress = mutableListOf()
-        Log.d(tag, "checkSetValidServerConnectionConfig: No connectivity")
-        cb(false)
-      } else if (DeviceManager.deviceData.lastServerConnectionConfigId.isNullOrBlank()) { // If in offline mode last server connection config is unset
-        serverUserMediaProgress = mutableListOf()
-        Log.d(tag, "checkSetValidServerConnectionConfig: No last server connection config")
-        cb(false)
+    if (!DeviceManager.checkConnectivity(ctx)) {
+      serverUserMediaProgress = mutableListOf()
+      Log.d(tag, "checkSetValidServerConnectionConfig: No connectivity")
+      return false
+    } else if (DeviceManager.deviceData.lastServerConnectionConfigId.isNullOrBlank()) { // If in offline mode last server connection config is unset
+      serverUserMediaProgress = mutableListOf()
+      Log.d(tag, "checkSetValidServerConnectionConfig: No last server connection config")
+      return false
+    } else {
+      var hasValidConn = false
+      var lookupMediaProgress = true
+
+      if (!serverConfigIdUsed.isNullOrEmpty() && serverConfigLastPing > 0L && System.currentTimeMillis() - serverConfigLastPing < 5000) {
+        Log.d(tag, "checkSetValidServerConnectionConfig last ping less than a 5 seconds ago")
+        hasValidConn = true
+        lookupMediaProgress = false
       } else {
-        var hasValidConn = false
-        var lookupMediaProgress = true
-
-        if (!serverConfigIdUsed.isNullOrEmpty() && serverConfigLastPing > 0L && System.currentTimeMillis() - serverConfigLastPing < 5000) {
-            Log.d(tag, "checkSetValidServerConnectionConfig last ping less than a 5 seconds ago")
-          hasValidConn = true
-          lookupMediaProgress = false
-        } else {
-          serverUserMediaProgress = mutableListOf()
-        }
-
-        if (!hasValidConn) {
-          // First check if the current selected config is pingable
-          DeviceManager.serverConnectionConfig?.let {
-            hasValidConn = checkServerConnection(it)
-            Log.d(
-              tag,
-              "checkSetValidServerConnectionConfig: Current config ${DeviceManager.serverAddress} is pingable? $hasValidConn"
-            )
-          }
-        }
-
-        if (!hasValidConn) {
-          // Loop through available configs and check if can connect
-          for (config: ServerConnectionConfig in DeviceManager.deviceData.serverConnectionConfigs) {
-            val result = checkServerConnection(config)
-
-            if (result) {
-              hasValidConn = true
-              DeviceManager.serverConnectionConfig = config
-              Log.d(tag, "checkSetValidServerConnectionConfig: Set server connection config ${DeviceManager.serverConnectionConfigId}")
-              break
-            }
-          }
-        }
-
-        if (hasValidConn) {
-          serverConfigLastPing = System.currentTimeMillis()
-
-          if (lookupMediaProgress) {
-            Log.d(tag, "Has valid conn now get user media progress")
-            DeviceManager.serverConnectionConfig?.let {
-              serverUserMediaProgress = authorize(it)
-            }
-          }
-        }
-
-        cb(hasValidConn)
+        serverUserMediaProgress = mutableListOf()
       }
-    }
 
+      if (!hasValidConn) {
+        // First check if the current selected config is pingable
+        DeviceManager.serverConnectionConfig?.let {
+          hasValidConn = checkServerConnection(it)
+          Log.d(
+            tag,
+            "checkSetValidServerConnectionConfig: Current config ${DeviceManager.serverAddress} is pingable? $hasValidConn"
+          )
+        }
+      }
+
+      if (!hasValidConn) {
+        // Loop through available configs and check if can connect
+        for (config: ServerConnectionConfig in DeviceManager.deviceData.serverConnectionConfigs) {
+          val result = checkServerConnection(config)
+
+          if (result) {
+            hasValidConn = true
+            DeviceManager.serverConnectionConfig = config
+            Log.d(tag, "checkSetValidServerConnectionConfig: Set server connection config ${DeviceManager.serverConnectionConfigId}")
+            break
+          }
+        }
+      }
+
+      if (hasValidConn) {
+        serverConfigLastPing = System.currentTimeMillis()
+
+        if (lookupMediaProgress) {
+          Log.d(tag, "Has valid conn now get user media progress")
+          DeviceManager.serverConnectionConfig?.let {
+            serverUserMediaProgress = authorize(it)
+          }
+        }
+      }
+
+      return hasValidConn
+    }
   }
 
   fun loadServerUserMediaProgress(cb: () -> Unit) {
@@ -848,7 +954,7 @@ class MediaManager(private var apiHandler: ApiHandler, var ctx: Context) {
     }
   }
 
-  fun loadAndroidAutoItems(cb: () -> Unit) {
+  suspend fun loadAndroidAutoItems(cb: () -> Unit) {
     Log.d(tag, "Load android auto items")
 
     // Coalesce overlapping calls into a single load, every caller still gets its callback
@@ -872,23 +978,23 @@ class MediaManager(private var apiHandler: ApiHandler, var ctx: Context) {
     }
 
     // Check if any valid server connection if not use locally downloaded books
-    checkSetValidServerConnectionConfig { isConnected ->
-      if (isConnected) {
-        serverConfigIdUsed = DeviceManager.serverConnectionConfigId
-        Log.d(tag, "loadAndroidAutoItems: Connected to server config id=$serverConfigIdUsed")
+    val isConnected = checkSetValidServerConnectionConfig()
+    if (isConnected) {
+      serverConfigIdUsed = DeviceManager.serverConnectionConfigId
+      Log.d(tag, "loadAndroidAutoItems: Connected to server config id=$serverConfigIdUsed")
 
-        loadLibraries { libraries ->
-          if (libraries.isEmpty()) {
-            Log.w(tag, "No libraries returned from server request")
-            onLoadFinished()
-          } else {
-            onLoadFinished() // Fully loaded
-          }
+      loadLibraries { libraries ->
+        if (libraries.isEmpty()) {
+          Log.w(tag, "No libraries returned from server request")
+          onLoadFinished()
+        } else {
+          isAutoDataLoaded = true
+          onLoadFinished() // Fully loaded
         }
-      } else { // Not connected to server
-        Log.d(tag, "loadAndroidAutoItems: Not connected to server")
-        onLoadFinished()
       }
+    } else { // Not connected to server
+      Log.d(tag, "loadAndroidAutoItems: Not connected to server")
+      onLoadFinished()
     }
   }
 
@@ -960,6 +1066,15 @@ class MediaManager(private var apiHandler: ApiHandler, var ctx: Context) {
     }
   }
 
+  /**
+   * Register the episode -> podcast mapping used to resolve playback requests by episode id.
+   * Browse surfaces that display episodes must register them, otherwise a tap on the episode
+   * cannot be resolved back to its podcast (episode ids alone are not fetchable from the server).
+   */
+  fun registerPodcastEpisode(libraryItem: LibraryItemWrapper, episode: PodcastEpisode) {
+    podcastEpisodeLibraryItemMap[episode.id] = LibraryItemWithEpisode(libraryItem, episode)
+  }
+
   fun getPodcastWithEpisodeByEpisodeId(id:String) : LibraryItemWithEpisode? {
     return if (id.startsWith("local")) {
       DeviceManager.dbManager.getLocalLibraryItemWithEpisode(id)
@@ -973,6 +1088,20 @@ class MediaManager(private var apiHandler: ApiHandler, var ctx: Context) {
       DeviceManager.dbManager.getLocalLibraryItem(id)
     } else {
       serverLibraryItems.find { it.id == id }
+    }
+  }
+
+  /**
+   * Resolve a library item even when it is not in the in-memory browse cache. Some browse
+   * surfaces (e.g. the Android Auto recent shelves) display items without registering them
+   * in [serverLibraryItems], so playback requests for them must fall back to fetching the
+   * item from the server. Fetched items are registered for subsequent lookups.
+   */
+  fun getByIdOrFetch(id:String, cb: (LibraryItemWrapper?) -> Unit) {
+    getById(id)?.let { return cb(it) }
+    loadLibraryItem(id) { libraryItemWrapper ->
+      (libraryItemWrapper as? LibraryItem)?.let { addServerLibrary(it) }
+      cb(libraryItemWrapper)
     }
   }
 

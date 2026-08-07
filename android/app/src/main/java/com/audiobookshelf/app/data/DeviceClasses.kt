@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.Uri
 import android.support.v4.media.MediaDescriptionCompat
 import android.util.Log
+import androidx.media3.common.MediaItem
 import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import com.fasterxml.jackson.annotation.JsonSubTypes
@@ -127,6 +128,14 @@ open class LibraryItemWrapper(var id: String) {
           ctx: Context
   ): MediaDescriptionCompat {
     return MediaDescriptionCompat.Builder().build()
+  }
+
+  /**
+   * Returns a Media3-ready `MediaItem`. Subclasses override this with item-specific metadata.
+   */
+  @JsonIgnore
+  open fun getMediaItem(progress: MediaProgressWrapper?, context: Context): MediaItem {
+    return MediaItem.EMPTY
   }
 }
 
