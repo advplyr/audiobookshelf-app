@@ -217,7 +217,9 @@ export default {
                 this.uploadedBytes = Math.min(this.totalBytes, baseProgress + event.loaded)
               }
             })
-            const newOffset = Number(response.headers['upload-offset'])
+            const reportedOffset = Number(response.headers?.['upload-offset'])
+            const newOffset = Number.isSafeInteger(reportedOffset) ? reportedOffset : end
+            if (newOffset <= offset || newOffset > end) throw new Error('Server returned an invalid upload offset')
             this.uploadedBytes = Math.min(this.totalBytes, baseProgress + newOffset - offset)
             offset = newOffset
             offsets[fileIndex] = offset
