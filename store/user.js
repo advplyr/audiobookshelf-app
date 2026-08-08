@@ -59,6 +59,9 @@ export const getters = {
   getUserCanDownload: (state) => {
     return !!state.user?.permissions?.download
   },
+  getUserCanUpload: (state) => {
+    return !!state.user?.permissions?.upload
+  },
   getUserCanAccessExplicitContent: (state) => {
     return !!state.user?.permissions?.accessExplicitContent
   }

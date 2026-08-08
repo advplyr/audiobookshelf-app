@@ -98,6 +98,13 @@ export default {
           }
         ].concat(items)
       } else {
+        if (this.$store.getters['user/getUserCanUpload']) {
+          items.push({
+            icon: 'upload',
+            text: this.$strings.HeaderUploadToServer,
+            to: '/upload'
+          })
+        }
         items.push({
           icon: 'person',
           text: this.$strings.HeaderAccount,
