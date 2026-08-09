@@ -110,7 +110,7 @@ class ServerSocket extends EventEmitter {
   }
 
   onAuthFailed(data) {
-    console.log('[SOCKET] Auth failed', data)
+    console.log('[SOCKET] Auth failed: ' + (data?.message || 'Unknown reason'))
     this.isAuthenticated = false
   }
 

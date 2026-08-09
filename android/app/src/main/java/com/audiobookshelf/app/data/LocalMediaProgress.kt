@@ -46,6 +46,10 @@ class LocalMediaProgress(
       progress = if (finished) 1.0 else 0.0
     }
 
+    if (finished) {
+      currentTime = 0.0
+    }
+
     isFinished = finished
     lastUpdate = System.currentTimeMillis()
     finishedAt = if (isFinished) lastUpdate else null

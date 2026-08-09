@@ -484,7 +484,7 @@ export default {
 
       const { value } = await Dialog.confirm({
         title: this.$strings.HeaderConfirm,
-        message: this.$strings.MessageConfirmDeleteServerConfig,
+        message: this.$strings.MessageConfirmDeleteServerConfig
       })
       if (value) {
         this.processing = true
@@ -843,7 +843,7 @@ export default {
     async setUserAndConnection({ user, userDefaultLibraryId, serverSettings, ereaderDevices }) {
       if (!user) return
 
-      console.log('Successfully logged in', JSON.stringify(user))
+      console.log('Successfully logged in: ' + user.username)
 
       this.$store.commit('setServerSettings', serverSettings)
       this.$store.commit('libraries/setEReaderDevices', ereaderDevices)

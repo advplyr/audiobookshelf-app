@@ -12,7 +12,8 @@ export default {
     return {
       downloadItemListener: null,
       completeListener: null,
-      itemPartUpdateListener: null
+      itemPartUpdateListener: null,
+      queueChangedListener: null
     }
   },
   computed: {
@@ -76,17 +77,22 @@ export default {
     },
     onDownloadItemPartUpdate(itemPart) {
       this.$store.commit('globals/updateDownloadItemPart', itemPart)
+    },
+    onQueueChanged(data) {
+      if (!data.hasWork) this.$store.commit('globals/clearItemDownloads')
     }
   },
   async mounted() {
     this.downloadItemListener = await AbsDownloader.addListener('onDownloadItem', (data) => this.onDownloadItem(data))
     this.itemPartUpdateListener = await AbsDownloader.addListener('onDownloadItemPartUpdate', (data) => this.onDownloadItemPartUpdate(data))
+    this.queueChangedListener = await AbsDownloader.addListener('onQueueChanged', (data) => this.onQueueChanged(data))
     this.completeListener = await AbsDownloader.addListener('onItemDownloadComplete', (data) => this.onItemDownloadComplete(data))
   },
   beforeDestroy() {
     this.downloadItemListener?.remove()
     this.completeListener?.remove()
     this.itemPartUpdateListener?.remove()
+    this.queueChangedListener?.remove()
   }
 }
 </script>

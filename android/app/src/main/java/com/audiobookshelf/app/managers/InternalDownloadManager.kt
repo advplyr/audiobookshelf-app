@@ -1,114 +1,135 @@
 package com.audiobookshelf.app.managers
 
 import android.util.Log
-import java.io.*
+import java.io.File
+import java.io.FileOutputStream
+import java.io.IOException
 import java.util.concurrent.TimeUnit
-import okhttp3.*
+import okhttp3.Call
+import okhttp3.Callback
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.Response
 
-/**
- * Manages the internal download process.
- *
- * @property outputStream The output stream to write the downloaded data.
- * @property progressCallback The callback to report download progress.
- */
+/** Streams a download into an app-owned staging file. */
 class InternalDownloadManager(
-        private val outputStream: FileOutputStream,
-        private val progressCallback: DownloadItemManager.InternalProgressCallback
-) : AutoCloseable {
-
+        private val destinationFile: File,
+        private val expectedSize: Long,
+        private val progressCallback: DownloadItemManager.InternalProgressCallback,
+        private val hasAvailableSpace: () -> Boolean
+) {
   private val tag = "InternalDownloadManager"
-  private val client: OkHttpClient =
-          OkHttpClient.Builder().connectTimeout(30, TimeUnit.SECONDS).build()
-  private val writer = BinaryFileWriter(outputStream, progressCallback)
-
   /**
-   * Downloads a file from the given URL.
+   * Starts or resumes a download.
    *
-   * @param url The URL to download the file from.
-   * @throws IOException If an I/O error occurs.
+   * @param url download URL
+   * @param token access token sent in the Authorization header
+   * @return active call, used to cancel a stalled transfer
    */
-  @Throws(IOException::class)
-  fun download(url: String) {
-    val request: Request = Request.Builder().url(url).addHeader("Accept-Encoding", "identity").build()
-    client.newCall(request)
-            .enqueue(
-                    object : Callback {
-                      override fun onFailure(call: Call, e: IOException) {
-                        Log.e(tag, "Download URL $url FAILED", e)
-                        progressCallback.onComplete(true)
-                      }
+  fun download(url: String, token: String): Call {
+    destinationFile.parentFile?.mkdirs()
+    val existingBytes = destinationFile.takeIf { it.exists() }?.length() ?: 0L
+    val request =
+            Request.Builder()
+                    .url(url)
+                    .addHeader("Accept-Encoding", "identity")
+                    .addHeader("Authorization", "Bearer $token")
+                    .apply { if (existingBytes > 0L) header("Range", "bytes=$existingBytes-") }
+                    .build()
+    val call = client.newCall(request)
+    call.enqueue(
+            object : Callback {
+              override fun onFailure(call: Call, e: IOException) {
+                Log.e(tag, "Download URL failed", e)
+                progressCallback.onComplete(true)
+              }
 
-                      override fun onResponse(call: Call, response: Response) {
-                        response.body?.let { responseBody ->
-                          val length: Long = response.header("Content-Length")?.toLongOrNull() ?: 0L
-                          writer.write(responseBody.byteStream(), length)
+              override fun onResponse(call: Call, response: Response) {
+                response.use {
+                  try {
+                    if (response.code == 416 && expectedSize > 0L && existingBytes == expectedSize
+                    ) {
+                      progressCallback.onProgress(existingBytes, 100L)
+                      progressCallback.onComplete(false)
+                      return
+                    }
+                    val append =
+                            existingBytes > 0L &&
+                                    response.code == 206 &&
+                                    hasExpectedRange(response, existingBytes)
+                    if (existingBytes > 0L && !append && response.code != 200) {
+                      Log.e(
+                              tag,
+                              "Invalid resume response ${response.code} for offset $existingBytes"
+                      )
+                      progressCallback.onComplete(true)
+                      return
+                    }
+                    if (!response.isSuccessful || response.body == null) {
+                      Log.e(tag, "Download HTTP failure ${response.code}")
+                      progressCallback.onComplete(true)
+                      return
+                    }
+
+                    val startingBytes = if (append) existingBytes else 0L
+                    val responseLength = response.body!!.contentLength()
+                    val totalLength =
+                            if (expectedSize > 0L) expectedSize
+                            else if (responseLength >= 0L) startingBytes + responseLength else 0L
+
+                    FileOutputStream(destinationFile, append).use { output ->
+                      response.body!!.byteStream().use { input ->
+                        val buffer = ByteArray(CHUNK_SIZE)
+                        var totalBytes = startingBytes
+                        while (true) {
+                          val read = input.read(buffer)
+                          if (read < 0) break
+                          if (!hasAvailableSpace())
+                                  throw IOException("Download paused to preserve free storage")
+                          output.write(buffer, 0, read)
+                          totalBytes += read
+                          val progress =
+                                  if (totalLength > 0L) (totalBytes * 100L) / totalLength else 0L
+                          progressCallback.onProgress(totalBytes, progress.coerceAtMost(100L))
                         }
-                                ?: run {
-                                  Log.e(tag, "Response doesn't contain a file")
-                                  progressCallback.onComplete(true)
-                                }
                       }
                     }
-            )
+
+                    if (expectedSize > 0L && destinationFile.length() != expectedSize) {
+                      Log.e(
+                              tag,
+                              "Downloaded size ${destinationFile.length()} did not match $expectedSize"
+                      )
+                      progressCallback.onComplete(true)
+                    } else {
+                      progressCallback.onComplete(false)
+                    }
+                  } catch (e: IOException) {
+                    Log.e(tag, "Could not write staging file", e)
+                    progressCallback.onComplete(true)
+                  }
+                }
+              }
+            }
+    )
+    return call
   }
 
-  /**
-   * Closes the download manager and releases resources.
-   *
-   * @throws Exception If an error occurs during closing.
-   */
-  @Throws(Exception::class)
-  override fun close() {
-    writer.close()
-  }
-}
-
-/**
- * Writes binary data to an output stream.
- *
- * @property outputStream The output stream to write the data to.
- * @property progressCallback The callback to report write progress.
- */
-class BinaryFileWriter(
-        private val outputStream: OutputStream,
-        private val progressCallback: DownloadItemManager.InternalProgressCallback
-) : AutoCloseable {
-
-  /**
-   * Writes data from the input stream to the output stream.
-   *
-   * @param inputStream The input stream to read the data from.
-   * @param length The total length of the data to be written.
-   * @return The total number of bytes written.
-   * @throws IOException If an I/O error occurs.
-   */
-  @Throws(IOException::class)
-  fun write(inputStream: InputStream, length: Long): Long {
-    BufferedInputStream(inputStream).use { input ->
-      val dataBuffer = ByteArray(CHUNK_SIZE)
-      var totalBytes: Long = 0
-      var readBytes: Int
-      while (input.read(dataBuffer).also { readBytes = it } != -1) {
-        totalBytes += readBytes
-        outputStream.write(dataBuffer, 0, readBytes)
-        progressCallback.onProgress(totalBytes, (totalBytes * 100L) / length)
-      }
-      progressCallback.onComplete(false)
-      return totalBytes
-    }
+  private fun hasExpectedRange(response: Response, offset: Long): Boolean {
+    val range = response.header("Content-Range") ?: return false
+    val match = CONTENT_RANGE.matchEntire(range) ?: return false
+    return match.groupValues[1].toLongOrNull() == offset &&
+            match.groupValues[2].toLongOrNull()?.let { it >= offset } == true
   }
 
-  /**
-   * Closes the writer and releases resources.
-   *
-   * @throws IOException If an error occurs during closing.
-   */
-  @Throws(IOException::class)
-  override fun close() {
-    outputStream.close()
-  }
-
-  companion object {
-    private const val CHUNK_SIZE = 8192 // Increased chunk size for better performance
+  private companion object {
+    const val CHUNK_SIZE = 512 * 1024 // 512 KB
+    val CONTENT_RANGE = Regex("bytes (\\d+)-(\\d+)/(?:\\d+|\\*)")
+    val client =
+            OkHttpClient.Builder()
+                    .connectTimeout(30, TimeUnit.SECONDS)
+                    .readTimeout(60, TimeUnit.SECONDS)
+                    .writeTimeout(60, TimeUnit.SECONDS)
+                    .build()
   }
 }

@@ -12,7 +12,10 @@ export const state = () => ({
     mobileFilterBy: 'all',
     playbackRate: 1,
     collapseSeries: false,
-    collapseBookSeries: false
+    collapseBookSeries: false,
+    podcastEpisodesOrderBy: 'publishedAt',
+    podcastEpisodesOrderDesc: null,
+    podcastEpisodesFilterBy: 'incomplete'
   }
 })
 
@@ -45,7 +48,7 @@ export const getters = {
     return state.user.bookmarks.filter((bm) => bm.libraryItemId === libraryItemId)
   },
   getUserSetting: (state) => (key) => {
-    return state.settings?.[key] || null
+    return state.settings?.[key] ?? null
   },
   getUserCanUpdate: (state) => {
     return !!state.user?.permissions?.update
@@ -231,7 +234,6 @@ export const mutations = {
     state.user = user
   },
   setAccessToken(state, accessToken) {
-    console.log('[user] setAccessToken', accessToken)
     state.accessToken = accessToken
   },
   removeMediaProgress(state, id) {

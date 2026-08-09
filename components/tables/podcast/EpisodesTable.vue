@@ -79,9 +79,6 @@ export default {
       episodesCopy: [],
       showFiltersModal: false,
       showSortModal: false,
-      sortKey: 'publishedAt',
-      sortDesc: true,
-      filterKey: 'incomplete',
       fetchingRSSFeed: false,
       podcastFeedEpisodes: [],
       showPodcastEpisodeFeed: false,
@@ -223,6 +220,27 @@ export default {
       if (!this.sortKey) return ''
       const _sel = this.episodeSortItems.find((i) => i.value === this.sortKey)
       return _sel?.text || ''
+    },
+    filterKey() {
+      return this.$store.getters['user/getUserSetting']('podcastEpisodesFilterBy') || 'incomplete'
+    },
+    sortKey: {
+      get() {
+        return this.$store.getters['user/getUserSetting']('podcastEpisodesOrderBy') || 'publishedAt'
+      },
+      set(val) {
+        this.$store.dispatch('user/updateUserSettings', { podcastEpisodesOrderBy: val })
+      }
+    },
+    sortDesc: {
+      get() {
+        const desc = this.$store.getters['user/getUserSetting']('podcastEpisodesOrderDesc')
+        if (desc == null) return this.mediaMetadata.type === 'episodic'
+        return desc
+      },
+      set(val) {
+        this.$store.dispatch('user/updateUserSettings', { podcastEpisodesOrderDesc: val })
+      }
     }
   },
   methods: {
@@ -277,8 +295,8 @@ export default {
       this.$store.commit('globals/setShowPlaylistsAddCreateModal', true)
     },
     setFilter(filter) {
-      this.filterKey = filter
       this.showFiltersModal = false
+      this.$store.dispatch('user/updateUserSettings', { podcastEpisodesFilterBy: filter })
     },
     showFilters() {
       this.showFiltersModal = true
@@ -291,7 +309,6 @@ export default {
       return this.$store.getters['user/getUserMediaProgress'](this.libraryItemId, episode.id)
     },
     init() {
-      this.sortDesc = this.mediaMetadata.type === 'episodic'
       this.episodesCopy = this.episodes.map((ep) => {
         return { ...ep }
       })
@@ -316,7 +333,7 @@ export default {
   },
   mounted() {
     if (this.$route.query['episodefilter'] === 'downloaded') {
-      this.filterKey = 'downloaded'
+      this.$store.dispatch('user/updateUserSettings', { podcastEpisodesFilterBy: 'downloaded' })
     }
     this.$socket.$on('episode_download_queued', this.episodeDownloadQueued)
     this.$socket.$on('episode_download_started', this.episodeDownloadStarted)

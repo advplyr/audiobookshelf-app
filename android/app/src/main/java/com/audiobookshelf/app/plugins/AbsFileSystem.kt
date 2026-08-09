@@ -1,6 +1,7 @@
 package com.audiobookshelf.app.plugins
 
 import android.app.AlertDialog
+import android.content.Context
 import android.net.Uri
 import android.os.Build
 import android.util.Log
@@ -23,40 +24,62 @@ import java.io.File
 class AbsFileSystem : Plugin() {
   private val TAG = "AbsFileSystem"
   private val tag = "AbsFileSystem"
-  private var jacksonMapper = jacksonObjectMapper().enable(JsonReadFeature.ALLOW_UNESCAPED_CONTROL_CHARS.mappedFeature())
+  private var jacksonMapper =
+          jacksonObjectMapper()
+                  .enable(JsonReadFeature.ALLOW_UNESCAPED_CONTROL_CHARS.mappedFeature())
 
   lateinit var mainActivity: MainActivity
 
   override fun load() {
     mainActivity = (activity as MainActivity)
 
-    mainActivity.storage.storageAccessCallback = object : StorageAccessCallback {
-      override fun onRootPathNotSelected(
-        requestCode: Int,
-        rootPath: String,
-        uri: Uri,
-        selectedStorageType: StorageType,
-        expectedStorageType: StorageType
-      ) {
-        Log.d(TAG, "STORAGE ACCESS CALLBACK")
-      }
+    mainActivity.storage.storageAccessCallback =
+            object : StorageAccessCallback {
+              override fun onRootPathNotSelected(
+                      requestCode: Int,
+                      rootPath: String,
+                      uri: Uri,
+                      selectedStorageType: StorageType,
+                      expectedStorageType: StorageType
+              ) {
+                Log.d(TAG, "STORAGE ACCESS CALLBACK")
+              }
 
-      override fun onCanceledByUser(requestCode: Int) {
-        Log.d(TAG, "STORAGE ACCESS CALLBACK")
-      }
+              override fun onCanceledByUser(requestCode: Int) {
+                Log.d(TAG, "STORAGE ACCESS CALLBACK")
+              }
 
-      override fun onExpectedStorageNotSelected(requestCode: Int, selectedFolder: DocumentFile, selectedStorageType: StorageType, expectedBasePath: String, expectedStorageType: StorageType) {
-        Log.d(TAG, "STORAGE ACCESS CALLBACK")
-      }
+              override fun onExpectedStorageNotSelected(
+                      requestCode: Int,
+                      selectedFolder: DocumentFile,
+                      selectedStorageType: StorageType,
+                      expectedBasePath: String,
+                      expectedStorageType: StorageType
+              ) {
+                Log.d(TAG, "STORAGE ACCESS CALLBACK")
+              }
 
-      override fun onStoragePermissionDenied(requestCode: Int) {
-        Log.d(TAG, "STORAGE ACCESS CALLBACK")
-      }
+              override fun onStoragePermissionDenied(requestCode: Int) {
+                Log.d(TAG, "STORAGE ACCESS CALLBACK")
+              }
 
-      override fun onRootPathPermissionGranted(requestCode: Int, root: DocumentFile) {
-        Log.d(TAG, "STORAGE ACCESS CALLBACK")
-      }
-    }
+              override fun onRootPathPermissionGranted(requestCode: Int, root: DocumentFile) {
+                Log.d(TAG, "STORAGE ACCESS CALLBACK")
+              }
+            }
+  }
+
+  @PluginMethod
+  fun setFolderPickerStrings(call: PluginCall) {
+    mainActivity.getSharedPreferences(FOLDER_PICKER_PREFERENCES, Context.MODE_PRIVATE)
+            .edit()
+            .putString(KEY_WRITE_ACCESS_REQUIRED, call.getString("writeAccessRequired"))
+            .putString(KEY_ALLOW, call.getString("allow"))
+            .putString(KEY_CANCEL, call.getString("cancel"))
+            .putString(KEY_ACCESS_DENIED, call.getString("accessDenied"))
+            .putString(KEY_PERMISSION_DENIED, call.getString("permissionDenied"))
+            .apply()
+    call.resolve()
   }
 
   @PluginMethod
@@ -65,60 +88,74 @@ class AbsFileSystem : Plugin() {
     val REQUEST_CODE_SELECT_FOLDER = 6
     val REQUEST_CODE_SDCARD_ACCESS = 7
 
-    mainActivity.storage.folderPickerCallback = object : FolderPickerCallback {
-      override fun onFolderSelected(requestCode: Int, folder: DocumentFile) {
-        Log.d(TAG, "ON FOLDER SELECTED ${folder.uri} ${folder.name}")
-        val absolutePath = folder.getAbsolutePath(activity)
-        val storageType = folder.getStorageType(activity)
-        val simplePath = folder.getSimplePath(activity)
-        val basePath = folder.getBasePath(activity)
-        val folderId = android.util.Base64.encodeToString(folder.id.toByteArray(), android.util.Base64.DEFAULT)
+    mainActivity.storage.folderPickerCallback =
+            object : FolderPickerCallback {
+              override fun onFolderSelected(requestCode: Int, folder: DocumentFile) {
+                Log.d(TAG, "ON FOLDER SELECTED ${folder.uri} ${folder.name}")
+                val absolutePath = folder.getAbsolutePath(activity)
+                val storageType = folder.getStorageType(activity)
+                val basePath = folder.getBasePath(activity)
+                val folderId =
+                        android.util.Base64.encodeToString(
+                                folder.id.toByteArray(),
+                                android.util.Base64.DEFAULT
+                        )
 
-        val localFolder = LocalFolder(folderId, folder.name ?: "", folder.uri.toString(),basePath,absolutePath, simplePath, storageType.toString(), mediaType)
+                val localFolder =
+                        LocalFolder(
+                                folderId,
+                                folder.name ?: "",
+                                folder.uri.toString(),
+                                basePath,
+                                absolutePath,
+                                storageType.toString(),
+                                mediaType
+                        )
 
-        DeviceManager.dbManager.saveLocalFolder(localFolder)
-        call.resolve(JSObject(jacksonMapper.writeValueAsString(localFolder)))
-      }
+                DeviceManager.dbManager.saveLocalFolder(localFolder)
+                call.resolve(JSObject(jacksonMapper.writeValueAsString(localFolder)))
+              }
 
-      override fun onStorageAccessDenied(
-        requestCode: Int,
-        folder: DocumentFile?,
-        storageType: StorageType,
-        storageId: String
-      ) {
-        Log.e(tag, "Storage Access Denied ${folder?.getAbsolutePath(mainActivity)}")
+              override fun onStorageAccessDenied(
+                      requestCode: Int,
+                      folder: DocumentFile?,
+                      storageType: StorageType,
+                      storageId: String
+              ) {
+                Log.e(tag, "Storage Access Denied ${folder?.getAbsolutePath(mainActivity)}")
 
-        val jsobj = JSObject()
-        if (requestCode == REQUEST_CODE_SELECT_FOLDER) {
+                val jsobj = JSObject()
+                if (requestCode == REQUEST_CODE_SELECT_FOLDER) {
 
-          val builder: AlertDialog.Builder = AlertDialog.Builder(mainActivity)
-          builder.setMessage(
-            "You have no write access to this storage, thus selecting this folder is useless." +
-              "\nWould you like to grant access to this folder?")
-          builder.setNegativeButton("Dont Allow") { _, _ ->
-            run {
-              jsobj.put("error", "User Canceled, Access Denied")
-              call.resolve(jsobj)
+                  val builder: AlertDialog.Builder = AlertDialog.Builder(mainActivity)
+                  builder.setMessage(folderPickerString(KEY_WRITE_ACCESS_REQUIRED, DEFAULT_WRITE_ACCESS_REQUIRED))
+                  builder.setNegativeButton(folderPickerString(KEY_CANCEL, DEFAULT_CANCEL)) { _, _ ->
+                    run {
+                      jsobj.put("error", folderPickerString(KEY_ACCESS_DENIED, DEFAULT_ACCESS_DENIED))
+                      call.resolve(jsobj)
+                    }
+                  }
+                  builder.setPositiveButton(folderPickerString(KEY_ALLOW, DEFAULT_ALLOW)) { _, _ ->
+                    mainActivity.storageHelper.requestStorageAccess(
+                            REQUEST_CODE_SDCARD_ACCESS,
+                            initialPath = FileFullPath(mainActivity, storageId, "")
+                    )
+                  }
+                  builder.show()
+                } else {
+                  Log.d(TAG, "STORAGE ACCESS DENIED $requestCode")
+                  jsobj.put("error", folderPickerString(KEY_ACCESS_DENIED, DEFAULT_ACCESS_DENIED))
+                  call.resolve(jsobj)
+                }
+              }
+
+              override fun onStoragePermissionDenied(requestCode: Int) {
+                Log.d(TAG, "STORAGE PERMISSION DENIED $requestCode")
+                val jsobj = JSObject()
+                jsobj.put("error", folderPickerString(KEY_PERMISSION_DENIED, DEFAULT_PERMISSION_DENIED))
+                call.resolve(jsobj)
+              }
             }
-          }
-          builder.setPositiveButton("Allow.") { _, _ -> mainActivity.storageHelper.requestStorageAccess(REQUEST_CODE_SDCARD_ACCESS, initialPath = FileFullPath(mainActivity, storageId, "")) }
-          builder.show()
-        } else {
-          Log.d(TAG, "STORAGE ACCESS DENIED $requestCode")
-          jsobj.put("error", "Access Denied")
-          call.resolve(jsobj)
-        }
-      }
-
-
-      override fun onStoragePermissionDenied(requestCode: Int) {
-        Log.d(TAG, "STORAGE PERMISSION DENIED $requestCode")
-        val jsobj = JSObject()
-        jsobj.put("error", "Permission Denied")
-        call.resolve(jsobj)
-      }
-
-    }
 
     mainActivity.storage.openFolderPicker(REQUEST_CODE_SELECT_FOLDER)
   }
@@ -152,7 +189,7 @@ class AbsFileSystem : Plugin() {
     val folderUrl = call.data.getString("folderUrl", "").toString()
     Log.d(TAG, "Check Folder Permissions for $folderUrl")
 
-    val hasAccess = SimpleStorage.hasStorageAccess(context,folderUrl,true)
+    val hasAccess = SimpleStorage.hasStorageAccess(context, folderUrl, true)
 
     val jsobj = JSObject()
     jsobj.put("value", hasAccess)
@@ -196,26 +233,29 @@ class AbsFileSystem : Plugin() {
     if (localLibraryItem?.folderId?.startsWith("internal-") == true) {
       Log.d(tag, "Deleting internal library item at absolutePath $absolutePath")
       val file = File(absolutePath)
-      success = if (file.exists()) {
-        file.deleteRecursively()
-      } else {
-        true
-      }
+      success =
+              if (file.exists()) {
+                file.deleteRecursively()
+              } else {
+                true
+              }
     } else {
       var subfolderPathToDelete = ""
       localLibraryItem?.folderId?.let { folderId ->
         val folder = DeviceManager.dbManager.getLocalFolder(folderId)
         folder?.absolutePath?.let { folderPath ->
           val splitAbsolutePath = absolutePath.split("/")
-          val fullSubDir = splitAbsolutePath.subList(0, splitAbsolutePath.size - 1).joinToString("/")
+          val fullSubDir =
+                  splitAbsolutePath.subList(0, splitAbsolutePath.size - 1).joinToString("/")
           if (fullSubDir != folderPath) {
-            val subdirHasAnItem = DeviceManager.dbManager.getLocalLibraryItems().any { _localLibraryItem ->
-              if (_localLibraryItem.id == localLibraryItemId) {
-                false
-              } else {
-                _localLibraryItem.absolutePath.startsWith(fullSubDir)
-              }
-            }
+            val subdirHasAnItem =
+                    DeviceManager.dbManager.getLocalLibraryItems().any { _localLibraryItem ->
+                      if (_localLibraryItem.id == localLibraryItemId) {
+                        false
+                      } else {
+                        _localLibraryItem.absolutePath.startsWith(fullSubDir)
+                      }
+                    }
             subfolderPathToDelete = if (subdirHasAnItem) "" else fullSubDir
           }
         }
@@ -265,5 +305,24 @@ class AbsFileSystem : Plugin() {
     } else {
       call.resolve(JSObject("{\"success\":false}"))
     }
+  }
+
+  private fun folderPickerString(key: String, defaultValue: String): String =
+          mainActivity.getSharedPreferences(FOLDER_PICKER_PREFERENCES, Context.MODE_PRIVATE)
+                  .getString(key, defaultValue) ?: defaultValue
+
+  private companion object {
+    const val FOLDER_PICKER_PREFERENCES = "folder_picker"
+    const val KEY_WRITE_ACCESS_REQUIRED = "write_access_required"
+    const val KEY_ALLOW = "allow"
+    const val KEY_CANCEL = "cancel"
+    const val KEY_ACCESS_DENIED = "access_denied"
+    const val KEY_PERMISSION_DENIED = "permission_denied"
+    const val DEFAULT_WRITE_ACCESS_REQUIRED =
+            "You do not have write access to this folder. Would you like to grant access?"
+    const val DEFAULT_ALLOW = "Allow"
+    const val DEFAULT_CANCEL = "Cancel"
+    const val DEFAULT_ACCESS_DENIED = "Access denied"
+    const val DEFAULT_PERMISSION_DENIED = "Permission denied"
   }
 }
