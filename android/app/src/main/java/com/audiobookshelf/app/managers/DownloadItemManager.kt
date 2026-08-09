@@ -78,6 +78,16 @@ class DownloadItemManager(
         checkDownloadItemFinished(item)
         return@forEach
       }
+      val recoverTerminalFailure =
+              item.terminalFailureAt != null &&
+                      item.downloadItemParts.any { part ->
+                        part.failed && File(part.destinationPath).exists()
+                      }
+      if (recoverTerminalFailure) {
+        Log.i(tag, "Retrying interrupted download ${item.id}")
+        item.terminalFailureAt = null
+        IncompleteDownloadCleanup.cancel(context, item.id)
+      }
       item.downloadItemParts.forEach { part ->
         if (part.moved) return@forEach
         if (item.terminalFailureAt != null && part.failed) return@forEach
