@@ -5,6 +5,7 @@ import android.net.Uri
 import android.os.StatFs
 import android.util.Log
 import androidx.documentfile.provider.DocumentFile
+import com.anggrayudi.storage.file.fullName
 import com.audiobookshelf.app.device.DeviceManager
 import com.audiobookshelf.app.device.FolderScanner
 import com.audiobookshelf.app.models.DownloadItem
@@ -374,13 +375,13 @@ class DownloadItemManager(
         }
         if (temporary.length() != staging.length())
                 throw IllegalStateException("SAF copy size mismatch")
-        val existing = folder.findFile(part.filename)
+        val existing = findDocumentByFilename(folder, part)
         if (existing != null && !existing.delete())
                 throw IllegalStateException("Could not replace existing file")
         if (!temporary.renameTo(part.filename))
                 throw IllegalStateException("Could not finalize SAF temporary file")
         val destination =
-                folder.findFile(part.filename)
+                findDocumentByFilename(folder, part)
                         ?: throw IllegalStateException("Could not reopen finalized SAF file")
         if (destination.length() != staging.length())
                 throw IllegalStateException("SAF final size mismatch")
@@ -512,11 +513,32 @@ class DownloadItemManager(
       if (segment == "." || segment == "..") return null
       folder = folder.findFile(segment) ?: return null
     }
-    val file = folder.findFile(part.filename) ?: return null
+    val file = findDocumentByFilename(folder, part) ?: return null
     if (!file.isFile) return null
     if (part.fileSize > 0L && file.length() != part.fileSize) return null
     if (part.fileSize <= 0L && file.length() <= 0L) return null
     return file
+  }
+
+  /**
+   * Some Android document providers hide or add the extension supplied through the MIME type.
+   * In that case DocumentFile.findFile() cannot reopen a file that was just renamed, even though
+   * it is present and complete. Match the provider's display and full names as a fallback.
+   */
+  private fun findDocumentByFilename(
+          folder: DocumentFile,
+          part: DownloadItemPart
+  ): DocumentFile? {
+    folder.findFile(part.filename)?.let { return it }
+    val expectedBaseName = part.filename.substringBeforeLast('.')
+    return folder.listFiles().firstOrNull { document ->
+      document.name == part.filename ||
+              document.fullName == part.filename ||
+              (part.audioTrack != null &&
+                      document.isFile &&
+                      ((document.name ?: "").substringBeforeLast('.') == expectedBaseName ||
+                              document.fullName.substringBeforeLast('.') == expectedBaseName))
+    }
   }
 
   private fun mimeTypeFor(part: DownloadItemPart): String =
