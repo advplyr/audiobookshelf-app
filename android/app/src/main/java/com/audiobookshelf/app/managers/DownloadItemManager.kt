@@ -138,6 +138,29 @@ class DownloadItemManager(
   }
 
   @Synchronized
+  fun retryDownloadItem(downloadItemId: String): Boolean {
+    val item = downloadItemQueue.find { it.id == downloadItemId } ?: return false
+    if (item.downloadItemParts.any { it in currentDownloadItemParts }) return false
+    if (item.isDownloadFinished) return false
+
+    item.terminalFailureAt = null
+    IncompleteDownloadCleanup.cancel(context, item.id)
+    item.downloadItemParts.filter { !it.moved }.forEach { part ->
+      part.failed = false
+      part.completed = false
+      part.isMoving = false
+      part.waitingForSpace = false
+      part.downloadId = null
+      part.retryCount = 0
+      part.lastUpdateTime = System.currentTimeMillis()
+    }
+    persist(item, force = true)
+    checkUpdateDownloadQueue()
+    notifyQueueChanged()
+    return true
+  }
+
+  @Synchronized
   fun cancelAll() {
     activeCalls.values.forEach(Call::cancel)
     activeCalls.clear()

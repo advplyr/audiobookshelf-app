@@ -88,6 +88,10 @@ class AbsDownloader : Plugin() {
 
     val downloadId = if (episodeId.isEmpty()) libraryItemId else "$libraryItemId-$episodeId"
     if (downloadItemManager.downloadItemQueue.find { it.id == downloadId } != null) {
+      if (downloadItemManager.retryDownloadItem(downloadId)) {
+        Log.i(tag, "Restarted interrupted download $downloadId")
+        return call.resolve()
+      }
       Log.d(tag, "Download already started for this media entity $downloadId")
       return call.resolve(JSObject("{\"error\":\"Download already started for this media entity\"}"))
     }
