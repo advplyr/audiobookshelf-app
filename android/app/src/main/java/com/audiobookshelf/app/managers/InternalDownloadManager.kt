@@ -53,6 +53,19 @@ class InternalDownloadManager(
                       progressCallback.onComplete(false)
                       return
                     }
+                    if (response.code == 416 && existingBytes > 0L) {
+                      Log.w(
+                              tag,
+                              "Server rejected resume offset $existingBytes; restarting download"
+                      )
+                      if (!destinationFile.delete()) {
+                        Log.e(tag, "Could not remove invalid staging file")
+                      } else {
+                        progressCallback.onProgress(0L, 0L)
+                      }
+                      progressCallback.onComplete(true)
+                      return
+                    }
                     val append =
                             existingBytes > 0L &&
                                     response.code == 206 &&
