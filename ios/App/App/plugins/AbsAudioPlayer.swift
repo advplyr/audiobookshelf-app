@@ -20,6 +20,7 @@ public class AbsAudioPlayer: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "closePlayback", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "setPlaybackSpeed", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "setChapterTrack", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "setUseAuthorAsChapterSubtitle", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "playPlayer", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "pausePlayer", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "playPause", returnType: CAPPluginReturnPromise),
@@ -159,6 +160,17 @@ public class AbsAudioPlayer: CAPPlugin, CAPBridgedPlugin {
             settings.chapterTrack = chapterTrack
         }
         PlayerHandler.setChapterTrack()
+        call.resolve()
+    }
+
+    @objc func setUseAuthorAsChapterSubtitle(_ call: CAPPluginCall) {
+        let enabled = call.getBool("enabled", false)
+        AbsLogger.info(message: String(enabled))
+        let settings = PlayerSettings.main()
+        try? settings.update {
+            settings.useAuthorAsChapterSubtitle = enabled
+        }
+        PlayerHandler.setUseAuthorAsChapterSubtitle()
         call.resolve()
     }
 
