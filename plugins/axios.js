@@ -95,13 +95,25 @@ export default function ({ $axios, store, $db }) {
       isRefreshing = true
 
       try {
-        // Attempt to refresh the token
-        // Updates store if successful, otherwise clears store and throw error
-        const newAccessToken = await store.dispatch('user/refreshToken')
-        if (!newAccessToken) {
-          console.error('No new access token received')
+        const refreshResult = await store.dispatch('user/refreshToken')
+
+        if (refreshResult === null) {
+          console.error('[axios] Token refresh rejected (permanent) - logging out')
+          await handleRefreshFailure(store.getters['user/getServerConnectionConfigId'])
           return Promise.reject(error)
         }
+
+        if (refreshResult?._transientFailure) {
+          console.error('[axios] Token refresh failed (transient, status ' + refreshResult.status + '): keeping credentials')
+          return Promise.reject(error)
+        }
+
+        if (!refreshResult) {
+          console.error('[axios] No new access token received')
+          return Promise.reject(error)
+        }
+
+        const newAccessToken = refreshResult
 
         // Update the original request with new token
         if (!originalRequest.headers) {
@@ -117,10 +129,14 @@ export default function ({ $axios, store, $db }) {
       } catch (refreshError) {
         console.error('Token refresh failed:', refreshError)
 
-        // Process queued requests with error
         processQueue(refreshError, null)
 
-        await handleRefreshFailure(store.getters['user/getServerConnectionConfigId'])
+        const isPermanent = refreshError ? refreshError.response?.status === 401 : false
+        if (isPermanent) {
+          await handleRefreshFailure(store.getters['user/getServerConnectionConfigId'])
+        } else {
+          console.error('[axios] Token refresh failed (transient): keeping credentials')
+        }
 
         return Promise.reject(refreshError)
       } finally {

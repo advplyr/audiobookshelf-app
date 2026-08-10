@@ -183,6 +183,7 @@ class ApiClient {
         ]
         
         let refreshRequest = AF.request("\(serverConfig.address)/auth/refresh", method: .post, headers: refreshHeaders)
+            .validate(statusCode: 200..<300)
         
         refreshRequest.responseDecodable(of: RefreshResponse.self) { response in
             switch response.result {
@@ -204,9 +205,13 @@ class ApiClient {
                 AbsLogger.info(message: "handleTokenRefresh: Retrying original request with new token")
                 retryOriginalRequest(endpoint: endpoint, method: method, parameters: parameters, decodable: decodable, newAccessToken: user.accessToken, callback: callback)
                 
-            case .failure(let error):
-                AbsLogger.error(message: "handleTokenRefresh: Refresh request failed for server \(serverConfig.name): \(error)")
-                handleRefreshFailure()
+            case .failure:
+                let statusCode = response.response?.statusCode ?? -1
+                if statusCode == 401 {
+                    handleRefreshFailure()
+                } else {
+                    AbsLogger.error(message: "handleTokenRefresh: Refresh request failed with status \(statusCode) for server \(serverConfig.name) (transient, keeping credentials)")
+                }
                 callback?(nil)
             }
         }
@@ -313,13 +318,13 @@ class ApiClient {
     private static func handleRefreshFailure() {
         AbsLogger.info(message: "handleRefreshFailure: Token refresh failed, clearing session")
         
-        // Clear the current server connection
-        Store.serverConfig = nil
-        
-        // Remove refresh token from secure storage
-        if let serverConfig = Store.serverConfig {
-            _ = secureStorage.removeRefreshToken(serverConnectionConfigId: serverConfig.id)
+        // Remove refresh token from secure storage *before* clearing the connection
+        if let currentConfig = Store.serverConfig {
+            _ = secureStorage.removeRefreshToken(serverConnectionConfigId: currentConfig.id)
         }
+        
+        // Clear the server connection after token removal
+        Store.serverConfig = nil
         
         // Notify webview frontend about token refresh failure
         if let callback = AbsDatabase.tokenRefreshCallback {
