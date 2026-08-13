@@ -151,7 +151,7 @@ class LocalLibraryItem(
           ImageDecoder.decodeBitmap(source)
         }
       } catch (e: Exception) {
-        Log.e(tag, "Failed to decode cover bitmap: ${e.message}")
+        Log.e("LocalLibraryItem", "Failed to decode cover bitmap: ${e.message}")
         null
       }
     }

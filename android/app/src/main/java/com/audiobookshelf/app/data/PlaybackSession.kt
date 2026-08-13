@@ -274,7 +274,7 @@ class PlaybackSession(
                   ImageDecoder.decodeBitmap(source)
                 }
               } catch (e: Exception) {
-                Log.e(tag, "Failed to decode cover bitmap: ${e.message}")
+                Log.e("PlaybackSession", "Failed to decode cover bitmap: ${e.message}")
                 null
               }
       if (resolvedCoverBitmap != null) {
