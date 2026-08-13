@@ -142,11 +142,17 @@ class LocalLibraryItem(
 
     var bitmap:Bitmap? = null
     if (coverContentUrl != null) {
-      bitmap = if (Build.VERSION.SDK_INT < 28) {
-        MediaStore.Images.Media.getBitmap(ctx.contentResolver, coverUri)
-      } else {
-        val source: ImageDecoder.Source = ImageDecoder.createSource(ctx.contentResolver, coverUri)
-        ImageDecoder.decodeBitmap(source)
+      bitmap = try {
+        if (Build.VERSION.SDK_INT < 28) {
+          @Suppress("DEPRECATION")
+          MediaStore.Images.Media.getBitmap(ctx.contentResolver, coverUri)
+        } else {
+          val source: ImageDecoder.Source = ImageDecoder.createSource(ctx.contentResolver, coverUri)
+          ImageDecoder.decodeBitmap(source)
+        }
+      } catch (e: Exception) {
+        Log.e(tag, "Failed to decode cover bitmap: ${e.message}")
+        null
       }
     }
 

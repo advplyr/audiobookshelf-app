@@ -7,6 +7,7 @@ import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
 import android.support.v4.media.MediaMetadataCompat
+import android.util.Log
 import androidx.core.content.FileProvider
 import androidx.core.net.toFile
 import com.audiobookshelf.app.BuildConfig
@@ -263,14 +264,22 @@ class PlaybackSession(
     // Local covers get bitmap synchronously, no async fetch needed
     if (localLibraryItem?.coverContentUrl != null) {
       resolvedCoverBitmap =
-              if (Build.VERSION.SDK_INT < 28) {
-                MediaStore.Images.Media.getBitmap(ctx.contentResolver, coverUri)
-              } else {
-                val source: ImageDecoder.Source =
-                        ImageDecoder.createSource(ctx.contentResolver, coverUri)
-                ImageDecoder.decodeBitmap(source)
+              try {
+                if (Build.VERSION.SDK_INT < 28) {
+                  @Suppress("DEPRECATION")
+                  MediaStore.Images.Media.getBitmap(ctx.contentResolver, coverUri)
+                } else {
+                  val source: ImageDecoder.Source =
+                          ImageDecoder.createSource(ctx.contentResolver, coverUri)
+                  ImageDecoder.decodeBitmap(source)
+                }
+              } catch (e: Exception) {
+                Log.e(tag, "Failed to decode cover bitmap: ${e.message}")
+                null
               }
-      onArtResolved()
+      if (resolvedCoverBitmap != null) {
+        onArtResolved()
+      }
       return null
     }
 
