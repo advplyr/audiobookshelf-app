@@ -2,6 +2,7 @@ plugins {
   id 'com.android.application'
   id 'kotlin-android'
   id 'kotlin-kapt'
+  id 'jacoco'
 }
 
 kotlin {
@@ -58,6 +59,22 @@ android {
     release {
       minifyEnabled false
       proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+    }
+  }
+  testOptions {
+    unitTests.returnDefaultValues = true
+    unitTests.all {
+      // Capacitor classes (e.g. JSObject) are compiled for Java 21; the app's Kotlin
+      // toolchain is 17. Test runtime only - does not affect assembleDebug.
+      javaLauncher = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(21) }
+      // PaperDb's Kryo serializer reflects into java.util/java.lang on JDK 21+.
+      jvmArgs '--add-opens=java.base/java.util=ALL-UNNAMED',
+              '--add-opens=java.base/java.lang=ALL-UNNAMED',
+              '--add-opens=java.base/java.math=ALL-UNNAMED'
+      testLogging {
+        events 'failed', 'skipped'
+        exceptionFormat 'full'
+      }
     }
   }
 }
@@ -128,6 +145,45 @@ dependencies {
 
   // Jackson for JSON
   implementation 'com.fasterxml.jackson.module:jackson-module-kotlin:2.12.2'
+
+  // Host-JVM test foundation. Android device/emulator tests are intentionally out of scope.
+  testImplementation "junit:junit:$junitVersion"
+  testImplementation "org.jetbrains.kotlinx:kotlinx-coroutines-test:$kotlin_coroutines_version"
+  testImplementation "com.squareup.okhttp3:mockwebserver:$mockWebServerVersion"
+  testImplementation "io.mockk:mockk:$mockkVersion"
+  // AGP's mockable android.jar strips org.json method bodies; a real implementation is
+  // needed for host-JVM tests that exercise JSON parsing (e.g. ItemInProgress).
+  testImplementation "org.json:json:20231013"
 }
 
 apply from: 'capacitor.build.gradle'
+
+jacoco {
+  toolVersion = '0.8.12'
+}
+
+tasks.register('jacocoDebugUnitTestReport', JacocoReport) {
+  // The suite is green, so this dependency is honest again and the report is always built from
+  // the run that just happened. It used to be routinely bypassed with `-x testDebugUnitTest`,
+  // because the suite failed by design - which silently produced a report from whatever stale
+  // .exec file was left on disk, with no warning that the numbers were old.
+  dependsOn 'testDebugUnitTest'
+
+  reports {
+    xml.required = true
+    html.required = true
+  }
+
+  def excludes = [
+    '**/R.class',
+    '**/R$*.class',
+    '**/BuildConfig.*',
+    '**/Manifest*.*',
+    '**/databinding/**'
+  ]
+  def kotlinClasses = fileTree(dir: "$buildDir/tmp/kotlin-classes/debug", excludes: excludes)
+  def javaClasses = fileTree(dir: "$buildDir/intermediates/javac/debug/compileDebugJavaWithJavac/classes", excludes: excludes)
+  classDirectories.setFrom(files(kotlinClasses, javaClasses))
+  sourceDirectories.setFrom(files('src/main/java'))
+  executionData.setFrom(fileTree(dir: buildDir, includes: ['jacoco/testDebugUnitTest.exec']))
+}

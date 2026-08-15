@@ -28,7 +28,7 @@ class LibraryAuthorItem(
   val title get() = name
 
   @get:JsonIgnore
-  val bookCount get() = if (numBooks != null) numBooks else libraryItems!!.size
+  val bookCount get() = numBooks ?: libraryItems?.size ?: 0
 
   @JsonIgnore
   fun getPortraitUri(): Uri {

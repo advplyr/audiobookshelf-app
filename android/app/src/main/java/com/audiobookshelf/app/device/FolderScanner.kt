@@ -28,7 +28,7 @@ class FolderScanner(private val ctx: Context) {
   ): LocalFile? {
     if (part.isInternalStorage) {
       val file = File(part.finalDestinationPath)
-      if (!file.exists()) return null
+      if (!file.exists() || file.length() <= 0) return null
       return LocalFile(
               DeviceManager.getBase64Id(file.name),
               file.name,

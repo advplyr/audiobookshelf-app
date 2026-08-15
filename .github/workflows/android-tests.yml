@@ -1,0 +1,65 @@
+name: Android JVM tests
+
+# Runs on its own rather than inside "Build APK": the suite is the gate for every Kotlin
+# change, and coupling it to an APK build meant it only ran when a build was triggered.
+on:
+  push:
+    paths:
+      - 'android/**'
+      - '.github/workflows/android-tests.yml'
+  pull_request:
+    paths:
+      - 'android/**'
+      - '.github/workflows/android-tests.yml'
+
+jobs:
+  unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout sources
+        uses: actions/checkout@v3
+
+      - name: use Node.js 20.x
+        uses: actions/setup-node@v3
+        with:
+          node-version: 20
+
+      - name: Set up Java
+        uses: actions/setup-java@v2
+        with:
+          distribution: 'temurin'
+          java-version: 21
+
+      - name: install dependencies
+        run: npm ci
+
+      # Gradle cannot configure without
+      # android/capacitor-cordova-android-plugins/cordova.variables.gradle, which is generated
+      # rather than committed, so a Capacitor step is unavoidable even for a Kotlin-only run.
+      #
+      # Capacitor runs its `copy` step as part of `update` and aborts if webDir (./dist) is
+      # missing. ./dist is gitignored and produced by `npm run generate` - a full Nuxt build,
+      # minutes long, whose output no Kotlin unit test ever reads. A placeholder satisfies the
+      # check at no cost. The APK build in build-apk.yml does a real `npm run generate`, so
+      # nothing shippable is ever built from this stub.
+      - name: stub web assets for Capacitor
+        run: |
+          mkdir -p dist
+          echo '<!doctype html><meta charset="utf-8"><title>unit tests</title>' > dist/index.html
+
+      - name: generate Capacitor native config
+        run: npx cap update android
+
+      - name: run Android JVM unit tests
+        run: ./android/gradlew :app:testDebugUnitTest -p android --no-daemon
+
+      # The JUnit XML is the only place a failure's assertion message survives - Gradle
+      # truncates the console output - so publish it whenever the step above goes red.
+      - name: upload test results
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-unit-test-results
+          path: |
+            android/app/build/reports/tests/testDebugUnitTest/
+            android/app/build/test-results/testDebugUnitTest/

@@ -219,10 +219,19 @@ class AbsAudioPlayer : Plugin() {
     }
 
     if (libraryItemId.startsWith("local")) { // Play local media item
-      DeviceManager.dbManager.getLocalLibraryItem(libraryItemId)?.let {
+      val localLibraryItem = DeviceManager.dbManager.getLocalLibraryItem(libraryItemId)
+      if (localLibraryItem == null) {
+        Log.e(tag, "prepareLibraryItem: Local library item not found $libraryItemId")
+        return call.resolve(JSObject("{\"error\":\"Local library item not found\"}"))
+      }
+      localLibraryItem.let {
         var episode: PodcastEpisode? = null
         if (episodeId.isNotEmpty()) {
-          val podcastMedia = it.media as Podcast
+          val podcastMedia = it.media as? Podcast
+          if (podcastMedia == null) {
+            Log.e(tag, "prepareLibraryItem: Episode id $episodeId sent for a non-podcast item $libraryItemId")
+            return call.resolve(JSObject("{\"error\":\"Podcast episode not found\"}"))
+          }
           episode = podcastMedia.episodes?.find { ep -> ep.id == episodeId }
           if (episode == null) {
             Log.e(tag, "prepareLibraryItem: Podcast episode not found $episodeId")

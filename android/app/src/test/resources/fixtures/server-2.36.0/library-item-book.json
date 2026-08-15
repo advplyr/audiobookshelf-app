@@ -1,0 +1,69 @@
+{
+  "id": "li_8gch9ve09orv2p8lp0",
+  "ino": "649641337522215266",
+  "oldLibraryItemId": null,
+  "libraryId": "lib_c1u6t4p45c35rf0nzd",
+  "folderId": "fol_bev1zuxhb0j0s1wehr",
+  "path": "/audiobooks/Terry Goodkind/Wizards First Rule",
+  "relPath": "Terry Goodkind/Wizards First Rule",
+  "isFile": false,
+  "mtimeMs": 1650621074299,
+  "ctimeMs": 1650621074299,
+  "birthtimeMs": 0,
+  "addedAt": 1650621073750,
+  "updatedAt": 1650621110769,
+  "lastScan": 1651830827825,
+  "scanVersion": "2.36.0",
+  "isMissing": false,
+  "isInvalid": false,
+  "mediaType": "book",
+  "media": {
+    "id": "bk_2j9d0s1kf",
+    "libraryItemId": "li_8gch9ve09orv2p8lp0",
+    "metadata": {
+      "title": "Wizards First Rule",
+      "subtitle": null,
+      "authors": [{ "id": "aut_z3leimgybl7uf3y4ab", "name": "Terry Goodkind" }],
+      "narrators": ["Sam Tsoutsouvas"],
+      "series": [
+        { "id": "ser_o78uaoeaqmp4tdnp6q", "name": "Sword of Truth", "sequence": "1" }
+      ],
+      "genres": ["Fantasy"],
+      "publishedYear": "2008",
+      "publishedDate": null,
+      "publisher": "Brilliance Audio",
+      "description": "The masterpiece that started it all.",
+      "isbn": null,
+      "asin": "B002V0QUOC",
+      "language": null,
+      "explicit": false,
+      "abridged": false
+    },
+    "coverPath": "/metadata/items/li_8gch9ve09orv2p8lp0/cover.jpg",
+    "tags": ["Favorite"],
+    "audioFiles": [],
+    "chapters": [
+      { "id": 0, "start": 0, "end": 6004.6675, "title": "Chapter 1" },
+      { "id": 1, "start": 6004.6675, "end": 12000.0, "title": "Chapter 2" }
+    ],
+    "ebookFile": null
+  },
+  "libraryFiles": [
+    {
+      "ino": "649641337522215266",
+      "metadata": {
+        "filename": "Wizards First Rule.mp3",
+        "ext": ".mp3",
+        "path": "/audiobooks/Terry Goodkind/Wizards First Rule/Wizards First Rule.mp3",
+        "relPath": "Wizards First Rule.mp3",
+        "size": 268824228,
+        "mtimeMs": 1650621074299,
+        "ctimeMs": 1650621074299,
+        "birthtimeMs": 0
+      },
+      "addedAt": 1650621073750,
+      "updatedAt": 1650621073750,
+      "fileType": "audio"
+    }
+  ]
+}

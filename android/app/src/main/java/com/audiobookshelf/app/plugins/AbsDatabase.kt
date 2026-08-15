@@ -362,6 +362,13 @@ class AbsDatabase : Plugin() {
       if (localMediaProgress == null) {
         Log.w(tag, "syncServerMediaProgressWithLocalMediaProgress Local media progress not found $localMediaProgressId")
         call.resolve()
+      } else if (mediaProgress.lastUpdate <= localMediaProgress.lastUpdate) {
+        // Same missing comparison as LocalMediaProgress.updateFromPlaybackSession, reached
+        // through the websocket push path instead - a push no newer than what's already stored
+        // must not overwrite it. Its sibling caller, ApiHandler.syncLocalMediaProgressForUser,
+        // already compares on lastUpdate before applying.
+        Log.d(tag, "syncServerMediaProgressWithLocalMediaProgress: ignoring push older than stored record $localMediaProgressId")
+        call.resolve(JSObject(jacksonMapper.writeValueAsString(localMediaProgress)))
       } else {
         MediaEventManager.syncEvent(mediaProgress, "Received from webhook event")
 

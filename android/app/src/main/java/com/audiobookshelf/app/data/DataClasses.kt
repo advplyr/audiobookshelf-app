@@ -49,9 +49,9 @@ class Podcast(
   @JsonIgnore
   override fun setAudioTracks(audioTracks:MutableList<AudioTrack>) {
     // Remove episodes no longer there in tracks
-    episodes = episodes?.filter { ep ->
+    episodes = episodes.orEmpty().filter { ep ->
       audioTracks.find { it.localFileId == ep.audioTrack?.localFileId } != null
-    } as MutableList<PodcastEpisode>
+    }.toMutableList()
 
     // Add new episodes
     audioTracks.forEach { at ->
@@ -70,6 +70,7 @@ class Podcast(
   }
   @JsonIgnore
   override fun addAudioTrack(audioTrack:AudioTrack) {
+    if (episodes == null) episodes = mutableListOf()
     val localEpisodeId = "local_ep_" + audioTrack.localFileId
     val newEpisode = PodcastEpisode(localEpisodeId,(episodes?.size ?: 0) + 1,null,null,audioTrack.title,null,null,null, null, null,audioTrack,null,audioTrack.duration,0, null, localEpisodeId)
     episodes?.add(newEpisode)
@@ -104,6 +105,7 @@ class Podcast(
 
   @JsonIgnore
   fun addEpisode(audioTrack:AudioTrack, episode:PodcastEpisode):PodcastEpisode {
+    if (episodes == null) episodes = mutableListOf()
     val localEpisodeId = "local_ep_" + episode.id
     val newEpisode = PodcastEpisode(localEpisodeId,(episodes?.size ?: 0) + 1,episode.episode,episode.episodeType,episode.title,episode.subtitle,episode.description,null,null,null,audioTrack,episode.chapters,audioTrack.duration,episode.size, episode.id, localEpisodeId)
     episodes?.add(newEpisode)
@@ -160,6 +162,7 @@ class Book(
   }
   @JsonIgnore
   override fun addAudioTrack(audioTrack:AudioTrack) {
+    if (tracks == null) tracks = mutableListOf()
     tracks?.add(audioTrack)
 
     var totalDuration = 0.0
@@ -233,7 +236,15 @@ class BookMetadata(
   var series:List<SeriesType>?
 ) : MediaTypeMetadata(title, explicit) {
   @JsonIgnore
-  override fun getAuthorDisplayName():String { return authorName ?: "Unknown" }
+  override fun getAuthorDisplayName():String {
+    // `authorName` is a flat convenience field the server only adds in its *minified* and
+    // *expanded* serializers. Its plain `toOldJSON()` shape sends the `authors` collection and no
+    // `authorName` at all, so reading only the flat field rendered every author as "Unknown" for
+    // those responses. Fall back to the collection, which is present in all three shapes.
+    if (!authorName.isNullOrBlank()) return authorName!!
+    val fromCollection = authors?.mapNotNull { it.name.takeIf { n -> n.isNotBlank() } }?.joinToString(", ")
+    return if (fromCollection.isNullOrBlank()) "Unknown" else fromCollection
+  }
 }
 
 @JsonIgnoreProperties(ignoreUnknown = true)

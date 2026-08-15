@@ -51,7 +51,13 @@ class LocalLibraryItem(
   @JsonIgnore
   fun getCoverUri(ctx:Context): Uri {
     if (coverContentUrl?.startsWith("file:") == true) {
-      return FileProvider.getUriForFile(ctx, "${BuildConfig.APPLICATION_ID}.fileprovider", Uri.parse(coverContentUrl).toFile())
+      return try {
+        FileProvider.getUriForFile(ctx, "${BuildConfig.APPLICATION_ID}.fileprovider", Uri.parse(coverContentUrl).toFile())
+      } catch (e: Exception) {
+        // A cover recorded with a file: path FileProvider isn't configured to serve (moved
+        // storage, SD card removed) throws IllegalArgumentException here on a real device.
+        Uri.parse("android.resource://${BuildConfig.APPLICATION_ID}/" + R.drawable.icon)
+      }
     }
     return if (coverContentUrl != null) Uri.parse(coverContentUrl) else Uri.parse("android.resource://${BuildConfig.APPLICATION_ID}/" + R.drawable.icon)
   }
@@ -142,11 +148,16 @@ class LocalLibraryItem(
 
     var bitmap:Bitmap? = null
     if (coverContentUrl != null) {
-      bitmap = if (Build.VERSION.SDK_INT < 28) {
-        MediaStore.Images.Media.getBitmap(ctx.contentResolver, coverUri)
-      } else {
-        val source: ImageDecoder.Source = ImageDecoder.createSource(ctx.contentResolver, coverUri)
-        ImageDecoder.decodeBitmap(source)
+      bitmap = try {
+        if (Build.VERSION.SDK_INT < 28) {
+          MediaStore.Images.Media.getBitmap(ctx.contentResolver, coverUri)
+        } else {
+          val source: ImageDecoder.Source = ImageDecoder.createSource(ctx.contentResolver, coverUri)
+          ImageDecoder.decodeBitmap(source)
+        }
+      } catch (e: Exception) {
+        // Cover on disk is a record but not decodable as an image (zero-byte, truncated, moved).
+        null
       }
     }
 

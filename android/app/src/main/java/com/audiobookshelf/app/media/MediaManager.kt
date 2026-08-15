@@ -356,12 +356,18 @@ class MediaManager(private var apiHandler: ApiHandler, var ctx: Context) {
   fun loadLibrarySeriesWithAudio(libraryId:String, seriesFilter:String, cb: (List<LibrarySeriesItem>) -> Unit) {
     // Check "cache" first
     if (!cachedLibrarySeries.containsKey(libraryId)) {
-      loadLibrarySeriesWithAudio(libraryId) {}
+      // Cache is cold: defer the filter+callback until the async load actually populates it,
+      // instead of reading cachedLibrarySeries[libraryId] on the next line, which is always
+      // null at that point.
+      loadLibrarySeriesWithAudio(libraryId) {
+        val seriesWithBooks = cachedLibrarySeries[libraryId]!!.filter { ls -> ls.title.uppercase().startsWith(seriesFilter) }.toList()
+        cb(seriesWithBooks)
+      }
     } else {
       Log.d(tag, "Series with audio found from cache | Library $libraryId ")
+      val seriesWithBooks = cachedLibrarySeries[libraryId]!!.filter { ls -> ls.title.uppercase().startsWith(seriesFilter) }.toList()
+      cb(seriesWithBooks)
     }
-    val seriesWithBooks = cachedLibrarySeries[libraryId]!!.filter { ls -> ls.title.uppercase().startsWith(seriesFilter) }.toList()
-    cb(seriesWithBooks)
   }
 
   /**
@@ -442,11 +448,17 @@ class MediaManager(private var apiHandler: ApiHandler, var ctx: Context) {
     // Check "cache" first
     if (cachedLibraryAuthors.containsKey(libraryId)) {
       Log.d(tag, "Authors with books found from cache | Library $libraryId ")
+      val authorsWithBooks = cachedLibraryAuthors[libraryId]!!.values.filter { lai -> lai.name.uppercase().startsWith(authorFilter) }.toList()
+      cb(authorsWithBooks)
     } else {
-      loadAuthorsWithBooks(libraryId) {}
+      // Cache is cold: defer the filter+callback until the async load actually populates it,
+      // instead of reading cachedLibraryAuthors[libraryId] on the next line, which is always
+      // null at that point.
+      loadAuthorsWithBooks(libraryId) {
+        val authorsWithBooks = cachedLibraryAuthors[libraryId]!!.values.filter { lai -> lai.name.uppercase().startsWith(authorFilter) }.toList()
+        cb(authorsWithBooks)
+      }
     }
-    val authorsWithBooks = cachedLibraryAuthors[libraryId]!!.values.filter { lai -> lai.name.uppercase().startsWith(authorFilter) }.toList()
-    cb(authorsWithBooks)
   }
 
   /**
@@ -498,15 +510,20 @@ class MediaManager(private var apiHandler: ApiHandler, var ctx: Context) {
       apiHandler.getLibrarySeriesItems(libraryId, seriesId) { libraryItems ->
         Log.d(tag, "Items for series $seriesId with author $authorId loaded from server | Library $libraryId")
         val libraryItemsWithAudio = libraryItems.filter { li -> li.checkHasTracks() }
-        if (!cachedLibraryAuthors[libraryId]!!.containsKey(authorId)) {
+        // Same cold-cache hazard as the filter overloads above: nothing guarantees this library's
+        // authors have been loaded before a browse lands here (Android Auto can resume straight
+        // into an author's series, or reach it from a voice command). The `?: ""` fallback below
+        // already covers a missing author, so read the map null-safely instead of asserting it.
+        val cachedAuthors = cachedLibraryAuthors[libraryId]
+        if (cachedAuthors == null || !cachedAuthors.containsKey(authorId)) {
           Log.d(tag, "Author data is missing")
         }
-        val authorName = cachedLibraryAuthors[libraryId]!![authorId]?.name ?: ""
+        val authorName = cachedAuthors?.get(authorId)?.name ?: ""
         Log.d(tag, "Using author name: $authorName")
         val libraryItemsFromAuthorWithAudio = libraryItemsWithAudio.filter { li -> li.authorName.indexOf(authorName, ignoreCase = true) >= 0 }
 
         val sortedLibraryItemsWithAudio = sortSeriesBooks(libraryItemsFromAuthorWithAudio)
-        cachedLibraryAuthorSeriesItems[libraryId]!![authorId] = sortedLibraryItemsWithAudio
+        cachedLibraryAuthorSeriesItems[libraryId]!![authorSeriesKey] = sortedLibraryItemsWithAudio
 
         sortedLibraryItemsWithAudio.forEach { libraryItem ->
           if (serverLibraryItems.find { li -> li.id == libraryItem.id } == null) {
@@ -571,6 +588,7 @@ class MediaManager(private var apiHandler: ApiHandler, var ctx: Context) {
   fun loadLibraryDiscoveryBooksWithAudio(libraryId: String, cb: (List<LibraryItem>) -> Unit) {
     if (!cachedLibraryDiscovery.containsKey(libraryId)) {
       cb(listOf())
+      return
     }
     val libraryItemsWithAudio = cachedLibraryDiscovery[libraryId]?.filter { li -> li.checkHasTracks() }
     libraryItemsWithAudio?.forEach { libraryItem -> addServerLibrary(libraryItem) }

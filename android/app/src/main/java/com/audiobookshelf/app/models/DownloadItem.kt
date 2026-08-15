@@ -33,7 +33,7 @@ data class DownloadItem(
   @JsonIgnore
   fun getNextDownloadItemParts(limit: Int): MutableList<DownloadItemPart> {
     val itemParts = mutableListOf<DownloadItemPart>()
-    if (limit == 0) return itemParts
+    if (limit <= 0) return itemParts
 
     for (it in downloadItemParts) {
       if (!it.completed && !it.failed && it.downloadId == null) {

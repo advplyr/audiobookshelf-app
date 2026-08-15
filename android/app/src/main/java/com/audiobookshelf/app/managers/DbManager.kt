@@ -198,6 +198,21 @@ class DbManager {
                   lli.localFiles.find { lf -> lf.id == track.localFileId } != null
                 } as
                         MutableList<AudioTrack>
+
+        // An ebook is a local file like any other, but it lives on `ebookFile` rather than in
+        // `tracks`, so the filter above never reaches it. Drop it when its backing file is gone,
+        // the same way a track is dropped, so "has this item lost everything" below can be
+        // answered honestly.
+        book.ebookFile?.let { ebookFile ->
+          if (lli.localFiles.find { lf -> lf.id == ebookFile.localFileId } == null) {
+            Log.d(
+                    tag,
+                    "cleanLocalLibraryItems: Ebook file was removed from library item ${lli.media.metadata.title}"
+            )
+            book.ebookFile = null
+            hasUpdates = true
+          }
+        }
       }
 
       // Check cover still there
@@ -221,6 +236,18 @@ class DbManager {
         // Local-only item support was removed in app version 0.9.67, remove any remaining local
         // only items beginning in 0.9.80
         Log.d(tag, "cleanLocalLibraryItems: Local only item ${lli.id} - removing from ABS")
+        Paper.book("localLibraryItems").delete(lli.id)
+      } else if (!lli.media.checkHasTracks() && (lli.media as? Book)?.ebookFile == null) {
+        // The filtering above can leave a server-linked item with zero local files and zero
+        // tracks once every one of them has gone missing - unplayable, but nothing removed it, so
+        // it stayed selectable in the library and the Android Auto browse tree.
+        //
+        // The ebookFile check is load-bearing, not defensive: FolderScanner deliberately creates
+        // ebook-only items (it only rejects a download when it found neither tracks *nor* an
+        // ebook), and Book.checkHasTracks() is false for every one of them. Removing an item on
+        // checkHasTracks() alone would delete every downloaded ebook the first time this runs -
+        // and it runs from AbsDatabase.load(), i.e. on every app start.
+        Log.d(tag, "cleanLocalLibraryItems: Item ${lli.id} has lost all of its media - removing from ABS")
         Paper.book("localLibraryItems").delete(lli.id)
       } else if (hasUpdates) {
         Log.d(tag, "cleanLocalLibraryItems: Saving local library item ${lli.id}")

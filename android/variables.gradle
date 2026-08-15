@@ -8,6 +8,8 @@ ext {
     androidxCoreVersion = '1.15.0'
     androidxFragmentVersion = '1.8.4'
     junitVersion = '4.13.2'
+    mockkVersion = '1.13.17'
+    mockWebServerVersion = '4.9.2'
     androidxJunitVersion = '1.2.1'
     androidxEspressoCoreVersion = '3.6.1'
     cordovaAndroidVersion = '10.1.1'

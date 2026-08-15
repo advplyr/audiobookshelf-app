@@ -70,7 +70,7 @@ class LibraryItem(
   val seriesSequence: String
     get() {
       if (mediaType != "podcast") {
-        return ((media as Book).metadata as BookMetadata).series?.get(0)?.sequence.orEmpty()
+        return ((media as Book).metadata as BookMetadata).series?.firstOrNull()?.sequence.orEmpty()
       } else {
         return ""
       }

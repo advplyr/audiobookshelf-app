@@ -80,8 +80,19 @@ class PlaybackSession(
             if (localEpisodeId.isNullOrEmpty()) localLibraryItemId
             else "$localLibraryItemId-$localEpisodeId"
   @get:JsonIgnore
-  val progress
-    get() = currentTime / getTotalDuration()
+  val progress: Double
+    get() {
+      val totalDuration = getTotalDuration()
+      if (totalDuration <= 0.0) {
+        // MediaProgressSyncer.kt:241,340 checks progress.isNaN() to detect a session with no
+        // usable duration and skip syncing it. A zero currentTime against a zero duration
+        // preserves that NaN sentinel; any other currentTime has no meaningful fraction, so it
+        // reports the neutral 0.0 instead of the unclamped Infinity a raw division would give.
+        return if (currentTime == 0.0) Double.NaN else 0.0
+      }
+      if (!currentTime.isFinite()) return 0.0
+      return (currentTime / totalDuration).coerceIn(0.0, 1.0)
+    }
   @get:JsonIgnore
   val mediaItemId
     get() = if (episodeId.isNullOrEmpty()) libraryItemId ?: "" else "$libraryItemId-$episodeId"
@@ -94,7 +105,15 @@ class PlaybackSession(
         return i
       }
     }
-    return audioTracks.size - 1
+    // Falling through means the position is outside every track's range, which happens in two
+    // opposite situations that must not get the same answer: *before* the first track starts
+    // (a negative position, seen after a bad seek or a restored session), and *at or after* the
+    // last track's end. Returning the last index unconditionally sent a negative position to the
+    // final track, while getNextTrackIndex answered 0 for the same input - the two disagreed.
+    if (audioTracks.isNotEmpty() && currentTimeMs < audioTracks[0].startOffsetMs) return 0
+    // -1 for an empty list, which every caller then uses to index audioTracks. Sibling
+    // getTrackStartOffsetMs already guards exactly this (index < 0 || index >= size -> 0L).
+    return (audioTracks.size - 1).coerceAtLeast(0)
   }
 
   @JsonIgnore
@@ -105,7 +124,7 @@ class PlaybackSession(
         return i
       }
     }
-    return audioTracks.size - 1
+    return (audioTracks.size - 1).coerceAtLeast(0)
   }
 
   @JsonIgnore
@@ -116,7 +135,7 @@ class PlaybackSession(
 
   @JsonIgnore
   fun getCurrentTrackEndTime(): Long {
-    val currentTrack = audioTracks[this.getCurrentTrackIndex()]
+    val currentTrack = audioTracks.getOrNull(this.getCurrentTrackIndex()) ?: return 0L
     return currentTrack.startOffsetMs + currentTrack.durationMs
   }
 
@@ -128,13 +147,13 @@ class PlaybackSession(
 
   @JsonIgnore
   fun getNextTrackEndTime(): Long {
-    val currentTrack = audioTracks[this.getNextTrackIndex()]
+    val currentTrack = audioTracks.getOrNull(this.getNextTrackIndex()) ?: return 0L
     return currentTrack.startOffsetMs + currentTrack.durationMs
   }
 
   @JsonIgnore
   fun getCurrentTrackTimeMs(): Long {
-    val currentTrack = audioTracks[this.getCurrentTrackIndex()]
+    val currentTrack = audioTracks.getOrNull(this.getCurrentTrackIndex()) ?: return 0L
     val time = currentTime - currentTrack.startOffset
     return (time * 1000L).toLong()
   }
@@ -169,15 +188,21 @@ class PlaybackSession(
       var coverUri = Uri.parse(localLibraryItem?.coverContentUrl.toString())
       if (coverUri.toString().startsWith("file:")) {
         coverUri =
-                FileProvider.getUriForFile(
-                        ctx,
-                        "${BuildConfig.APPLICATION_ID}.fileprovider",
-                        coverUri.toFile()
-                )
+                try {
+                  FileProvider.getUriForFile(
+                          ctx,
+                          "${BuildConfig.APPLICATION_ID}.fileprovider",
+                          coverUri.toFile()
+                  )
+                } catch (e: Exception) {
+                  // A cover recorded with a file: path FileProvider isn't configured to serve
+                  // (moved storage, SD card removed) throws IllegalArgumentException here on a
+                  // real device.
+                  return Uri.parse("android.resource://${BuildConfig.APPLICATION_ID}/" + R.drawable.icon)
+                }
       }
 
       return coverUri
-              ?: Uri.parse("android.resource://${BuildConfig.APPLICATION_ID}/" + R.drawable.icon)
     }
 
     if (coverPath == null)
@@ -263,12 +288,19 @@ class PlaybackSession(
     // Local covers get bitmap synchronously, no async fetch needed
     if (localLibraryItem?.coverContentUrl != null) {
       resolvedCoverBitmap =
-              if (Build.VERSION.SDK_INT < 28) {
-                MediaStore.Images.Media.getBitmap(ctx.contentResolver, coverUri)
-              } else {
-                val source: ImageDecoder.Source =
-                        ImageDecoder.createSource(ctx.contentResolver, coverUri)
-                ImageDecoder.decodeBitmap(source)
+              try {
+                if (Build.VERSION.SDK_INT < 28) {
+                  MediaStore.Images.Media.getBitmap(ctx.contentResolver, coverUri)
+                } else {
+                  val source: ImageDecoder.Source =
+                          ImageDecoder.createSource(ctx.contentResolver, coverUri)
+                  ImageDecoder.decodeBitmap(source)
+                }
+              } catch (e: Exception) {
+                // Cover on disk is a record but not decodable as an image. onArtResolved still
+                // has to fire below - otherwise the UI waits forever for art that will never
+                // arrive, trading a crash for a spinner that never clears.
+                null
               }
       onArtResolved()
       return null
@@ -420,7 +452,14 @@ class PlaybackSession(
   fun syncData(syncData: MediaProgressSyncData) {
     timeListening += syncData.timeListened
     updatedAt = System.currentTimeMillis()
-    currentTime = syncData.currentTime
+    // The media session, the player listener and the 15-second sync timer can each drive a save,
+    // and none of them is serialised against the others - a delayed callback carrying an earlier
+    // position must not overwrite a later one already recorded. Same missing comparison as the
+    // progress-conflict cluster, reached through the external-control path instead of a stale
+    // session object.
+    if (syncData.currentTime >= currentTime) {
+      currentTime = syncData.currentTime
+    }
   }
 
   @JsonIgnore
@@ -432,7 +471,7 @@ class PlaybackSession(
             getTotalDuration(),
             progress,
             currentTime,
-            false,
+            progress >= 0.99,
             null,
             null,
             updatedAt,
