@@ -150,7 +150,9 @@ class Media3PlaybackService : MediaLibraryService(), Media3ServiceHost, Playback
   override fun onDestroy() {
     try {
       val session = currentPlaybackSession
-      if (session != null && this::progressSync.isInitialized && isPlayerInitialized) {
+      val alreadyClosing =
+        this::media3SessionManager.isInitialized && media3SessionManager.terminalSyncClaimed
+      if (session != null && !alreadyClosing && this::progressSync.isInitialized && isPlayerInitialized) {
         progressSync.syncOnDestroy(session, DESTROY_FINAL_SYNC_TIMEOUT_SEC) {
           updateCurrentPosition(session)
         }

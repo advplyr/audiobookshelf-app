@@ -27,6 +27,15 @@ class Media3SessionManager(
 
   private var closePlaybackSignal: CompletableDeferred<Unit>? = null
 
+  /**
+   * Set once closePlayback owns the session's terminal sync. onDestroy runs its own final sync
+   * for the process-death case, and on swipe-away both paths fire — the close teardown is async,
+   * so onDestroy can still see a live session and write a second Stop to history.
+   */
+  @Volatile
+  var terminalSyncClaimed: Boolean = false
+    private set
+
   fun assignPlaybackSession(session: PlaybackSession, allowDefer: Boolean = true) {
     val pendingClose = closePlaybackSignal
     if (allowDefer && pendingClose != null && !pendingClose.isCompleted) {
@@ -42,6 +51,7 @@ class Media3SessionManager(
 
     // Ensure flags return to a ready state after a closePlayback call
     host.isPlayerInitialized = true
+    terminalSyncClaimed = false
 
     val isNewSession = currentPlaybackSession?.id != session.id
     currentPlaybackSession = session
@@ -75,6 +85,7 @@ class Media3SessionManager(
     if (session != null) {
       val signal = CompletableDeferred<Unit>()
       closePlaybackSignal = signal
+      terminalSyncClaimed = true
 
       val tearDown = {
         serviceScope.launch(Dispatchers.Main) {
