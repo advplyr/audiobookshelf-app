@@ -62,7 +62,7 @@ class Media3PlaybackService : MediaLibraryService(), Media3ServiceHost, Playback
   private lateinit var mediaManager: MediaManager
   private lateinit var browseTree: Media3BrowseTree
   private lateinit var autoLibraryCoordinator: Media3AutoLibraryCoordinator
-  private lateinit var unifiedProgressSyncer: UnifiedMediaProgressSyncer
+  private lateinit var progressSync: Media3ProgressSyncCoordinator
   private lateinit var media3SessionManager: Media3SessionManager
   private lateinit var media3NotificationManager: Media3NotificationManager
   private val sleepTimerCoordinator = SleepTimerCoordinator(serviceScope)
@@ -88,7 +88,6 @@ class Media3PlaybackService : MediaLibraryService(), Media3ServiceHost, Playback
       if (!this::player.isInitialized) return false
       return player.deviceInfo.playbackType == androidx.media3.common.DeviceInfo.PLAYBACK_TYPE_REMOTE
     }
-  private val finalSyncBarrier = FinalSyncBarrier()
 
   private var transcodeFallbackAttemptedSessionId: String? = null
 
@@ -154,27 +153,17 @@ class Media3PlaybackService : MediaLibraryService(), Media3ServiceHost, Playback
   override fun onDestroy() {
     try {
       val session = currentPlaybackSession
-      if (session != null && this::unifiedProgressSyncer.isInitialized && isPlayerInitialized) {
-        updateCurrentPosition(session)
-        val latch = java.util.concurrent.CountDownLatch(1)
-        unifiedProgressSyncer.syncNow(
-          "stop",
-          session.clone(),
-          shouldSyncServer = true,
-          callbackOnMainThread = false
-        ) { latch.countDown() }
-        latch.await(DESTROY_FINAL_SYNC_TIMEOUT_SEC, java.util.concurrent.TimeUnit.SECONDS)
-
-        if (!session.isLocal && session.id.isNotEmpty()) {
-          closeSessionOnServer(session.id)
+      if (session != null && this::progressSync.isInitialized && isPlayerInitialized) {
+        progressSync.syncOnDestroy(session, DESTROY_FINAL_SYNC_TIMEOUT_SEC) {
+          updateCurrentPosition(session)
         }
       }
     } catch (_: Exception) {
     }
 
     super.onDestroy()
-    if (this::unifiedProgressSyncer.isInitialized) {
-      unifiedProgressSyncer.cleanup()
+    if (this::progressSync.isInitialized) {
+      progressSync.cleanup()
     }
     serviceScope.cancel()
     cleanupPlaybackResources()
@@ -225,18 +214,21 @@ class Media3PlaybackService : MediaLibraryService(), Media3ServiceHost, Playback
     autoLibraryCoordinator = Media3AutoLibraryCoordinator(mediaManager, browseTree, serviceScope)
     NetworkMonitor.initialize(applicationContext)
 
-    unifiedProgressSyncer = UnifiedMediaProgressSyncer(
-      playbackTelemetryProvider = this,
-      progressApi = apiHandler
-    ) { event, session, result ->
-      when (event) {
-        "save" -> eventPipeline.emitSaveEvent(session, result)
-        "pause" -> eventPipeline.emitPauseEvent(session, result)
-        "close" -> eventPipeline.emitStopEvent(session, result)
-        "stop" -> eventPipeline.emitStopEvent(session, result)
-        "finished" -> eventPipeline.emitFinishedEvent(session, result)
+    progressSync = Media3ProgressSyncCoordinator(applicationContext, apiHandler, ::debug)
+    progressSync.attach(
+      UnifiedMediaProgressSyncer(
+        playbackTelemetryProvider = this,
+        progressApi = apiHandler
+      ) { event, session, result ->
+        when (event) {
+          "save" -> eventPipeline.emitSaveEvent(session, result)
+          "pause" -> eventPipeline.emitPauseEvent(session, result)
+          "close" -> eventPipeline.emitStopEvent(session, result)
+          "stop" -> eventPipeline.emitStopEvent(session, result)
+          "finished" -> eventPipeline.emitFinishedEvent(session, result)
+        }
       }
-    }
+    )
   }
 
   /* ========================================
@@ -287,32 +279,23 @@ class Media3PlaybackService : MediaLibraryService(), Media3ServiceHost, Playback
   override fun playerOrNull(): Player? = if (this::player.isInitialized) player else null
 
   override fun progressSyncPlay(session: PlaybackSession) {
-    if (this::unifiedProgressSyncer.isInitialized) {
-      unifiedProgressSyncer.play(session)
-    }
+    progressSync.play(session)
   }
 
   override fun progressSyncPause() {
     val closeSignal = closePlaybackSignal
-    if (closeSignal != null && !closeSignal.isCompleted) {
-      debugLog { "Skipping pause sync because closePlayback is already in progress" }
-      return
-    }
-    if (this::unifiedProgressSyncer.isInitialized) {
-      unifiedProgressSyncer.pause {}
-    }
+    val skipReason =
+      if (closeSignal != null && !closeSignal.isCompleted) "closePlayback is already in progress"
+      else null
+    progressSync.pause(skipReason)
   }
 
   override fun resetProgressSyncState() {
-    if (this::unifiedProgressSyncer.isInitialized) {
-      unifiedProgressSyncer.reset()
-    }
+    progressSync.reset()
   }
 
   override fun closeSessionOnServer(sessionId: String) {
-    apiHandler.closePlaybackSession(sessionId, DeviceManager.serverConnectionConfig) { success ->
-      debugLog { "Closed playback session $sessionId on server: $success" }
-    }
+    progressSync.closeSessionOnServer(sessionId)
   }
 
   override fun onPlayStarted(sessionId: String) {
@@ -632,24 +615,13 @@ class Media3PlaybackService : MediaLibraryService(), Media3ServiceHost, Playback
     targetSession: PlaybackSession?,
     onSyncComplete: ((SyncResult?) -> Unit)?
   ) {
-    val session = targetSession ?: currentPlaybackSession
-    if (!this::unifiedProgressSyncer.isInitialized || session == null) {
-      onSyncComplete?.invoke(null)
-      return
-    }
-
-    val barrier = finalSyncBarrier.armIfCritical(reason)
-    val shouldSyncServer = when (reason) {
-      "pause", "ended", "close" -> true
-      else -> force || DeviceManager.checkConnectivity(applicationContext)
-    }
-
-    val completion: (SyncResult?) -> Unit = { syncResult ->
-      finalSyncBarrier.complete(syncResult, barrier)
-      onSyncComplete?.invoke(syncResult)
-    }
-    updateCurrentPosition(session)
-    unifiedProgressSyncer.syncNow(reason, session, shouldSyncServer, onComplete = completion)
+    progressSync.sync(
+      session = targetSession ?: currentPlaybackSession,
+      reason = reason,
+      force = force,
+      beforeSync = ::updateCurrentPosition,
+      onSyncComplete = onSyncComplete
+    )
   }
 
   /* ========================================
@@ -758,9 +730,7 @@ class Media3PlaybackService : MediaLibraryService(), Media3ServiceHost, Playback
             if (seekBackTimeMs > 0) {
               seekBackwardWithinSession(seekBackTimeMs, session)
             }
-            if (this@Media3PlaybackService::unifiedProgressSyncer.isInitialized) {
-              unifiedProgressSyncer.play(session)
-            }
+            progressSync.play(session)
           }
         } else if (seekBackTimeMs > 0) {
           serviceScope.launch(Dispatchers.Main) {
@@ -965,7 +935,7 @@ class Media3PlaybackService : MediaLibraryService(), Media3ServiceHost, Playback
       isCastActive = { isCastActive },
       seekConfig = seekConfig,
       browseApi = this,
-      awaitFinalSync = { finalSyncBarrier.await(FINAL_SYNC_TIMEOUT_MS) },
+      awaitFinalSync = { progressSync.awaitFinalSync(FINAL_SYNC_TIMEOUT_MS) },
       debug = { msg -> debugLog(msg) },
       sessionController = sessionController
     )
