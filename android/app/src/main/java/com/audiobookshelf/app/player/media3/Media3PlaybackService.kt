@@ -477,8 +477,10 @@ class Media3PlaybackService : MediaLibraryService(), Media3ServiceHost, Playback
     updateMediaPlayerExtra()
     updateTrackNavigationButtons()
 
+    // Push the queue to the receiver rather than waiting for CastPlayer to move it on its own,
+    // which leaves playback silent for ~14s after the receiver is already connected.
     val session = currentPlaybackSession
-    if (session != null && isCast && session.isLocal) {
+    if (session != null && isCast) {
       reloadQueueForCast(session)
     }
 
@@ -487,9 +489,10 @@ class Media3PlaybackService : MediaLibraryService(), Media3ServiceHost, Playback
 
   private fun reloadQueueForCast(session: PlaybackSession) {
     val wasPlaying = player.isPlaying
-    val currentPosition = currentAbsolutePositionMs() ?: session.currentTimeMs
-
-    updateCurrentPosition(session)
+    // CastPlayer has already swapped in the receiver by the time this runs, so the player
+    // reports position 0 rather than null and the session holds the real position.
+    val playerPosition = currentAbsolutePositionMs() ?: 0L
+    val currentPosition = if (playerPosition > 0L) playerPosition else session.currentTimeMs
 
     val mediaItems = session.toMedia3MediaItems(
       this,
@@ -497,8 +500,9 @@ class Media3PlaybackService : MediaLibraryService(), Media3ServiceHost, Playback
     )
     if (mediaItems.isEmpty()) return
 
-    val trackIndex = resolveTrackIndexForPlayer(session, player)
-      .coerceIn(0, mediaItems.lastIndex)
+    // Derive the track from the recovered position: the player's own index has been reset too.
+    session.currentTime = currentPosition / 1000.0
+    val trackIndex = session.getCurrentTrackIndex().coerceIn(0, mediaItems.lastIndex)
     val trackStartOffsetMs = session.getTrackStartOffsetMs(trackIndex)
     val positionInTrack = (currentPosition - trackStartOffsetMs).coerceAtLeast(0L)
 
