@@ -284,8 +284,18 @@ class DbManager {
   fun getPlaybackSessions(): List<PlaybackSession> {
     val sessions: MutableList<PlaybackSession> = mutableListOf()
     Paper.book("playbackSession").allKeys.forEach { playbackSessionId ->
-      Paper.book("playbackSession").read<PlaybackSession>(playbackSessionId)?.let {
-        sessions.add(it)
+      try {
+        Paper.book("playbackSession").read<PlaybackSession>(playbackSessionId)?.let {
+          sessions.add(it)
+        }
+      } catch (e: Exception) {
+        // A partially written session file throws on every read, so it would otherwise crash
+        // the app on each launch. Drop it and keep the rest of the sessions readable.
+        Log.e(tag, "Removing unreadable playback session $playbackSessionId", e)
+        try {
+          Paper.book("playbackSession").delete(playbackSessionId)
+        } catch (_: Exception) {
+        }
       }
     }
     return sessions
