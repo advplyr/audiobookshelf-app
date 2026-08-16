@@ -502,15 +502,13 @@ class Media3PlaybackService : MediaLibraryService(), Media3ServiceHost, Playback
 
     // Derive the track from the recovered position: the player's own index has been reset too.
     session.currentTime = currentPosition / 1000.0
-    val trackIndex = session.getCurrentTrackIndex().coerceIn(0, mediaItems.lastIndex)
-    val trackStartOffsetMs = session.getTrackStartOffsetMs(trackIndex)
-    val positionInTrack = (currentPosition - trackStartOffsetMs).coerceAtLeast(0L)
+    val target = positionModel(session).seekTargetForSessionTime(mediaItems.lastIndex)
 
-    player.setMediaItems(mediaItems, trackIndex, positionInTrack)
+    player.setMediaItems(mediaItems, target.trackIndex, target.positionInTrackMs)
     player.prepare()
     player.playWhenReady = wasPlaying
 
-    debugLog { "Reloaded queue with cast-friendly URIs at track=$trackIndex, position=${positionInTrack}ms" }
+    debugLog { "Reloaded queue with cast-friendly URIs at track=${target.trackIndex}, position=${target.positionInTrackMs}ms" }
   }
 
   private fun switchPlaybackSession(
@@ -567,35 +565,30 @@ class Media3PlaybackService : MediaLibraryService(), Media3ServiceHost, Playback
   /* ========================================
    * Position Tracking & Seeking
    * ======================================== */
+  private fun positionModel(session: PlaybackSession): PlaybackPositionModel =
+    PlaybackPositionModel(session, if (isPlayerInitialized) player else null)
+
   override fun currentAbsolutePositionMs(): Long? {
     if (!isPlayerInitialized) return null
     val session = currentPlaybackSession ?: return null
-    val mediaItemCount = player.mediaItemCount
-    if (mediaItemCount <= 0) return player.currentPosition.coerceAtLeast(0L)
-    val trackIndex =
-      resolveTrackIndexForPlayer(session, player).coerceIn(0, mediaItemCount - 1)
-    val offset = session.getTrackStartOffsetMs(trackIndex)
-    return (player.currentPosition + offset).coerceAtLeast(0L)
+    return positionModel(session).bookAbsoluteMsOrNull()
   }
 
   private fun getCurrentBookChapter(): BookChapter? {
     val session = currentPlaybackSession ?: return null
-    return session.getChapterForTime(currentAbsolutePositionMs() ?: session.currentTimeMs)
+    return positionModel(session).currentChapter()
   }
 
   private fun getNextBookChapter(): BookChapter? {
     val session = currentPlaybackSession ?: return null
-    return session.getNextChapterForTime(currentAbsolutePositionMs() ?: session.currentTimeMs)
+    return positionModel(session).nextChapter()
   }
 
   override fun updateCurrentPosition(session: PlaybackSession) {
     if (hasActivePlayer) {
-      val trackIndex = resolveTrackIndexForPlayer(session, player)
-      val trackStartOffset = session.getTrackStartOffsetMs(trackIndex)
-      val absolutePosMs = trackStartOffset + player.currentPosition
-      session.currentTime = (absolutePosMs / 1000.0)
-
-      syncChapterMetadataIfNeeded(session, absolutePosMs, trackIndex)
+      val model = positionModel(session)
+      val absolutePosMs = model.writeBackToSession() ?: return
+      syncChapterMetadataIfNeeded(session, absolutePosMs, model.trackIndex())
     }
   }
 
@@ -628,27 +621,6 @@ class Media3PlaybackService : MediaLibraryService(), Media3ServiceHost, Playback
         currentItem.buildUpon().setMediaMetadata(newMetadata).build()
       )
     }
-  }
-
-  private fun resolveTrackIndexForPlayer(session: PlaybackSession, player: Player): Int {
-    val tracks = session.audioTracks
-    if (tracks.isEmpty()) return 0
-
-    val mediaId = player.currentMediaItem?.mediaId
-    if (!mediaId.isNullOrEmpty()) {
-      tracks.forEachIndexed { index, track ->
-        if (mediaId == "${session.id}_${track.stableId}") {
-          return index
-        }
-      }
-    }
-
-    val playerIndex = player.currentMediaItemIndex
-    if (playerIndex in tracks.indices) {
-      return playerIndex
-    }
-
-    return session.getCurrentTrackIndex().coerceIn(0, tracks.lastIndex)
   }
 
   /* ========================================
@@ -817,10 +789,8 @@ class Media3PlaybackService : MediaLibraryService(), Media3ServiceHost, Playback
 
   private fun seekToSessionPosition(session: PlaybackSession) {
     if (!hasActivePlayer) return
-    val trackIndex = session.getCurrentTrackIndex().coerceIn(0, session.audioTracks.lastIndex)
-    val trackOffsetMs = session.getTrackStartOffsetMs(trackIndex)
-    val positionInTrack = (session.currentTimeMs - trackOffsetMs).coerceAtLeast(0L)
-    player.seekTo(trackIndex, positionInTrack)
+    val target = positionModel(session).seekTargetForSessionTime()
+    player.seekTo(target.trackIndex, target.positionInTrackMs)
   }
 
   private fun seekBackwardWithinSession(amountMs: Long, session: PlaybackSession) {
@@ -860,11 +830,9 @@ class Media3PlaybackService : MediaLibraryService(), Media3ServiceHost, Playback
     )
     if (mediaItems.isEmpty()) return
 
-    val trackIndex = session.getCurrentTrackIndex().coerceIn(0, mediaItems.lastIndex)
-    val trackStartOffsetMs = session.getTrackStartOffsetMs(trackIndex)
-    val positionInTrack = (session.currentTimeMs - trackStartOffsetMs).coerceAtLeast(0L)
+    val target = positionModel(session).seekTargetForSessionTime(mediaItems.lastIndex)
 
-    player.setMediaItems(mediaItems, trackIndex, positionInTrack)
+    player.setMediaItems(mediaItems, target.trackIndex, target.positionInTrackMs)
     player.setPlaybackSpeed(playbackSpeed ?: mediaManager.getSavedPlaybackRate())
     player.prepare()
     player.playWhenReady = playWhenReady
@@ -1172,7 +1140,7 @@ class Media3PlaybackService : MediaLibraryService(), Media3ServiceHost, Playback
 
   private fun jumpBySession(deltaMs: Long) {
     val session = currentPlaybackSession ?: return
-    val current = currentAbsolutePositionMs() ?: session.currentTimeMs
+    val current = positionModel(session).bookAbsoluteMs()
     val target = (current + deltaMs).coerceIn(0L, session.totalDurationMs)
     session.currentTime = target / 1000.0
     seekToSessionPosition(session)
@@ -1190,12 +1158,7 @@ class Media3PlaybackService : MediaLibraryService(), Media3ServiceHost, Playback
   private fun buildWidgetSnapshot(isPlayingOverride: Boolean?): WidgetPlaybackSnapshot? {
     val session = currentPlaybackSession ?: return null
     val isPlaying = isPlayingOverride ?: isEffectivelyPlaying()
-    var absolutePosition = session.currentTimeMs
-    if (isPlayerInitialized) {
-      val trackIndex = resolveTrackIndexForPlayer(session, player)
-      val trackOffset = session.getTrackStartOffsetMs(trackIndex)
-      absolutePosition = (player.currentPosition + trackOffset).coerceAtLeast(0L)
-    }
+    val absolutePosition = positionModel(session).bookAbsoluteMs()
     return WidgetPlaybackSnapshot(
       title = session.displayTitle,
       author = session.displayAuthor,
