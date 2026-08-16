@@ -81,6 +81,15 @@ class Media3PlaybackService : MediaLibraryService(), Media3ServiceHost, Playback
 
   private val notificationMetadata = NotificationMetadataUpdater()
   private val queueManager by lazy { PlaybackQueueManager(this, ::debugLog) }
+  private val commandPolicy by lazy {
+    MediaSessionCommandPolicy(
+      logTag = TAG,
+      allowSeekingOnMediaControls = { deviceSettings.allowSeekingOnMediaControls },
+      refreshNotificationButtons = {
+        media3NotificationManager.updateMediaButtonPreferencesAfterSpeedChange(mediaSession)
+      }
+    )
+  }
   private val isCastActive: Boolean
     get() {
       if (!this::player.isInitialized) return false
@@ -836,53 +845,8 @@ class Media3PlaybackService : MediaLibraryService(), Media3ServiceHost, Playback
    * Update available player commands for connected controllers and refresh notification buttons.
    * Ensures the notification's seek behaviour reflects `deviceSettings.allowSeekingOnMediaControls`.
    */
-  fun updateMediaSessionPlaybackActions() {
-    runCatching {
-      val allowSeekingOnMediaControls = deviceSettings.allowSeekingOnMediaControls
-      val sessionCommands = SessionCommands.Builder()
-        .add(cyclePlaybackSpeedCommand)
-        .add(seekBackIncrementCommand)
-        .add(seekForwardIncrementCommand)
-        .add(seekPreviousTrackCommand)
-        .add(seekNextTrackCommand)
-        .add(PlaybackConstants.sessionCommand(PlaybackConstants.Commands.CLOSE_PLAYBACK))
-        .build()
-
-      val connected = mediaSession?.connectedControllers ?: emptyList()
-      connected.forEach { controllerInfo ->
-        runCatching {
-          val player = if (this::player.isInitialized) this.player else null
-          val isAppUiController =
-            controllerInfo.connectionHints.getBoolean(PlaybackConstants.KEY_IS_APP_UI_CONTROLLER, false)
-          val effectiveAllowSeeking = isAppUiController || allowSeekingOnMediaControls
-
-          val playerCommands =
-            SessionController.buildBasePlayerCommands(
-              player,
-              effectiveAllowSeeking
-            )
-          mediaSession?.setAvailableCommands(controllerInfo, sessionCommands, playerCommands)
-        }.onFailure { t ->
-          Log.w(
-            TAG,
-            "updateMediaSessionPlaybackActions: failed for controller=${controllerInfo.packageName}: ${t.message}"
-          )
-        }
-      }
-
-      runCatching {
-        media3NotificationManager.updateMediaButtonPreferencesAfterSpeedChange(
-          mediaSession
-        )
-      }.onFailure { t ->
-        Log.w(
-          TAG,
-          "updateMediaSessionPlaybackActions: failed to refresh notification buttons: ${t.message}"
-        )
-      }
-    }.onFailure { t ->
-      Log.w(TAG, "updateMediaSessionPlaybackActions: ${t.message}")
-    }
+  private fun updateMediaSessionPlaybackActions() {
+    commandPolicy.applyTo(mediaSession, if (this::player.isInitialized) player else null)
   }
 
   override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
