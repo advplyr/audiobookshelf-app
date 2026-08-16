@@ -87,7 +87,26 @@ class Media3PlaybackService : MediaLibraryService(), Media3ServiceHost, Playback
       return player.deviceInfo.playbackType == androidx.media3.common.DeviceInfo.PLAYBACK_TYPE_REMOTE
     }
 
-  private var transcodeFallbackAttemptedSessionId: String? = null
+  private val errorHandler by lazy {
+    PlaybackErrorHandler(
+      scope = serviceScope,
+      requestTranscodeSession = { libraryItemId, episodeId ->
+        requestPlaybackSession(libraryItemId, episodeId, forceTranscode = true)
+      },
+      playFallbackSession = { session ->
+        prepareAndPlaySession(
+          session,
+          playWhenReady = true,
+          playbackSpeed = currentPlaybackSpeed(),
+          syncOnSwitch = false
+        )
+      },
+      failPlayback = { message ->
+        MediaEventManager.clientEventEmitter?.onPlaybackFailed(message)
+        closePlayback(calledOnError = true)
+      }
+    )
+  }
 
   // Audio Configuration
   private val speechAudioAttributes = AudioAttributes.Builder()
@@ -499,7 +518,7 @@ class Media3PlaybackService : MediaLibraryService(), Media3ServiceHost, Playback
   ) {
     val isNewSession = currentPlaybackSession?.id != session.id
     if (isNewSession) {
-      transcodeFallbackAttemptedSessionId = null
+      errorHandler.resetFallbackAttempt()
     }
     media3SessionManager.switchPlaybackSession(session, syncPreviousSession)
     updateTrackNavigationButtons()
@@ -602,45 +621,11 @@ class Media3PlaybackService : MediaLibraryService(), Media3ServiceHost, Playback
    * Playback Recovery Helpers
    * ======================================== */
   override fun handlePlaybackError(playbackError: PlaybackException) {
-    val session = currentPlaybackSession ?: return
-    if (!session.isDirectPlay || session.isLocal) return
-    if (transcodeFallbackAttemptedSessionId == session.id) return
-
-    transcodeFallbackAttemptedSessionId = session.id
-    serviceScope.launch {
-      try {
-        val fallbackSession = requestPlaybackSession(
-          libraryItemId = session.libraryItemId ?: return@launch,
-          episodeId = session.episodeId,
-          forceTranscode = true
-        )
-        if (fallbackSession == null) {
-          Log.w(
-            TAG,
-            "handlePlaybackError: transcode fallback failed for session=${session.id}"
-          )
-          MediaEventManager.clientEventEmitter?.onPlaybackFailed("Unable to play this item")
-          closePlayback(calledOnError = true)
-          return@launch
-        }
-        val currentSpeed = currentPlaybackSpeed()
-        prepareAndPlaySession(
-          fallbackSession,
-          playWhenReady = true,
-          playbackSpeed = currentSpeed,
-          syncOnSwitch = false
-        )
-      } catch (e: Exception) {
-        Log.e(TAG, "handlePlaybackError: Exception during transcode fallback", e)
-        MediaEventManager.clientEventEmitter?.onPlaybackFailed("Unable to play this item")
-        closePlayback(calledOnError = true)
-      }
-    }
+    errorHandler.handleError(currentPlaybackSession)
   }
 
   override fun handleFatalPlaybackError(message: String) {
-    MediaEventManager.clientEventEmitter?.onPlaybackFailed(message)
-    closePlayback(calledOnError = true)
+    errorHandler.handleFatalError(message)
   }
 
   override fun handlePlaybackEnded(session: PlaybackSession) {
