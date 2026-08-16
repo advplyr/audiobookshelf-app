@@ -78,7 +78,13 @@ class Media3SessionCallback(
 
   /* ======== Session Management ======== */
 
-  override fun onConnect(
+  override fun onConnectAsync(
+    session: MediaSession,
+    controller: MediaSession.ControllerInfo
+  ): ListenableFuture<MediaSession.ConnectionResult> =
+    Futures.immediateFuture(buildConnectionResult(session, controller))
+
+  private fun buildConnectionResult(
     session: MediaSession,
     controller: MediaSession.ControllerInfo
   ): MediaSession.ConnectionResult {
@@ -157,7 +163,7 @@ class Media3SessionCallback(
       builder.build()
     }
 
-    return MediaSession.ConnectionResult.AcceptedResultBuilder(session)
+    return MediaSession.ConnectionResult.AcceptedResultBuilder(session, controller)
       .setAvailableSessionCommands(sessionCommands)
       .setAvailablePlayerCommands(playerCommands)
       .build()
