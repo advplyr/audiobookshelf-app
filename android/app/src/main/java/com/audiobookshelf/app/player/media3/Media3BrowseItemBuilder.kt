@@ -38,6 +38,10 @@ private const val FILE_PROVIDER_AUTHORITY = "${BuildConfig.APPLICATION_ID}.filep
 private const val URI_GRANT_FLAGS =
   Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION
 
+private inline fun debugLog(crossinline lazyMessage: () -> String) {
+  if (BuildConfig.DEBUG) Log.d(TAG, lazyMessage())
+}
+
 /**
  * Handles building MediaItems for the Media3 browse tree.
  */
@@ -149,10 +153,8 @@ class Media3BrowseItemBuilder(
   }
 
   fun buildDownloadsItems(): List<MediaItem> {
-    Log.d(TAG, "buildDownloadsItems: start")
     val localBooks = DeviceManager.dbManager.getLocalLibraryItems("book")
     val localPodcasts = DeviceManager.dbManager.getLocalLibraryItems("podcast")
-    Log.d(TAG, "buildDownloadsItems: localBooks ${localBooks.size}, localPodcasts ${localPodcasts.size}")
 
     // Load all local media progress once and index by id rather than doing a disk read per item.
     val progressById = DeviceManager.dbManager.getAllLocalMediaProgress().associateBy { it.id }
@@ -167,7 +169,11 @@ class Media3BrowseItemBuilder(
       val progress = progressById[libraryItem.id]
       libraryItem.getMediaItem(progress, context).withDownloadArtwork(libraryItem, context)
     }
-    Log.d(TAG, "buildDownloadsItems: bookItems ${bookItems.size}, podcastItems ${podcastItems.size}")
+    // Books without tracks are dropped, so a shortfall here explains a missing download.
+    debugLog {
+      "buildDownloadsItems: books ${bookItems.size}/${localBooks.size} " +
+        "podcasts ${podcastItems.size}/${localPodcasts.size}"
+    }
     return bookItems + podcastItems
   }
 
@@ -253,7 +259,6 @@ class Media3BrowseItemBuilder(
   }
 
   suspend fun buildLibrarySubChildren(parentId: String): List<MediaItem> {
-    Log.d(TAG, "buildLibrarySubChildren parent=$parentId")
     val mediaIdParts = parentId.split("__")
     if (mediaIdParts.size < 4) return emptyList()
 
@@ -579,7 +584,6 @@ class Media3BrowseItemBuilder(
 
 internal fun MediaItem.withDownloadArtwork(item: LocalLibraryItem, context: Context): MediaItem {
   val coverUri = resolveLocalDownloadCover(item, context) ?: return this
-  Log.d(TAG, "withDownloadArtwork: item ${item.id}, coverUri $coverUri")
   val artworkData = coverUriToArtworkData(coverUri, context, size = 256, quality = 90) ?: return this
   val updatedMetadata = mediaMetadata.buildUpon()
     .setArtworkData(artworkData, MediaMetadata.PICTURE_TYPE_FRONT_COVER)
@@ -636,6 +640,5 @@ private fun resolveLocalDownloadCover(item: LocalLibraryItem, context: Context):
   } catch (e: Exception) {
     Log.w(TAG, "Failed to grant URI permission for download cover: ${e.message}")
   }
-  Log.d(TAG, "resolveLocalDownloadCover: item ${item.id}, path $path, uri $uri")
   return uri
 }

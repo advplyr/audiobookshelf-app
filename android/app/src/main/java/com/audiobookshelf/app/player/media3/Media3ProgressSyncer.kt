@@ -3,6 +3,7 @@ package com.audiobookshelf.app.player.media3
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import com.audiobookshelf.app.BuildConfig
 import com.audiobookshelf.app.data.LocalMediaProgress
 import com.audiobookshelf.app.data.PlaybackSession
 import com.audiobookshelf.app.device.DeviceManager
@@ -40,7 +41,11 @@ class Media3ProgressSyncer(
     private const val PERIODIC_SYNC_INTERVAL = 15000L
   }
 
-  // Coroutine scope for periodic sync loop - uses Main dispatcher for consistency
+  private inline fun debugLog(crossinline lazyMessage: () -> String) {
+    if (BuildConfig.DEBUG) Log.d(TAG, lazyMessage())
+  }
+
+  // Main dispatcher: sync ticks read the player, which Media3 requires on the main thread.
   private val syncScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
   private val mainHandler = Handler(Looper.getMainLooper())
   private var syncJob: Job? = null
@@ -69,7 +74,7 @@ class Media3ProgressSyncer(
   fun start(playbackSession: PlaybackSession) {
     if (isSyncTimerRunning) {
       if (playbackSession.id != currentSessionId) {
-        Log.d(TAG, "Playback session changed, reset timer")
+        debugLog { "Playback session changed, reset timer" }
         localMediaProgress = null
         syncJob?.cancel()
         lastSyncTime = 0L
@@ -85,9 +90,8 @@ class Media3ProgressSyncer(
     lastSyncTime = System.currentTimeMillis()
     currentPlaybackSession = playbackSession.clone()
     serverSessionClosed = false
-    Log.d(TAG, "start: Started 15s periodic sync loop for ${playbackSession.displayTitle}")
+    debugLog { "start: Started 15s periodic sync loop for ${playbackSession.displayTitle}" }
 
-    // Coroutine-based periodic sync - replaces Timer + Handler.post chain
     syncJob = syncScope.launch {
       while (isActive) {
         delay(PERIODIC_SYNC_INTERVAL.milliseconds)
@@ -215,7 +219,7 @@ class Media3ProgressSyncer(
     syncJob?.cancel()
     syncJob = null
     isSyncTimerRunning = false
-    Log.d(TAG, "finished: Book finished for $currentDisplayTitle")
+    debugLog { "finished: Book finished for $currentDisplayTitle" }
 
     val currentTime = stateHost.getCurrentTimeSeconds()
     if (currentTime > 0) {
@@ -238,7 +242,6 @@ class Media3ProgressSyncer(
   // ------------ Event helpers ------------
 
   fun reset() {
-    Log.d(TAG, "reset")
     syncJob?.cancel()
     syncJob = null
     isSyncTimerRunning = false
@@ -273,7 +276,7 @@ class Media3ProgressSyncer(
   ) {
     val sessionIdForSync = currentSessionId
     if (sessionIdForSync.isEmpty()) {
-      Log.d(TAG, "sync: Abort; no active session id")
+      debugLog { "sync: Abort; no active session id" }
       onComplete(null)
       return
     }
@@ -301,7 +304,7 @@ class Media3ProgressSyncer(
     }
 
     if (!currentIsLocal && serverSessionClosed) {
-      Log.d(TAG, "sync: Skip server sync because session is closed for $currentSessionId")
+      debugLog { "sync: Skip server sync because session is closed for $currentSessionId" }
       onComplete(SyncResult(false, null, "server_session_closed"))
       return
     }
@@ -352,26 +355,23 @@ class Media3ProgressSyncer(
                 failedSyncs = 0
               }
             }
-            Log.d(
-              TAG,
+            debugLog {
               "sync(local): session=${session.id} serverAttempted=$shouldSyncServer success=$syncSuccess error=${errorMsg ?: "none"} listened=${listeningDurationSeconds}s current=${currentTime}s"
-            )
+            }
             onComplete(SyncResult(true, syncSuccess, errorMsg))
           }
         } else {
-          Log.d(
-            TAG,
+          debugLog {
             "sync(local): session=${session.id} not sent to server (hasNetworkConnection=$hasNetworkConnection  shouldSyncServer=$shouldSyncServer)"
-          )
+          }
           onComplete(SyncResult(false, null, null))
         }
       }
     } else if (hasNetworkConnection && shouldSyncServer) {
       if (currentPlaybackSession?.id != sessionIdForSync) {
-        Log.d(
-          TAG,
+        debugLog {
           "sync(server): Abort; session changed (expected=$sessionIdForSync, actual=${currentPlaybackSession?.id})"
-        )
+        }
         onComplete(null)
         return
       }
@@ -403,10 +403,9 @@ class Media3ProgressSyncer(
             failedSyncs = 0
           }
         }
-        Log.d(
-          TAG,
+        debugLog {
           "sync(server): session=$currentSessionId success=$syncSuccess error=${errorMsg ?: "none"} listened=${listeningDurationSeconds}s current=${currentTime}s"
-        )
+        }
         onComplete(SyncResult(true, syncSuccess, errorMsg))
       }
     } else {
@@ -436,10 +435,9 @@ class Media3ProgressSyncer(
       } else {
         DeviceManager.dbManager.saveLocalMediaProgress(it)
         stateHost.notifyLocalProgressUpdate(it)
-        Log.d(
-          TAG,
+        debugLog {
           "Saved Local Progress ID ${it.id} current=${it.currentTime} duration=${it.duration} progress=${it.progressPercent}%"
-        )
+        }
       }
     }
   }

@@ -44,8 +44,6 @@ class Media3PlaybackService : MediaLibraryService(), PlaybackEventSink, Playback
     private const val TASK_REMOVAL_CLOSE_TIMEOUT_MS = 5_000L
     private const val FINAL_SYNC_TIMEOUT_MS = 500L
     private const val DESTROY_FINAL_SYNC_TIMEOUT_SEC = 1L
-
-    // Playback recheck settings
   }
 
   // Lifecycle & Scope
@@ -174,9 +172,6 @@ class Media3PlaybackService : MediaLibraryService(), PlaybackEventSink, Playback
 
   private val playerListener = Media3PlayerEventListener(this, eventPipeline)
 
-  /* ========================================
-   * Lifecycle Methods
-   * ======================================== */
   override fun onCreate() {
     super.onCreate()
     playbackMetrics.noteServiceStart()
@@ -242,16 +237,13 @@ class Media3PlaybackService : MediaLibraryService(), PlaybackEventSink, Playback
     return mediaSession
   }
 
-  /* ========================================
-   * Setup & Initialization
-   * ======================================== */
   /** Restore server connection config from persisted data when the service starts before the UI. */
   private fun restoreServerConnectionConfigIfNeeded() {
     if (DeviceManager.serverConnectionConfig != null) return
     val lastConfig = DeviceManager.deviceData.getLastServerConnectionConfig()
     if (lastConfig != null) {
       DeviceManager.serverConnectionConfig = lastConfig
-      Log.d(TAG, "Restored server connection config: ${lastConfig.name}")
+      debugLog { "Restored server connection config: ${lastConfig.name}" }
     }
   }
 
@@ -279,9 +271,6 @@ class Media3PlaybackService : MediaLibraryService(), PlaybackEventSink, Playback
     )
   }
 
-  /* ========================================
-   * PlaybackTelemetryHost implementation
-   * ======================================== */
   override val appContext: Context
     get() = applicationContext
 
@@ -318,10 +307,6 @@ class Media3PlaybackService : MediaLibraryService(), PlaybackEventSink, Playback
     sleepTimerCoordinator.checkAutoTimerIfNeeded()
   }
 
-  /* ========================================
-   * Playback host implementation
-   * (methods shared with collaborators; see also the overrides further down)
-   * ======================================== */
   override fun currentSession(): PlaybackSession? = currentPlaybackSession
 
   override fun playerOrNull(): Player? = if (this::player.isInitialized) player else null
@@ -388,9 +373,6 @@ class Media3PlaybackService : MediaLibraryService(), PlaybackEventSink, Playback
     debugLog(message)
   }
 
-  /* ========================================
-   * BrowseApi implementation
-   * ======================================== */
   override suspend fun resolve(
     mediaId: String,
     preferCast: Boolean
@@ -544,7 +526,6 @@ class Media3PlaybackService : MediaLibraryService(), PlaybackEventSink, Playback
 
   override fun closePlayback(calledOnError: Boolean, onPlaybackStopped: (() -> Unit)?) {
     media3SessionManager.closePlayback(calledOnError = calledOnError) {
-      // After session manager completes, stop the service
       media3NotificationManager.setTrackNavigationEnabled(false)
       onPlaybackStopped?.invoke()
       stopSelf()
@@ -578,9 +559,6 @@ class Media3PlaybackService : MediaLibraryService(), PlaybackEventSink, Playback
     return false
   }
 
-  /* ========================================
-   * Position Tracking & Seeking
-   * ======================================== */
   private fun positionModel(session: PlaybackSession): PlaybackPositionModel =
     PlaybackPositionModel(session, if (isPlayerInitialized) player else null)
 
@@ -614,9 +592,6 @@ class Media3PlaybackService : MediaLibraryService(), PlaybackEventSink, Playback
     }
   }
 
-  /* ========================================
-   * Progress Sync
-   * ======================================== */
   override fun maybeSyncProgress(
     reason: String,
     force: Boolean,
@@ -632,9 +607,6 @@ class Media3PlaybackService : MediaLibraryService(), PlaybackEventSink, Playback
     )
   }
 
-  /* ========================================
-   * Playback Recovery Helpers
-   * ======================================== */
   override fun handlePlaybackError(playbackError: PlaybackException) {
     errorHandler.handleError(currentPlaybackSession)
   }
@@ -724,9 +696,6 @@ class Media3PlaybackService : MediaLibraryService(), PlaybackEventSink, Playback
     }
   }
 
-  /* ========================================
-   * Sleep Timer
-   * ======================================== */
   private fun ensureSleepTimerStarted() {
     if (!sleepTimerCoordinator.isStarted()) {
       synchronized(this) {
@@ -793,9 +762,6 @@ class Media3PlaybackService : MediaLibraryService(), PlaybackEventSink, Playback
     override fun getCurrentSessionId(): String? = currentPlaybackSession?.id
   }
 
-  /* ========================================
-   * Session Callback & Controller
-   * ======================================== */
   private fun createSessionCallback(): Media3SessionCallback {
     val seekConfig = SeekConfig(
       allowSeekingOnMediaControls = deviceSettings.allowSeekingOnMediaControls
@@ -821,9 +787,6 @@ class Media3PlaybackService : MediaLibraryService(), PlaybackEventSink, Playback
     )
   }
 
-  /* ========================================
-   * Media Session & Buttons
-   * ======================================== */
   private fun buildMediaLibrarySession(sessionId: String, sessionActivityIntent: PendingIntent) {
     mediaSession = MediaLibrarySession.Builder(this, player, createSessionCallback())
       .setId(sessionId)
@@ -903,9 +866,6 @@ class Media3PlaybackService : MediaLibraryService(), PlaybackEventSink, Playback
     }
   }
 
-    /* ========================================
-     * Widget Integration
-     * ======================================== */
   override fun notifyWidgetState(
     isPlaybackClosed: Boolean,
     isPlayingOverride: Boolean?
@@ -955,9 +915,6 @@ class Media3PlaybackService : MediaLibraryService(), PlaybackEventSink, Playback
     notifyWidgetState()
   }
 
-  /* ========================================
-   * Utility Helpers
-   * ======================================== */
   override fun isEffectivelyPlaying(): Boolean {
     if (!hasActivePlayer) return false
 

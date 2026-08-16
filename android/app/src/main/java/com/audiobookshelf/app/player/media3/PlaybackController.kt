@@ -100,7 +100,6 @@ class PlaybackController(private val context: Context) {
     }
   }
 
-  /* ======== Connection & Lifecycle ======== */
 
   fun connect(onConnectionSuccess: (() -> Unit)? = null) {
     if (mediaController != null) {
@@ -209,7 +208,6 @@ class PlaybackController(private val context: Context) {
     }
   }
 
-  /* ======== Player Events & Listeners ======== */
 
   private val controllerListener = object : Player.Listener {
     override fun onEvents(player: Player, events: Player.Events) {
@@ -236,7 +234,6 @@ class PlaybackController(private val context: Context) {
         updateStateSnapshot(controller)
       }
 
-      // Determine the effective state. If controller is null, fall back to the raw event value.
       val isEffectivelyPlaying = controller?.let { effectiveIsPlaying(it) } ?: isPlaying
 
       notifyPlayingState(isEffectivelyPlaying)
@@ -286,12 +283,12 @@ class PlaybackController(private val context: Context) {
      * Handles logic specifically for when the player goes IDLE.
      */
     private fun handleIdleState(controller: Player) {
-      // If player is idle but we are actively preparing or waiting to play, ignore.
+      // A cast handoff also passes through IDLE with playWhenReady still set while the queue
+      // moves to the receiver, so this guard is what stops it being treated as a close.
       if (isPreparingPlayback || controller.playWhenReady) return
 
       stopProgressUpdates()
 
-      // If queue is empty and we had an active session, the playback was closed.
       if (controller.mediaItemCount == 0 && activePlaybackSession != null) {
         activePlaybackSession = null
         listener?.onPlaybackClosed()
@@ -384,7 +381,6 @@ class PlaybackController(private val context: Context) {
     }
   }
 
-  /* ======== Playback Session & Preparation ======== */
 
   fun preparePlayback(
     playbackSession: PlaybackSession,
@@ -451,7 +447,6 @@ class PlaybackController(private val context: Context) {
     }
   }
 
-  /* ======== Playback Control ======== */
 
   fun play() {
     forceNextPlayingStateUpdate = true
@@ -512,7 +507,6 @@ class PlaybackController(private val context: Context) {
     }
   }
 
-  /* ======== Sleep Timer Control ======== */
 
   fun setSleepTimer(
     durationMs: Long,
@@ -558,7 +552,6 @@ class PlaybackController(private val context: Context) {
     sendCommand(cancelSleepTimerCommand, Bundle(), null)
   }
 
-  /* ======== Progress & Metadata Updates ======== */
 
   private fun startProgressUpdates() {
     if (isProgressUpdaterScheduled) return
@@ -629,7 +622,6 @@ class PlaybackController(private val context: Context) {
     }
   }
 
-  /* ======== State Query Functions ======== */
 
   fun currentPosition(): Long {
     val mediaController = mediaController
@@ -677,7 +669,6 @@ class PlaybackController(private val context: Context) {
     }
   }
 
-  /* ======== Helper Functions ======== */
 
   private fun effectiveIsPlaying(player: Player): Boolean {
     if (player.isPlaying) return true

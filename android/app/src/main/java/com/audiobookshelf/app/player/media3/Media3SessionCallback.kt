@@ -76,7 +76,6 @@ class Media3SessionCallback(
   private fun isWearController(controllerInfo: MediaSession.ControllerInfo): Boolean =
     PlaybackConstants.isWearController(controllerInfo.packageName)
 
-  /* ======== Session Management ======== */
 
   override fun onConnectAsync(
     session: MediaSession,
@@ -169,7 +168,6 @@ class Media3SessionCallback(
       .build()
   }
 
-  /* ======== Custom Commands ======== */
 
   override fun onCustomCommand(
     session: MediaSession,
@@ -205,7 +203,6 @@ class Media3SessionCallback(
     }
   }
 
-  /* ======== Media Item Management ======== */
 
   override fun onAddMediaItems(
     mediaSession: MediaSession,
@@ -325,7 +322,6 @@ class Media3SessionCallback(
     }
   }
 
-  /* ======== Library Browsing ======== */
 
   override fun onGetLibraryRoot(
     session: MediaLibraryService.MediaLibrarySession,
@@ -366,7 +362,6 @@ class Media3SessionCallback(
     }
   }
 
-  /* ======== Search ======== */
 
   override fun onSearch(
     session: MediaLibraryService.MediaLibrarySession,
@@ -427,7 +422,6 @@ class Media3SessionCallback(
     return aggregatedResults
   }
 
-  /* ======== Helper Functions ======== */
 
   private fun MediaBrowserCompat.MediaItem.toMedia3Item(): MediaItem? {
     val mediaDescription = description

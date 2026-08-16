@@ -1,11 +1,12 @@
 package com.audiobookshelf.app.player.media3
 
 import android.content.Context
+import android.util.Log
 import androidx.annotation.OptIn
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
-import androidx.media3.common.util.Log
 import androidx.media3.common.util.UnstableApi
+import com.audiobookshelf.app.BuildConfig
 import com.audiobookshelf.app.R
 import com.audiobookshelf.app.data.LibraryItemWrapper
 import com.audiobookshelf.app.data.PlayItemRequestPayload
@@ -36,6 +37,10 @@ class Media3BrowseTree(
   private val dataLoader = Media3BrowseDataLoader(mediaManager)
   private val itemBuilder = Media3BrowseItemBuilder(context, mediaManager, dataLoader)
 
+  private inline fun debugLog(crossinline lazyMessage: () -> String) {
+    if (BuildConfig.DEBUG) Log.d(TAG, lazyMessage())
+  }
+
   data class ResolvedPlayable(
     val session: PlaybackSession,
     val mediaItems: List<MediaItem>,
@@ -55,8 +60,6 @@ class Media3BrowseTree(
     playRequestPayload: PlayItemRequestPayload? = null,
     preferServerUrisForCast: Boolean = false
   ): ResolvedPlayable? = withContext(Dispatchers.IO) {
-    Log.d(TAG, "Attempting to resolve playable item for mediaId: $mediaId")
-
     val mediaTarget = findMediaTarget(mediaId)
     if (mediaTarget == null) {
       Log.e(TAG, "Failed to find a media target for mediaId: $mediaId")
@@ -73,7 +76,6 @@ class Media3BrowseTree(
       context,
       preferServerUrisForCast = preferServerUrisForCast
     )
-    Log.d(TAG, "Successfully resolved mediaId: $mediaId into ${mediaItems.size} item(s).")
     val resumePositionMs = resolveResumePositionMs(mediaTarget, playbackSession)
     val startIndex = resolveTrackIndexForPosition(playbackSession, resumePositionMs).coerceIn(
       0,
@@ -81,6 +83,10 @@ class Media3BrowseTree(
     )
     val trackStartOffsetMs = playbackSession.getTrackStartOffsetMs(startIndex)
     val startPositionMs = (resumePositionMs - trackStartOffsetMs).coerceAtLeast(0L)
+    debugLog {
+      "resolved $mediaId: tracks=${mediaItems.size} resumeMs=$resumePositionMs " +
+        "startIndex=$startIndex startPositionMs=$startPositionMs"
+    }
     ResolvedPlayable(
       session = playbackSession,
       mediaItems = mediaItems,
@@ -127,7 +133,7 @@ class Media3BrowseTree(
 
     // Browse surfaces like the Auto recent shelves display items that are never registered
     // in the in-memory cache, so resolve them with a server fetch instead of failing the tap.
-    Log.d(TAG, "findMediaTarget: '$mediaId' not in memory cache, fetching from server")
+    debugLog { "findMediaTarget: '$mediaId' not in memory cache, fetching from server" }
     val fetchedItem = suspendCancellableCoroutine<LibraryItemWrapper?> { itemContinuation ->
       mediaManager.getByIdOrFetch(mediaId) { result ->
         if (itemContinuation.isActive) itemContinuation.resume(result)
@@ -172,8 +178,6 @@ class Media3BrowseTree(
    * Retrieves a single MediaItem by media ID, handling browsable categories and library items.
    */
   suspend fun getItem(mediaId: String): MediaItem? {
-    Log.d(TAG, "getItem: Resolving mediaId='$mediaId'")
-
     when {
       mediaId == ROOT_ID -> return getRootItem()
       mediaId == DOWNLOADS_ID -> return itemBuilder.createBrowsableCategory(DOWNLOADS_ID, "Downloads", "downloads")
@@ -260,38 +264,20 @@ class Media3BrowseTree(
    * Builds the children for a given parent ID in the browse tree hierarchy.
    */
   suspend fun getChildren(parentId: String): ImmutableList<MediaItem> {
-    Log.d(TAG, "getChildren: parentId=$parentId")
-
     val mediaItems = when {
       parentId == ROOT_ID -> itemBuilder.getRootChildren()
-      parentId == DOWNLOADS_ID -> itemBuilder.buildDownloadsItems().also {
-        Log.d(TAG, "downloads items=${it.size}")
-      }
-      parentId == CONTINUE_LISTENING_ID -> itemBuilder.buildContinueListeningItems().also {
-        Log.d(TAG, "continueListening items=${it.size}")
-      }
-      parentId == LIBRARIES_ROOT -> itemBuilder.buildLibraryList(LIBRARIES_ROOT).also {
-        Log.d(TAG, "libraries items=${it.size}")
-      }
-      parentId == RECENTLY_ROOT -> itemBuilder.buildLibraryList(RECENTLY_ROOT).also {
-        Log.d(TAG, "recently libraries items=${it.size}")
-      }
-      parentId.startsWith("__PODCAST__") -> {
-        val podcastId = parentId.substringAfter("__PODCAST__")
-        itemBuilder.buildPodcastEpisodes(podcastId).also {
-          Log.d(TAG, "podcastEpisodes id=$podcastId items=${it.size}")
-        }
-      }
+      parentId == DOWNLOADS_ID -> itemBuilder.buildDownloadsItems()
+      parentId == CONTINUE_LISTENING_ID -> itemBuilder.buildContinueListeningItems()
+      parentId == LIBRARIES_ROOT -> itemBuilder.buildLibraryList(LIBRARIES_ROOT)
+      parentId == RECENTLY_ROOT -> itemBuilder.buildLibraryList(RECENTLY_ROOT)
+      parentId.startsWith("__PODCAST__") ->
+        itemBuilder.buildPodcastEpisodes(parentId.substringAfter("__PODCAST__"))
       parentId.startsWith(LIBRARIES_ROOT) -> {
         val libraryId = parentId.removePrefix(LIBRARIES_ROOT).trimStart('_')
         if (libraryId.isBlank()) return ImmutableList.of()
-        itemBuilder.buildLibraryChildren(libraryId).also {
-          Log.d(TAG, "libraryChildren library=$libraryId items=${it.size}")
-        }
+        itemBuilder.buildLibraryChildren(libraryId)
       }
-      parentId.startsWith("__LIBRARY__") -> itemBuilder.buildLibrarySubChildren(parentId).also {
-        Log.d(TAG, "librarySubChildren parent=$parentId items=${it.size}")
-      }
+      parentId.startsWith("__LIBRARY__") -> itemBuilder.buildLibrarySubChildren(parentId)
       parentId.startsWith(RECENTLY_ROOT) -> {
         return itemBuilder.handleRecentChildren(parentId)
       }
@@ -300,11 +286,11 @@ class Media3BrowseTree(
         emptyList()
       }
     }
+    debugLog { "getChildren: parentId=$parentId items=${mediaItems.size}" }
     return ImmutableList.copyOf(mediaItems)
   }
 
   fun getRootItem(): MediaItem {
-    Log.d(TAG, "getRootItem: creating browsable root.")
     val metadata = MediaMetadata.Builder()
       .setTitle(context.getString(R.string.app_name))
       .setIsBrowsable(true)
