@@ -80,6 +80,7 @@ class Media3PlaybackService : MediaLibraryService(), Media3ServiceHost, Playback
     get() = isPlayerInitialized && this::player.isInitialized
 
   private val notificationMetadata = NotificationMetadataUpdater()
+  private val queueManager by lazy { PlaybackQueueManager(this, ::debugLog) }
   private val isCastActive: Boolean
     get() {
       if (!this::player.isInitialized) return false
@@ -514,22 +515,7 @@ class Media3PlaybackService : MediaLibraryService(), Media3ServiceHost, Playback
     // reports position 0 rather than null and the session holds the real position.
     val playerPosition = currentAbsolutePositionMs() ?: 0L
     val currentPosition = if (playerPosition > 0L) playerPosition else session.currentTimeMs
-
-    val mediaItems = session.toMedia3MediaItems(
-      this,
-      preferServerUrisForCast = true
-    )
-    if (mediaItems.isEmpty()) return
-
-    // Derive the track from the recovered position: the player's own index has been reset too.
-    session.currentTime = currentPosition / 1000.0
-    val target = positionModel(session).seekTargetForSessionTime(mediaItems.lastIndex)
-
-    player.setMediaItems(mediaItems, target.trackIndex, target.positionInTrackMs)
-    player.prepare()
-    player.playWhenReady = wasPlaying
-
-    debugLog { "Reloaded queue with cast-friendly URIs at track=${target.trackIndex}, position=${target.positionInTrackMs}ms" }
+    queueManager.reloadForCast(player, session, currentPosition, wasPlaying)
   }
 
   private fun switchPlaybackSession(
@@ -693,18 +679,15 @@ class Media3PlaybackService : MediaLibraryService(), Media3ServiceHost, Playback
     syncOnSwitch: Boolean = true
   ) {
     switchPlaybackSession(session, syncOnSwitch)
-    val mediaItems = session.toMedia3MediaItems(
-      this,
-      preferServerUrisForCast = isCastActive
+    val loaded = queueManager.loadSession(
+      player = player,
+      session = session,
+      playWhenReady = playWhenReady,
+      playbackSpeed = playbackSpeed ?: mediaManager.getSavedPlaybackRate(),
+      isCastActive = isCastActive
     )
-    if (mediaItems.isEmpty()) return
+    if (!loaded) return
 
-    val target = positionModel(session).seekTargetForSessionTime(mediaItems.lastIndex)
-
-    player.setMediaItems(mediaItems, target.trackIndex, target.positionInTrackMs)
-    player.setPlaybackSpeed(playbackSpeed ?: mediaManager.getSavedPlaybackRate())
-    player.prepare()
-    player.playWhenReady = playWhenReady
     // Reset so the new session's first tick always pushes fresh metadata
     notificationMetadata.reset()
     updateTrackNavigationButtons()
