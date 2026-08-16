@@ -573,6 +573,17 @@ class PlaybackController(private val context: Context) {
   }
 
   private fun emitMetadata(mediaController: MediaController) {
+    // CastPlayer transfers state to the receiver and only then stops the local player, so the
+    // IDLE it reports mid-handoff is an internal transition rather than playback state. Media3
+    // exposes no transfer status to forward instead, so hold the last known state until the
+    // target player reports its own.
+    if (mediaController.playbackState == Player.STATE_IDLE &&
+      mediaController.mediaItemCount == 0 &&
+      activePlaybackSession != null
+    ) {
+      return
+    }
+
     val durationMs = computeAbsoluteDuration(mediaController)
     val currentMs = computeAbsolutePosition(mediaController)
     lastKnownPositionMs = currentMs
