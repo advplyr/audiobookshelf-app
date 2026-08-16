@@ -374,9 +374,11 @@ class PlaybackController(private val context: Context) {
       mediaController?.sessionExtras?.getString(PlaybackConstants.MEDIA_PLAYER)
     if (!mediaPlayer.isNullOrEmpty() && mediaPlayer != currentMediaPlayer) {
       currentMediaPlayer = mediaPlayer
-      activePlaybackSession?.let { session ->
-        session.mediaPlayer = mediaPlayer
-        listener?.onPlaybackSession(session)
+      if (hasLoadedQueue()) {
+        activePlaybackSession?.let { session ->
+          session.mediaPlayer = mediaPlayer
+          listener?.onPlaybackSession(session)
+        }
       }
       listener?.onMediaPlayerChanged(mediaPlayer)
     }
@@ -640,6 +642,8 @@ class PlaybackController(private val context: Context) {
   }
 
   fun isPlaying(): Boolean = mediaController?.isPlaying ?: false
+
+  fun hasLoadedQueue(): Boolean = (mediaController?.mediaItemCount ?: 0) > 0
 
   fun currentMediaItemIndex(): Int {
     val mediaController = mediaController

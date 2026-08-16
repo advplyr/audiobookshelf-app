@@ -336,15 +336,20 @@ class Media3PlayerBackend(
 
   override fun onPlaybackClosed() {
     lastKnownMediaPlayer = null
+    activePlaybackSession = null
     clientEventEmitter.onPlaybackClosed()
     notifyWidgetState(isClosed = true)
   }
 
   override fun onMediaPlayerChanged(mediaPlayer: String) {
     lastKnownMediaPlayer = mediaPlayer
-    activePlaybackSession?.let { session ->
-      session.mediaPlayer = mediaPlayer
-      clientEventEmitter.onPlaybackSession(session)
+    // An empty queue means the session is no longer loaded, so re-emitting it would put a
+    // book back on screen that nothing is playing.
+    if (playbackController.hasLoadedQueue()) {
+      activePlaybackSession?.let { session ->
+        session.mediaPlayer = mediaPlayer
+        clientEventEmitter.onPlaybackSession(session)
+      }
     }
     clientEventEmitter.onMediaPlayerChanged(mediaPlayer)
   }

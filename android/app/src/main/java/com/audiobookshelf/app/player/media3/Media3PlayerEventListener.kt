@@ -22,6 +22,7 @@ class Media3PlayerEventListener(
 
   private var lastPauseTimestampMs: Long = 0L
   private var lastIsPlayingState: Boolean = false
+  private var lastIsCastState: Boolean? = null
 
   override fun onEvents(player: Player, events: Player.Events) {
     if (events.contains(Player.EVENT_IS_PLAYING_CHANGED) ||
@@ -168,6 +169,10 @@ class Media3PlayerEventListener(
   override fun onDeviceInfoChanged(deviceInfo: DeviceInfo) {
     val isCast = deviceInfo.playbackType == DeviceInfo.PLAYBACK_TYPE_REMOTE
     host.debug { "Device changed: playbackType=${deviceInfo.playbackType}, isCast=$isCast" }
+    // DeviceInfo is also republished when the routing controller resolves, so the same cast
+    // state arrives several times per handoff; each pass would re-emit the playback session.
+    if (isCast == lastIsCastState) return
+    lastIsCastState = isCast
     host.handleCastDeviceChanged(isCast)
   }
 }
