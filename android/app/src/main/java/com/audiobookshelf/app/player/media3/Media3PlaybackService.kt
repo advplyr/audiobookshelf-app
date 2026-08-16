@@ -46,7 +46,6 @@ class Media3PlaybackService : MediaLibraryService(), Media3ServiceHost, Playback
     private const val DESTROY_FINAL_SYNC_TIMEOUT_SEC = 1L
 
     // Playback recheck settings
-    private const val PAUSE_LEN_BEFORE_RECHECK_MS = 30_000L
   }
 
   // Lifecycle & Scope
@@ -105,6 +104,27 @@ class Media3PlaybackService : MediaLibraryService(), Media3ServiceHost, Playback
         MediaEventManager.clientEventEmitter?.onPlaybackFailed(message)
         closePlayback(calledOnError = true)
       }
+    )
+  }
+
+  private val lifecycleHandler by lazy {
+    PlaybackLifecycleHandler(
+      appContext = applicationContext,
+      scope = serviceScope,
+      apiHandler = apiHandler,
+      mediaManager = mediaManager,
+      autoRewindDisabled = { deviceSettings.disableAutoRewind },
+      isAndroidAutoConnected = ::isAndroidAutoControllerConnected,
+      playItemRequestPayload = ::getPlayItemRequestPayload,
+      currentPlaybackSpeed = ::currentPlaybackSpeed,
+      seekToSessionPosition = ::seekToSessionPosition,
+      seekBackwardWithinSession = ::seekBackwardWithinSession,
+      prepareAndPlaySession = { session, speed ->
+        prepareAndPlaySession(session, playWhenReady = true, playbackSpeed = speed)
+      },
+      startNewSessionFromServer = ::startNewPlaybackSessionFromServer,
+      resumeProgressSync = { session -> progressSync.play(session) },
+      closePlayback = { closePlayback() }
     )
   }
 
@@ -629,91 +649,11 @@ class Media3PlaybackService : MediaLibraryService(), Media3ServiceHost, Playback
   }
 
   override fun handlePlaybackEnded(session: PlaybackSession) {
-    if (!session.isPodcastEpisode) {
-      closePlayback()
-      return
-    }
-
-    if (!isAndroidAutoControllerConnected()) return
-    val libraryItem = session.libraryItem ?: return
-    val currentSpeed = currentPlaybackSpeed()
-    // Captured before the async hops below: building the payload reads player.deviceInfo, which
-    // is main-thread-only, and loadServerUserMediaProgress calls back on a network thread
-    val payload = getPlayItemRequestPayload(forceTranscode = session.isHLS)
-
-    mediaManager.loadServerUserMediaProgress {
-      val podcast = libraryItem.media as? Podcast ?: return@loadServerUserMediaProgress
-      val nextEpisode = podcast.getNextUnfinishedEpisode(libraryItem.id, mediaManager)
-        ?: return@loadServerUserMediaProgress
-
-      mediaManager.play(libraryItem, nextEpisode, payload) { nextSession ->
-        if (nextSession != null) {
-          serviceScope.launch(Dispatchers.Main) {
-            prepareAndPlaySession(nextSession, playWhenReady = true, playbackSpeed = currentSpeed)
-          }
-        }
-      }
-    }
+    lifecycleHandler.handlePlaybackEnded(session)
   }
 
   override fun handlePlaybackResumed(pauseDurationMs: Long) {
-    val session = currentPlaybackSession ?: return
-    val seekBackTimeMs =
-      if (deviceSettings.disableAutoRewind) 0L else calcPauseSeekBackTime(pauseDurationMs)
-
-    // Short pause or offline: apply the auto-rewind locally without a server progress recheck
-    if (pauseDurationMs < PAUSE_LEN_BEFORE_RECHECK_MS ||
-      !DeviceManager.checkConnectivity(applicationContext)
-    ) {
-      if (seekBackTimeMs > 0) {
-        seekBackwardWithinSession(seekBackTimeMs, session)
-      }
-      return
-    }
-
-    if (session.isLocal) {
-      val serverConfig = DeviceManager.getServerConnectionConfig(session.serverConnectionConfigId)
-        ?: return
-      apiHandler.getMediaProgress(
-        session.libraryItemId ?: return,
-        session.episodeId,
-        serverConfig
-      ) { mediaProgress ->
-        if (mediaProgress != null &&
-          mediaProgress.lastUpdate > session.updatedAt &&
-          mediaProgress.currentTime != session.currentTime
-        ) {
-          serviceScope.launch(Dispatchers.Main) {
-            session.currentTime = mediaProgress.currentTime
-            seekToSessionPosition(session)
-            if (seekBackTimeMs > 0) {
-              seekBackwardWithinSession(seekBackTimeMs, session)
-            }
-            progressSync.play(session)
-          }
-        } else if (seekBackTimeMs > 0) {
-          serviceScope.launch(Dispatchers.Main) {
-            seekBackwardWithinSession(
-              seekBackTimeMs,
-              session
-            )
-          }
-        }
-      }
-    } else {
-      apiHandler.getPlaybackSession(session.id) {
-        if (it == null) {
-          serviceScope.launch(Dispatchers.Main) { startNewPlaybackSessionFromServer(session) }
-        } else if (seekBackTimeMs > 0) {
-          serviceScope.launch(Dispatchers.Main) {
-            seekBackwardWithinSession(
-              seekBackTimeMs,
-              session
-            )
-          }
-        }
-      }
-    }
+    lifecycleHandler.handlePlaybackResumed(currentPlaybackSession, pauseDurationMs)
   }
 
   private fun seekToSessionPosition(session: PlaybackSession) {
@@ -789,16 +729,6 @@ class Media3PlaybackService : MediaLibraryService(), Media3ServiceHost, Playback
         playbackSpeed = currentSpeed,
         syncOnSwitch = false
       )
-    }
-  }
-
-  private fun calcPauseSeekBackTime(pauseDuration: Long): Long {
-    return when {
-      pauseDuration < 10_000 -> 0L
-      pauseDuration < 60_000 -> 3_000L
-      pauseDuration < 300_000 -> 10_000L
-      pauseDuration < 1_800_000 -> 20_000L
-      else -> 29_500L
     }
   }
 
