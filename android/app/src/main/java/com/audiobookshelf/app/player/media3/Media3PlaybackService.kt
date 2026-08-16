@@ -80,9 +80,7 @@ class Media3PlaybackService : MediaLibraryService(), Media3ServiceHost, Playback
   private val hasActivePlayer: Boolean
     get() = isPlayerInitialized && this::player.isInitialized
 
-  // Last (trackIndex, chapterTitle) synced into the now-playing metadata; lets ticks short-circuit.
-  private var lastSyncedTrackIndex = -1
-  private var lastSyncedChapterTitle: String? = null
+  private val notificationMetadata = NotificationMetadataUpdater()
   private val isCastActive: Boolean
     get() {
       if (!this::player.isInitialized) return false
@@ -103,8 +101,7 @@ class Media3PlaybackService : MediaLibraryService(), Media3ServiceHost, Playback
   private val closePlaybackSignal: CompletableDeferred<Unit>?
     get() = media3SessionManager.closePlaybackSignalSnapshot
 
-  // Widget state cache
-  private var lastWidgetSnapshot: WidgetPlaybackSnapshot? = null
+  private val widgetPresenter by lazy { WidgetPresenter(this) }
 
   // Session Commands
   private val cyclePlaybackSpeedCommand =
@@ -571,37 +568,12 @@ class Media3PlaybackService : MediaLibraryService(), Media3ServiceHost, Playback
     if (hasActivePlayer) {
       val model = positionModel(session)
       val absolutePosMs = model.writeBackToSession() ?: return
-      syncChapterMetadataIfNeeded(session, absolutePosMs, model.trackIndex())
-    }
-  }
-
-  private fun syncChapterMetadataIfNeeded(session: PlaybackSession, currentPosMs: Long, trackIndex: Int) {
-    // Never replace queue items while casting: CastPlayer implements replaceMediaItem by
-    // reloading the receiver's current item, which restarts playback from the item start.
-    // Skipped before the cache update so the title refreshes on the first tick after cast ends.
-    if (isCastActive) return
-
-    val chapterTitle = session.getChapterForTime(currentPosMs)?.title
-
-    if (trackIndex == lastSyncedTrackIndex && chapterTitle == lastSyncedChapterTitle) return
-
-    val currentItem = player.currentMediaItem ?: return
-
-    val artistLine = chapterTitle ?: (session.displayAuthor ?: "")
-
-    lastSyncedTrackIndex = trackIndex
-    lastSyncedChapterTitle = chapterTitle
-
-    // Only update if the string has actually changed to avoid notification flickering
-    if (currentItem.mediaMetadata.artist != artistLine) {
-      val newMetadata = currentItem.mediaMetadata.buildUpon()
-        .setArtist(artistLine)
-        .build()
-      // Replace at the player's own index: currentItem came from the player, and the
-      // session-resolved trackIndex could disagree with the queue position (e.g. cast reload)
-      player.replaceMediaItem(
-        player.currentMediaItemIndex,
-        currentItem.buildUpon().setMediaMetadata(newMetadata).build()
+      notificationMetadata.syncIfNeeded(
+        player = player,
+        session = session,
+        currentPosMs = absolutePosMs,
+        trackIndex = model.trackIndex(),
+        isCastActive = isCastActive
       )
     }
   }
@@ -806,9 +778,8 @@ class Media3PlaybackService : MediaLibraryService(), Media3ServiceHost, Playback
     player.setPlaybackSpeed(playbackSpeed ?: mediaManager.getSavedPlaybackRate())
     player.prepare()
     player.playWhenReady = playWhenReady
-    // Reset metadata sync cache so the new session's first tick always pushes fresh metadata
-    lastSyncedTrackIndex = -1
-    lastSyncedChapterTitle = null
+    // Reset so the new session's first tick always pushes fresh metadata
+    notificationMetadata.reset()
     updateTrackNavigationButtons()
 
     notifyWidgetState(isPlayingOverride = playWhenReady)
@@ -1075,18 +1046,13 @@ class Media3PlaybackService : MediaLibraryService(), Media3ServiceHost, Playback
     isPlaybackClosed: Boolean,
     isPlayingOverride: Boolean?
   ) {
-    val updater = DeviceManager.widgetUpdater ?: return
-    if (isPlaybackClosed) {
-      lastWidgetSnapshot = null
-      updater.onPlayerClosed()
-      return
-    }
-    buildWidgetSnapshot(isPlayingOverride)?.let { snapshot ->
-      if (snapshot.hasMeaningfulChangesFrom(lastWidgetSnapshot)) {
-        lastWidgetSnapshot = snapshot
-        updater.onPlayerChanged(snapshot)
-      }
-    }
+    val session = currentPlaybackSession
+    widgetPresenter.notifyState(
+      session = session,
+      positionMs = session?.let { positionModel(it).bookAbsoluteMs() } ?: 0L,
+      isPlaying = isPlayingOverride ?: isEffectivelyPlaying(),
+      isPlaybackClosed = isPlaybackClosed
+    )
   }
 
   private fun handleWidgetCommand(action: String?) {
@@ -1123,21 +1089,6 @@ class Media3PlaybackService : MediaLibraryService(), Media3ServiceHost, Playback
   private fun seekFromWidget(forward: Boolean) {
     jumpBySession(if (forward) jumpForwardMs else jumpBackwardMs)
     notifyWidgetState()
-  }
-
-  private fun buildWidgetSnapshot(isPlayingOverride: Boolean?): WidgetPlaybackSnapshot? {
-    val session = currentPlaybackSession ?: return null
-    val isPlaying = isPlayingOverride ?: isEffectivelyPlaying()
-    val absolutePosition = positionModel(session).bookAbsoluteMs()
-    return WidgetPlaybackSnapshot(
-      title = session.displayTitle,
-      author = session.displayAuthor,
-      coverUri = session.getCoverUri(this),
-      positionMs = absolutePosition,
-      durationMs = session.totalDurationMs,
-      isPlaying = isPlaying,
-      isClosed = false
-    )
   }
 
   /* ========================================
