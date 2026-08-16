@@ -12,7 +12,7 @@ import com.audiobookshelf.app.media.MediaEventManager
  * Manages play/pause state and progress synchronization.
  */
 class Media3PlayerEventListener(
-  private val host: Media3ServiceHost,
+  private val host: PlaybackEventSink,
   private val playerEventPipeline: Media3EventPipeline
 ) : Player.Listener {
 

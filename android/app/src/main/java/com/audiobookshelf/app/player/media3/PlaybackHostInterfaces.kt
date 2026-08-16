@@ -7,23 +7,18 @@ import com.audiobookshelf.app.media.SyncResult
 import com.audiobookshelf.app.player.core.PlaybackMetricsRecorder
 
 /**
- * The capabilities Media3PlaybackService exposes to its collaborators
- * (Media3PlayerEventListener, Media3SessionManager, SessionController).
- * The service implements this directly so collaborators share one surface
- * instead of per-class bridge objects.
+ * Session and progress state shared by every Media3PlaybackService collaborator.
+ * Consumers depend on [PlaybackEventSink] or [PlaybackCommandTarget] instead of this
+ * directly, unless session bookkeeping is all they need.
  */
-interface Media3ServiceHost {
+interface PlaybackSessionHost {
   val playbackMetrics: PlaybackMetricsRecorder
   var isPlayerInitialized: Boolean
 
-  /* State queries */
   fun currentSession(): PlaybackSession?
   fun playerOrNull(): Player?
-  fun isEffectivelyPlaying(): Boolean
   fun currentMediaPlayerId(): String
-  fun currentAbsolutePositionMs(): Long?
 
-  /* Progress sync */
   fun updateCurrentPosition(session: PlaybackSession)
   fun maybeSyncProgress(
     reason: String,
@@ -31,35 +26,43 @@ interface Media3ServiceHost {
     targetSession: PlaybackSession? = null,
     onSyncComplete: ((SyncResult?) -> Unit)? = null
   )
-  fun progressSyncPlay(session: PlaybackSession)
-  fun progressSyncPause()
   fun resetProgressSyncState()
   fun closeSessionOnServer(sessionId: String)
 
-  /* Playback events */
+  fun notifyWidgetState(isPlaybackClosed: Boolean = false, isPlayingOverride: Boolean? = null)
+}
+
+/** What the player listener reports back when playback state changes. */
+interface PlaybackEventSink : PlaybackSessionHost {
+  fun isEffectivelyPlaying(): Boolean
+
+  fun progressSyncPlay(session: PlaybackSession)
+  fun progressSyncPause()
+
   fun onPlayStarted(sessionId: String)
   fun handlePlaybackError(playbackError: PlaybackException)
   fun handleFatalPlaybackError(message: String)
   fun handlePlaybackEnded(session: PlaybackSession)
   fun handlePlaybackResumed(pauseDurationMs: Long)
   fun handleCastDeviceChanged(isCast: Boolean)
-  fun closePlayback(calledOnError: Boolean = false, onPlaybackStopped: (() -> Unit)? = null)
 
-  /* Seeking */
+  fun updatePlaybackSpeedButton(speed: Float)
+
+  fun debug(message: () -> String)
+}
+
+/** What controllers invoke on the service in response to user commands. */
+interface PlaybackCommandTarget : PlaybackSessionHost {
+  fun currentAbsolutePositionMs(): Long?
+
+  fun closePlayback(calledOnError: Boolean = false, onPlaybackStopped: (() -> Unit)? = null)
   fun jumpBackward()
   fun jumpForward()
+  fun cyclePlaybackSpeed(): Float
 
-  /* Sleep timer */
   fun setSleepTimer(sessionId: String, timeMs: Long, isChapter: Boolean)
   fun cancelSleepTimer()
   fun adjustSleepTimer(deltaMs: Long, increase: Boolean)
   fun getSleepTimerTimeMs(): Long
   fun resyncSleepTimerState()
-
-  /* UI surfaces */
-  fun cyclePlaybackSpeed(): Float
-  fun notifyWidgetState(isPlaybackClosed: Boolean = false, isPlayingOverride: Boolean? = null)
-  fun updatePlaybackSpeedButton(speed: Float)
-
-  fun debug(message: () -> String)
 }

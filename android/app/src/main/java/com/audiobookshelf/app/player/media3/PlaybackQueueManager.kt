@@ -5,19 +5,12 @@ import androidx.media3.common.Player
 import com.audiobookshelf.app.data.PlaybackSession
 import com.audiobookshelf.app.player.toMedia3MediaItems
 
-/**
- * Builds the player queue from a session and seeks it to the right place.
- *
- * Cast is the reason this is not a single method. The receiver cannot reach the device's local
- * files, so handing off a local book means rebuilding the whole queue with server URIs, and the
- * resume point has to come from the player's own track rather than the session's — the two can
- * disagree mid-handoff.
- */
+/** Builds the player queue from a session and seeks it to the right place. */
 class PlaybackQueueManager(
   private val context: Context,
   private val debug: (() -> String) -> Unit
 ) {
-  /** Loads [session] at its own current time. Returns false when the session has no playable tracks. */
+  /** Returns false when the session has no playable tracks. */
   fun loadSession(
     player: Player,
     session: PlaybackSession,
@@ -38,7 +31,7 @@ class PlaybackQueueManager(
     return true
   }
 
-  /** Rebuilds the queue with server URIs so a cast receiver can reach a local book. */
+  /** Rebuilds the queue with server URIs the cast receiver can reach. */
   fun reloadForCast(
     player: Player,
     session: PlaybackSession,

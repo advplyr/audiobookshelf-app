@@ -16,7 +16,7 @@ import kotlinx.coroutines.launch
 class Media3SessionManager(
   private val serviceScope: CoroutineScope,
   private val mediaManager: MediaManager,
-  private val host: Media3ServiceHost
+  private val host: PlaybackSessionHost
 ) {
   var currentPlaybackSession: PlaybackSession? = null
     private set

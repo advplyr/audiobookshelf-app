@@ -4,7 +4,6 @@ import android.content.Context
 import com.audiobookshelf.app.data.PlaybackSession
 import com.audiobookshelf.app.device.DeviceManager
 import com.audiobookshelf.app.media.SyncResult
-import com.audiobookshelf.app.media.UnifiedMediaProgressSyncer
 import com.audiobookshelf.app.server.ApiHandler
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
@@ -21,10 +20,10 @@ class Media3ProgressSyncCoordinator(
   private val apiHandler: ApiHandler,
   private val debug: (() -> String) -> Unit
 ) {
-  private var syncer: UnifiedMediaProgressSyncer? = null
+  private var syncer: Media3ProgressSyncer? = null
   private val finalSyncBarrier = FinalSyncBarrier()
 
-  fun attach(syncer: UnifiedMediaProgressSyncer) {
+  fun attach(syncer: Media3ProgressSyncer) {
     this.syncer = syncer
   }
 

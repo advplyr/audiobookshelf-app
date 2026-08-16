@@ -1,4 +1,4 @@
-package com.audiobookshelf.app.media
+package com.audiobookshelf.app.player.media3
 
 import android.os.Handler
 import android.os.Looper
@@ -6,7 +6,9 @@ import android.util.Log
 import com.audiobookshelf.app.data.LocalMediaProgress
 import com.audiobookshelf.app.data.PlaybackSession
 import com.audiobookshelf.app.device.DeviceManager
-import com.audiobookshelf.app.player.core.PlaybackTelemetryHost
+import com.audiobookshelf.app.media.MediaProgressSyncData
+import com.audiobookshelf.app.media.SyncResult
+import com.audiobookshelf.app.player.core.PlaybackStateHost
 import com.audiobookshelf.app.server.ApiHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -23,14 +25,17 @@ import kotlin.time.Duration.Companion.milliseconds
  * Runs a 15s sync loop while playing, saves to local DB on every tick,
  * and syncs to the server on unmetered networks (or every 60s on metered).
  * Emits save/pause/stop/finished events after each sync completes.
+ *
+ * Separate from exov2's [com.audiobookshelf.app.media.MediaProgressSyncer] because Media3
+ * delivers state asynchronously, which the synchronous syncer could not track reliably.
  */
-class UnifiedMediaProgressSyncer(
-  private val playbackTelemetryProvider: PlaybackTelemetryHost,
+class Media3ProgressSyncer(
+  private val stateHost: PlaybackStateHost,
   private val progressApi: ApiHandler,
   private val onPlaybackEvent: (event: String, session: PlaybackSession, syncResult: SyncResult?) -> Unit
 ) {
   companion object {
-    private const val TAG = "UnifiedProgressSync"
+    private const val TAG = "Media3ProgressSync"
     private const val METERED_CONNECTION_SYNC_INTERVAL = 60000L
     private const val PERIODIC_SYNC_INTERVAL = 15000L
   }
@@ -87,16 +92,16 @@ class UnifiedMediaProgressSyncer(
       while (isActive) {
         delay(PERIODIC_SYNC_INTERVAL.milliseconds)
 
-        if (playbackTelemetryProvider.isPlayerActive()) {
-          if (playbackTelemetryProvider.isSleepTimerActive()) {
-            playbackTelemetryProvider.checkAutoSleepTimer()
+        if (stateHost.isPlayerActive()) {
+          if (stateHost.isSleepTimerActive()) {
+            stateHost.checkAutoSleepTimer()
           }
 
           val shouldSyncServer =
-            playbackTelemetryProvider.isUnmeteredNetwork ||
+            stateHost.isUnmeteredNetwork ||
               System.currentTimeMillis() - lastSyncTime >= METERED_CONNECTION_SYNC_INTERVAL
 
-          val currentTime = playbackTelemetryProvider.getCurrentTimeSeconds()
+          val currentTime = stateHost.getCurrentTimeSeconds()
           if (currentTime > 0) {
             sync(shouldSyncServer, currentTime) { syncResult ->
               Log.v(TAG, "Periodic sync complete for $currentDisplayTitle at ${currentTime}s")
@@ -123,7 +128,7 @@ class UnifiedMediaProgressSyncer(
    */
   fun pause(onComplete: () -> Unit) {
     if (!isSyncTimerRunning) {
-      val currentTime = playbackTelemetryProvider.getCurrentTimeSeconds()
+      val currentTime = stateHost.getCurrentTimeSeconds()
       if (currentTime > 0 && currentPlaybackSession != null) {
         sync(true, currentTime, force = true) { syncResult ->
           currentPlaybackSession?.let { session ->
@@ -145,7 +150,7 @@ class UnifiedMediaProgressSyncer(
     isSyncTimerRunning = false
     Log.v(TAG, "pause: Stopping sync loop for $currentDisplayTitle")
 
-    val currentTime = playbackTelemetryProvider.getCurrentTimeSeconds()
+    val currentTime = stateHost.getCurrentTimeSeconds()
     if (currentTime > 0) {
       sync(true, currentTime, force = true) { syncResult ->
         lastSyncTime = 0L
@@ -179,7 +184,7 @@ class UnifiedMediaProgressSyncer(
     }
 
     val currentTime =
-      if (shouldSyncOnStop) playbackTelemetryProvider.getCurrentTimeSeconds() else 0.0
+      if (shouldSyncOnStop) stateHost.getCurrentTimeSeconds() else 0.0
     if (currentTime > 0 && currentPlaybackSession != null) {
       sync(true, currentTime, force = true) { syncResult ->
         currentPlaybackSession?.let { session ->
@@ -212,7 +217,7 @@ class UnifiedMediaProgressSyncer(
     isSyncTimerRunning = false
     Log.d(TAG, "finished: Book finished for $currentDisplayTitle")
 
-    val currentTime = playbackTelemetryProvider.getCurrentTimeSeconds()
+    val currentTime = stateHost.getCurrentTimeSeconds()
     if (currentTime > 0) {
       sync(true, currentTime, force = true) { syncResult ->
         currentPlaybackSession?.let { session ->
@@ -316,7 +321,7 @@ class UnifiedMediaProgressSyncer(
       return
     }
 
-    val hasNetworkConnection = DeviceManager.checkConnectivity(playbackTelemetryProvider.appContext)
+    val hasNetworkConnection = DeviceManager.checkConnectivity(stateHost.appContext)
 
     currentPlaybackSession?.let { DeviceManager.dbManager.savePlaybackSession(it) }
 
@@ -338,12 +343,12 @@ class UnifiedMediaProgressSyncer(
           progressApi.sendLocalProgressSync(session) { syncSuccess, errorMsg ->
             if (syncSuccess) {
               failedSyncs = 0
-              playbackTelemetryProvider.alertSyncSuccess()
+              stateHost.alertSyncSuccess()
               DeviceManager.dbManager.removePlaybackSession(session.id)
             } else {
               failedSyncs++
               if (failedSyncs == 2) {
-                playbackTelemetryProvider.alertSyncFailing()
+                stateHost.alertSyncFailing()
                 failedSyncs = 0
               }
             }
@@ -373,7 +378,7 @@ class UnifiedMediaProgressSyncer(
       progressApi.sendProgressSync(sessionIdForSync, progressSyncData) { syncSuccess, errorMsg ->
         if (syncSuccess) {
           failedSyncs = 0
-          playbackTelemetryProvider.alertSyncSuccess()
+          stateHost.alertSyncSuccess()
           lastSyncTime = System.currentTimeMillis()
           DeviceManager.dbManager.removePlaybackSession(sessionIdForSync)
         } else {
@@ -394,7 +399,7 @@ class UnifiedMediaProgressSyncer(
           }
           failedSyncs++
           if (failedSyncs == 2) {
-            playbackTelemetryProvider.alertSyncFailing()
+            stateHost.alertSyncFailing()
             failedSyncs = 0
           }
         }
@@ -430,7 +435,7 @@ class UnifiedMediaProgressSyncer(
         Log.e(TAG, "Invalid progress on local media progress")
       } else {
         DeviceManager.dbManager.saveLocalMediaProgress(it)
-        playbackTelemetryProvider.notifyLocalProgressUpdate(it)
+        stateHost.notifyLocalProgressUpdate(it)
         Log.d(
           TAG,
           "Saved Local Progress ID ${it.id} current=${it.currentTime} duration=${it.duration} progress=${it.progressPercent}%"
@@ -453,7 +458,7 @@ class UnifiedMediaProgressSyncer(
       lastSyncTime = System.currentTimeMillis() - 2000L
     }
     val currentTime =
-      playbackTelemetryProvider.getCurrentTimeSeconds().takeIf { it > 0 } ?: session.currentTime
+      stateHost.getCurrentTimeSeconds().takeIf { it > 0 } ?: session.currentTime
     sync(shouldSyncServer, currentTime, force = true) { result ->
       val deliverCompletion = {
         if (result != null) {

@@ -26,13 +26,13 @@ import kotlin.math.*
  * Handles local playback, session management, and native Media3 notifications.
  * Cast playback is handled via Media3 CastPlayer within this service.
  *
- * Implements [Media3ServiceHost] (surface for the player listener, session manager and
- * session controller), [PlaybackTelemetryHost] (progress sync telemetry) and [BrowseApi]
- * (session callback browse/resolve) directly rather than through bridge objects.
+ * Implements [PlaybackEventSink] (player listener reports), [PlaybackCommandTarget] (controller
+ * commands), [PlaybackStateHost] (player state for progress sync) and [BrowseApi] (session callback
+ * browse/resolve) directly rather than through bridge objects.
  */
 @UnstableApi
-class Media3PlaybackService : MediaLibraryService(), Media3ServiceHost, PlaybackTelemetryHost,
-  BrowseApi {
+class Media3PlaybackService : MediaLibraryService(), PlaybackEventSink, PlaybackCommandTarget,
+  PlaybackStateHost, BrowseApi {
   companion object {
     val TAG: String = Media3PlaybackService::class.java.simpleName
 
@@ -264,8 +264,8 @@ class Media3PlaybackService : MediaLibraryService(), Media3ServiceHost, Playback
 
     progressSync = Media3ProgressSyncCoordinator(applicationContext, apiHandler, ::debug)
     progressSync.attach(
-      UnifiedMediaProgressSyncer(
-        playbackTelemetryProvider = this,
+      Media3ProgressSyncer(
+        stateHost = this,
         progressApi = apiHandler
       ) { event, session, result ->
         when (event) {
@@ -319,7 +319,7 @@ class Media3PlaybackService : MediaLibraryService(), Media3ServiceHost, Playback
   }
 
   /* ========================================
-   * Media3ServiceHost implementation
+   * Playback host implementation
    * (methods shared with collaborators; see also the overrides further down)
    * ======================================== */
   override fun currentSession(): PlaybackSession? = currentPlaybackSession

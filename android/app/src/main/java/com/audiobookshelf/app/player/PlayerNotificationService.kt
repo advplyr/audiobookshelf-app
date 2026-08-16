@@ -35,7 +35,7 @@ import com.audiobookshelf.app.media.getUriToAbsIconDrawable
 import com.audiobookshelf.app.media.getUriToDrawable
 import com.audiobookshelf.app.player.core.NetworkMonitor
 import com.audiobookshelf.app.player.core.PlaybackMetricsRecorder
-import com.audiobookshelf.app.player.core.PlaybackTelemetryHost
+import com.audiobookshelf.app.player.core.PlaybackStateHost
 import com.audiobookshelf.app.plugins.AbsLogger
 import com.audiobookshelf.app.server.ApiHandler
 import com.google.android.exoplayer2.*
@@ -61,7 +61,7 @@ import kotlinx.coroutines.runBlocking
 const val PLAYER_CAST = "cast-player"
 const val PLAYER_EXO = "exo-player"
 
-class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackTelemetryHost {
+class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackStateHost {
 
   private val serviceScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
   private val sleepTimerCoordinator = SleepTimerCoordinator(serviceScope)

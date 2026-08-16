@@ -19,7 +19,7 @@ import com.audiobookshelf.app.player.PlaybackConstants
 @UnstableApi
 class SessionController(
   val availableSessionCommands: SessionCommands,
-  private val host: Media3ServiceHost
+  private val host: PlaybackCommandTarget
 ) {
   fun onCustomCommand(command: SessionCommand, commandData: Bundle?): SessionResult {
     val action = command.customAction

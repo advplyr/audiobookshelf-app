@@ -7,7 +7,7 @@ import com.audiobookshelf.app.data.LocalMediaProgress
 import com.audiobookshelf.app.data.MediaProgress
 import com.audiobookshelf.app.data.PlaybackSession
 import com.audiobookshelf.app.device.DeviceManager
-import com.audiobookshelf.app.player.core.PlaybackTelemetryHost
+import com.audiobookshelf.app.player.core.PlaybackStateHost
 import com.audiobookshelf.app.plugins.AbsLogger
 import com.audiobookshelf.app.server.ApiHandler
 import java.util.*
@@ -26,7 +26,7 @@ data class SyncResult(
 )
 
 class MediaProgressSyncer(
-  private val telemetryHost: PlaybackTelemetryHost,
+  private val stateHost: PlaybackStateHost,
   private val apiHandler: ApiHandler
 ) {
   private val tag = "MediaProgressSync"
@@ -84,15 +84,15 @@ class MediaProgressSyncer(
     listeningTimerTask =
       Timer("ListeningTimer", false).schedule(15000L, 15000L) {
         Handler(Looper.getMainLooper()).post {
-          if (telemetryHost.isPlayerActive()) {
-            telemetryHost.checkAutoSleepTimer()
+          if (stateHost.isPlayerActive()) {
+            stateHost.checkAutoSleepTimer()
 
             val shouldSyncServer =
-              telemetryHost.isUnmeteredNetwork ||
+              stateHost.isUnmeteredNetwork ||
                 System.currentTimeMillis() - lastSyncTime >=
                 METERED_CONNECTION_SYNC_INTERVAL
 
-            val currentTime = telemetryHost.getCurrentTimeSeconds()
+            val currentTime = stateHost.getCurrentTimeSeconds()
             if (currentTime > 0) {
               sync(shouldSyncServer, currentTime) { syncResult ->
                 Log.d(tag, "Sync complete")
@@ -126,7 +126,7 @@ class MediaProgressSyncer(
     Log.d(tag, "stop: Stopping listening for $currentDisplayTitle")
 
     val currentTime =
-      if (shouldSync == true) telemetryHost.getCurrentTimeSeconds() else 0.0
+      if (shouldSync == true) stateHost.getCurrentTimeSeconds() else 0.0
     if (currentTime > 0) { // Current time should always be > 0 on stop
       sync(true, currentTime) { syncResult ->
         currentPlaybackSession?.let { playbackSession ->
@@ -155,7 +155,7 @@ class MediaProgressSyncer(
     Log.d(tag, "pause: Pausing progress syncer for $currentDisplayTitle")
     Log.d(tag, "pause: Last sync time $lastSyncTime")
 
-    val currentTime = telemetryHost.getCurrentTimeSeconds()
+    val currentTime = stateHost.getCurrentTimeSeconds()
     if (currentTime > 0) { // Current time should always be > 0 on pause
       sync(true, currentTime) { syncResult ->
         lastSyncTime = 0L
@@ -201,7 +201,7 @@ class MediaProgressSyncer(
   }
 
   fun seek() {
-    currentPlaybackSession?.currentTime = telemetryHost.getCurrentTimeSeconds()
+    currentPlaybackSession?.currentTime = stateHost.getCurrentTimeSeconds()
     Log.d(tag, "seek: $currentDisplayTitle, currentTime=${currentPlaybackSession?.currentTime}")
 
     if (currentPlaybackSession == null) {
@@ -256,7 +256,7 @@ class MediaProgressSyncer(
       return
     }
 
-    val hasNetworkConnection = DeviceManager.checkConnectivity(telemetryHost.appContext)
+    val hasNetworkConnection = DeviceManager.checkConnectivity(stateHost.appContext)
     AbsLogger.info(
       "MediaProgressSyncer",
       "sync network check: hasNetworkConnection=$hasNetworkConnection"
@@ -290,13 +290,13 @@ class MediaProgressSyncer(
           apiHandler.sendLocalProgressSync(it) { syncSuccess, errorMsg ->
             if (syncSuccess) {
               failedSyncs = 0
-              telemetryHost.alertSyncSuccess()
+              stateHost.alertSyncSuccess()
               DeviceManager.dbManager.removePlaybackSession(it.id) // Remove session from db
               AbsLogger.info("MediaProgressSyncer", "sync: Successfully synced local progress (title: \"$currentDisplayTitle\") (currentTime: $currentTime) (session id: ${it.id})")
             } else {
               failedSyncs++
               if (failedSyncs == 2) {
-                telemetryHost.alertSyncFailing() // Show alert in client
+                stateHost.alertSyncFailing() // Show alert in client
                 failedSyncs = 0
               }
               AbsLogger.error("MediaProgressSyncer", "sync: Local progress sync failed (count: $failedSyncs) (title: \"$currentDisplayTitle\") (currentTime: $currentTime) (session id: ${it.id}) (${DeviceManager.serverConnectionConfigName})")
@@ -317,13 +317,13 @@ class MediaProgressSyncer(
           AbsLogger.info("MediaProgressSyncer", "sync: Successfully synced progress (title: \"$currentDisplayTitle\") (currentTime: $currentTime) (session id: ${currentSessionId}) (${DeviceManager.serverConnectionConfigName})")
 
           failedSyncs = 0
-          telemetryHost.alertSyncSuccess()
+          stateHost.alertSyncSuccess()
           lastSyncTime = System.currentTimeMillis()
           DeviceManager.dbManager.removePlaybackSession(currentSessionId) // Remove session from db
         } else {
           failedSyncs++
           if (failedSyncs == 2) {
-            telemetryHost.alertSyncFailing() // Show alert in client
+            stateHost.alertSyncFailing() // Show alert in client
             failedSyncs = 0
           }
           AbsLogger.error("MediaProgressSyncer", "sync: Progress sync failed (count: $failedSyncs) (title: \"$currentDisplayTitle\") (currentTime: $currentTime) (session id: $currentSessionId) (${DeviceManager.serverConnectionConfigName})")
@@ -355,7 +355,7 @@ class MediaProgressSyncer(
         Log.e(tag, "Invalid progress on local media progress")
       } else {
         DeviceManager.dbManager.saveLocalMediaProgress(it)
-        telemetryHost.notifyLocalProgressUpdate(it)
+        stateHost.notifyLocalProgressUpdate(it)
         Log.d(
           tag,
           "Saved Local Progress Current Time: ID ${it.id} | ${it.currentTime} | Duration ${it.duration} | Progress ${it.progressPercent}%"

@@ -54,10 +54,6 @@ class PlaybackPositionModel(
   fun seekTargetForSessionTime(maxIndex: Int = session.audioTracks.lastIndex): SeekTarget =
     seekTargetFor(session.currentTimeMs, session.getCurrentTrackIndex(), maxIndex)
 
-  // Anchors on the player's track, not the session's, so a cast reload keeps its place.
-  fun seekTargetForPlayerTrack(bookAbsoluteMs: Long, maxIndex: Int): SeekTarget =
-    seekTargetFor(bookAbsoluteMs, trackIndex(), maxIndex)
-
   private fun seekTargetFor(bookAbsoluteMs: Long, rawIndex: Int, maxIndex: Int): SeekTarget {
     if (maxIndex < 0) return SeekTarget(0, bookAbsoluteMs.coerceAtLeast(0L))
     val index = rawIndex.coerceIn(0, maxIndex)

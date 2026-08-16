@@ -4,10 +4,11 @@ import android.content.Context
 import com.audiobookshelf.app.data.LocalMediaProgress
 
 /**
- * Abstraction for components that expose playback telemetry required for cross-player sync.
- * Implementations bridge either the ExoPlayer notification service or the Media3 stack.
+ * The player state a progress syncer needs, and the callbacks it reports back through.
+ * Implemented by both playback services so [com.audiobookshelf.app.media.MediaProgressSyncer]
+ * and [com.audiobookshelf.app.player.media3.Media3ProgressSyncer] can share one contract.
  */
-interface PlaybackTelemetryHost {
+interface PlaybackStateHost {
   val appContext: Context
   val isUnmeteredNetwork: Boolean
   fun isPlayerActive(): Boolean
