@@ -96,10 +96,12 @@ class AbsAudioPlayer : Plugin() {
         }
 
         override fun onProgressSyncFailing() {
+          if (!isInForeground) return
           emit("onProgressSyncFailing", "")
         }
 
         override fun onProgressSyncSuccess() {
+          if (!isInForeground) return
           emit("onProgressSyncSuccess", "")
         }
 
@@ -108,6 +110,7 @@ class AbsAudioPlayer : Plugin() {
         }
 
         override fun onMediaItemHistoryUpdated(mediaItemHistory:MediaItemHistory) {
+          if (!isInForeground) return
           notifyListeners("onMediaItemHistoryUpdated", JSObject(jacksonMapper.writeValueAsString(mediaItemHistory)))
         }
 
