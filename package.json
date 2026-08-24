@@ -27,7 +27,7 @@
     "@capacitor/ios": "^7.0.0",
     "@capacitor/network": "^7.0.0",
     "@capacitor/preferences": "^7.0.0",
-    "@capacitor/status-bar": "^7.0.0",
+    "@capacitor/status-bar": "^7.0.6",
     "@nuxtjs/axios": "^5.13.6",
     "@teckel/vue-pdf": "^4.3.5",
     "buffer": "^6.0.3",
