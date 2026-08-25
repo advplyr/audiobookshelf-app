@@ -127,6 +127,11 @@ class AbsAudioPlayer : Plugin() {
     notifyListeners(evtName, ret)
   }
 
+  override fun handleOnDestroy() {
+    castManager?.detach()
+    super.handleOnDestroy()
+  }
+
   override fun handleOnPause() {
     super.handleOnPause()
     isInForeground = false
