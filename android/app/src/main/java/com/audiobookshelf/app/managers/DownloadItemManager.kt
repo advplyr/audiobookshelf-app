@@ -496,7 +496,9 @@ class DownloadItemManager(
 
   private fun serverUrl(item: DownloadItem, part: DownloadItemPart): String {
     val rawCover = if (part.serverPath.endsWith("/cover")) "?raw=1" else ""
-    return "${item.serverAddress}${part.serverPath}$rawCover"
+    val config = DeviceManager.getServerConnectionConfig(item.serverConnectionConfigId)
+    val activeAddress = DeviceManager.getServerAddress(config).ifEmpty { item.serverAddress }
+    return "$activeAddress${part.serverPath}$rawCover"
   }
 
   private companion object {

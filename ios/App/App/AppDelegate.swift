@@ -12,7 +12,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         // Override point for customization after application launch.
 
         let configuration = Realm.Configuration(
-            schemaVersion: 20,
+            schemaVersion: 21,
             migrationBlock: { [weak self] migration, oldSchemaVersion in
                 if (oldSchemaVersion < 1) {
                     AbsLogger.info(message: "Realm schema version was \(oldSchemaVersion)")
@@ -71,6 +71,12 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
                         newObject?["version"] = ""
                     }
                 }
+                if (oldSchemaVersion < 21) {
+                    AbsLogger.info(message: "Realm schema version was \(oldSchemaVersion)... Adding local address settings to ServerConnectionConfigs")
+                    migration.enumerateObjects(ofType: ServerConnectionConfig.className()) { oldObject, newObject in
+                        newObject?["localAddress"] = nil
+                    }
+                }
             }
         )
         Realm.Configuration.defaultConfiguration = configuration
@@ -125,4 +131,3 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
 
 }
-

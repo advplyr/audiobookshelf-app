@@ -14,6 +14,15 @@ class ServerSocket extends EventEmitter {
     this.lastReconnectAttemptTime = 0
   }
 
+  normalizeAddress(address) {
+    if (!address) return null
+    try {
+      return new URL(address).href.replace(/\/$/, '')
+    } catch (error) {
+      return address
+    }
+  }
+
   $on(evt, callback) {
     if (this.socket) this.socket.on(evt, callback)
     else console.error('$on Socket not initialized')
@@ -25,9 +34,21 @@ class ServerSocket extends EventEmitter {
   }
 
   connect(serverAddress, token) {
-    this.serverAddress = serverAddress
+    const normalizedServerAddress = this.normalizeAddress(serverAddress)
+    if (this.socket && this.normalizeAddress(this.serverAddress) === normalizedServerAddress) {
+      if (this.connected && !this.isAuthenticated) {
+        this.sendAuthenticate()
+      }
+      return
+    }
 
-    const serverUrl = new URL(serverAddress)
+    this.closeCurrentSocket()
+    this.serverAddress = normalizedServerAddress
+    this.connected = false
+    this.isAuthenticated = false
+    this.$store.commit('setSocketConnected', false)
+
+    const serverUrl = new URL(normalizedServerAddress)
     const serverHost = `${serverUrl.protocol}//${serverUrl.host}`
     const serverPath = serverUrl.pathname === '/' ? '' : serverUrl.pathname
 
@@ -40,92 +61,120 @@ class ServerSocket extends EventEmitter {
       reconnectionDelayMax: 15000
     }
     this.socket = io(serverHost, socketOptions)
-    this.setSocketListeners()
+    this.setSocketListeners(this.socket)
   }
 
   logout() {
-    if (this.socket) this.socket.disconnect()
-    this.removeListeners()
+    this.closeCurrentSocket()
+    this.serverAddress = null
   }
 
-  setSocketListeners() {
-    this.socket.on('connect', this.onConnect.bind(this))
-    this.socket.on('disconnect', this.onDisconnect.bind(this))
-    this.socket.on('init', this.onInit.bind(this))
-    this.socket.on('auth_failed', this.onAuthFailed.bind(this))
-    this.socket.on('user_updated', this.onUserUpdated.bind(this))
-    this.socket.on('user_item_progress_updated', this.onUserItemProgressUpdated.bind(this))
-    this.socket.on('playlist_added', this.onPlaylistAdded.bind(this))
-    this.socket.io.on('reconnect_attempt', this.onReconnectAttempt.bind(this))
-    this.socket.io.on('reconnect_error', this.onReconnectError.bind(this))
-    this.socket.io.on('reconnect_failed', this.onReconnectFailed.bind(this))
+  isConnectedTo(serverAddress) {
+    return this.connected && this.normalizeAddress(this.serverAddress) === this.normalizeAddress(serverAddress)
+  }
+
+  setSocketListeners(socket) {
+    socket.on('connect', () => this.onConnect(socket))
+    socket.on('disconnect', (reason) => this.onDisconnect(socket, reason))
+    socket.on('init', (data) => this.onInit(socket, data))
+    socket.on('auth_failed', (data) => this.onAuthFailed(socket, data))
+    socket.on('user_updated', (data) => this.onUserUpdated(socket, data))
+    socket.on('user_item_progress_updated', (payload) => this.onUserItemProgressUpdated(socket, payload))
+    socket.on('playlist_added', () => this.onPlaylistAdded(socket))
+    socket.io.on('reconnect_attempt', (attemptNumber) => this.onReconnectAttempt(socket, attemptNumber))
+    socket.io.on('reconnect_error', (error) => this.onReconnectError(socket, error))
+    socket.io.on('reconnect_failed', (error) => this.onReconnectFailed(socket, error))
   }
 
   sendAuthenticate() {
     // Required to connect a socket to a user
+    if (!this.socket) return
     this.socket.emit('auth', this.$store.getters['user/getToken'])
   }
 
-  removeListeners() {
-    if (!this.socket) return
-    this.socket.removeAllListeners()
-    if (this.socket.io && this.socket.io.removeAllListeners) {
-      this.socket.io.removeAllListeners()
+  closeCurrentSocket() {
+    const socket = this.socket
+    if (!socket) return
+
+    socket.removeAllListeners()
+    if (socket.io && socket.io.removeAllListeners) {
+      socket.io.removeAllListeners()
     }
+    socket.disconnect()
+    this.socket = null
+    this.connected = false
+    this.isAuthenticated = false
+    this.$store.commit('setSocketConnected', false)
+    this.emit('connection-update', false)
   }
 
-  onConnect() {
-    console.log('[SOCKET] Socket Connected ' + this.socket.id)
+  isCurrentSocket(socket) {
+    return socket && socket === this.socket
+  }
+
+  onConnect(socket) {
+    if (!this.isCurrentSocket(socket)) return
+    console.log('[SOCKET] Socket Connected ' + socket.id)
     this.connected = true
     this.$store.commit('setSocketConnected', true)
     this.emit('connection-update', true)
     this.sendAuthenticate()
   }
 
-  onReconnectAttempt(attemptNumber) {
+  onReconnectAttempt(socket, attemptNumber) {
+    if (!this.isCurrentSocket(socket)) return
     const timeSinceLastReconnectAttempt = this.lastReconnectAttemptTime ? Date.now() - this.lastReconnectAttemptTime : 0
     this.lastReconnectAttemptTime = Date.now()
     console.log(`[SOCKET] Reconnect attempt ${attemptNumber} ${timeSinceLastReconnectAttempt > 0 ? `after ${timeSinceLastReconnectAttempt}ms` : ''}`)
   }
 
-  onReconnectError(error) {
+  onReconnectError(socket, error) {
+    if (!this.isCurrentSocket(socket)) return
     console.log('[SOCKET] Reconnect error', error)
   }
 
-  onReconnectFailed(error) {
+  onReconnectFailed(socket, error) {
+    if (!this.isCurrentSocket(socket)) return
     console.log('[SOCKET] Reconnect failed', error)
   }
 
-  onDisconnect(reason) {
+  onDisconnect(socket, reason) {
+    if (!this.isCurrentSocket(socket)) return
     console.log('[SOCKET] Socket Disconnected: ' + reason)
     this.connected = false
+    this.isAuthenticated = false
     this.$store.commit('setSocketConnected', false)
     this.emit('connection-update', false)
   }
 
-  onInit(data) {
+  onInit(socket, data) {
+    if (!this.isCurrentSocket(socket)) return
     console.log('[SOCKET] Initial socket data received', data)
     this.emit('initialized', true)
     this.isAuthenticated = true
   }
 
-  onAuthFailed(data) {
+  onAuthFailed(socket, data) {
+    if (!this.isCurrentSocket(socket)) return
     console.log('[SOCKET] Auth failed: ' + (data?.message || 'Unknown reason'))
     this.isAuthenticated = false
   }
 
-  onUserUpdated(data) {
+  onUserUpdated(socket, data) {
+    if (!this.isCurrentSocket(socket)) return
     console.log('[SOCKET] User updated', data)
     this.emit('user_updated', data)
   }
 
-  onUserItemProgressUpdated(payload) {
+  onUserItemProgressUpdated(socket, payload) {
+    if (!this.isCurrentSocket(socket)) return
     console.log('[SOCKET] User Item Progress Updated', JSON.stringify(payload))
     this.$store.commit('user/updateUserMediaProgress', payload.data)
     this.emit('user_media_progress_updated', payload)
   }
 
-  onPlaylistAdded() {
+  onPlaylistAdded(socket) {
+    if (!this.isCurrentSocket(socket)) return
     // Currently numUserPlaylists is only used for showing the playlist tab or not. Precise number is not necessary
     if (!this.$store.state.libraries.numUserPlaylists) {
       this.$store.commit('libraries/setNumUserPlaylists', 1)

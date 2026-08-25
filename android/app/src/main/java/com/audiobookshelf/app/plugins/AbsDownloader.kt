@@ -176,7 +176,7 @@ class AbsDownloader : Plugin() {
       Log.d(tag, "Starting library item download with ${tracks.size} tracks")
       val itemSubfolder = "$bookAuthor/$bookTitle"
       val itemFolderPath = if (isInternal) finalInternalFolderPath else "${localFolder.absolutePath}/$itemSubfolder"
-      val downloadItem = DownloadItem(libraryItem.id, libraryItem.id, null, libraryItem.userMediaProgress,DeviceManager.serverConnectionConfig?.id ?: "", DeviceManager.serverAddress, DeviceManager.serverUserId, libraryItem.mediaType, itemFolderPath, localFolder, bookTitle, itemSubfolder, libraryItem.media, mutableListOf())
+      val downloadItem = DownloadItem(libraryItem.id, libraryItem.id, null, libraryItem.userMediaProgress,DeviceManager.serverConnectionConfig?.id ?: "", DeviceManager.serverConnectionConfig?.address ?: "", DeviceManager.serverUserId, libraryItem.mediaType, itemFolderPath, localFolder, bookTitle, itemSubfolder, libraryItem.media, mutableListOf())
 
       val book = libraryItem.media as Book
       book.ebookFile?.let { ebookFile ->
@@ -237,7 +237,7 @@ class AbsDownloader : Plugin() {
       Log.d(tag, "Starting podcast episode download")
       val itemFolderPath = if (isInternal) finalInternalFolderPath else "${localFolder.absolutePath}/$podcastTitle"
       val downloadItemId = "${libraryItem.id}-${episode?.id}"
-      val downloadItem = DownloadItem(downloadItemId, libraryItem.id, episode?.id, libraryItem.userMediaProgress, DeviceManager.serverConnectionConfig?.id ?: "", DeviceManager.serverAddress, DeviceManager.serverUserId, libraryItem.mediaType, itemFolderPath, localFolder, podcastTitle, podcastTitle, libraryItem.media, mutableListOf())
+      val downloadItem = DownloadItem(downloadItemId, libraryItem.id, episode?.id, libraryItem.userMediaProgress, DeviceManager.serverConnectionConfig?.id ?: "", DeviceManager.serverConnectionConfig?.address ?: "", DeviceManager.serverUserId, libraryItem.mediaType, itemFolderPath, localFolder, podcastTitle, podcastTitle, libraryItem.media, mutableListOf())
 
       var serverPath = "/api/items/${libraryItem.id}/file/${audioFileIno}/download"
       var destinationFilename = getFilenameFromRelPath(audioTrack?.relPath ?: "")

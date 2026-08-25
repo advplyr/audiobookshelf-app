@@ -1,6 +1,6 @@
 import { CapacitorHttp } from '@capacitor/core'
 
-export default function ({ store, $db, $socket }, inject) {
+export default function ({ store, $db, $socket, $serverAddress }, inject) {
   const nativeHttp = {
     async request(method, _url, data, options = {}) {
       // When authorizing before a config is set, server config gets passed in as an option
@@ -16,8 +16,9 @@ export default function ({ store, $db, $socket }, inject) {
         } else {
           console.warn('[nativeHttp] No Bearer Token for request')
         }
-        if (serverConnectionConfig?.address) {
-          url = `${serverConnectionConfig.address}${url}`
+        const activeServerAddress = await $serverAddress.resolve(serverConnectionConfig)
+        if (activeServerAddress) {
+          url = `${activeServerAddress}${url}`
         }
       }
       if (data) {
@@ -77,7 +78,8 @@ export default function ({ store, $db, $socket }, inject) {
         }
 
         // Attempt to refresh the token
-        const newTokens = await this.refreshAccessToken(refreshToken, serverConnectionConfig.address)
+        const refreshAddress = await $serverAddress.resolve(serverConnectionConfig, { forceRefresh: true })
+        const newTokens = await this.refreshAccessToken(refreshToken, refreshAddress)
         if (!newTokens?.accessToken) {
           console.error('[nativeHttp] Failed to refresh access token')
           throw new Error('Failed to refresh access token')
