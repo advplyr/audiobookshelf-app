@@ -39,9 +39,14 @@ class AbsDatabase : Plugin() {
 
     secureStorage = SecureStorage(mainActivity)
 
-    DeviceManager.dbManager.cleanLocalMediaProgress()
-    DeviceManager.dbManager.cleanLocalLibraryItems(mainActivity)
-    DeviceManager.dbManager.cleanLogs()
+    // Run db cleanup off the main thread. Capacitor calls load() synchronously during
+    // Activity.onCreate, and with many downloaded files these scans block app startup
+    // (deserializing the local library alone can take seconds).
+    GlobalScope.launch(Dispatchers.IO) {
+      DeviceManager.dbManager.cleanLocalMediaProgress()
+      DeviceManager.dbManager.cleanLocalLibraryItems(mainActivity)
+      DeviceManager.dbManager.cleanLogs()
+    }
   }
 
   @PluginMethod

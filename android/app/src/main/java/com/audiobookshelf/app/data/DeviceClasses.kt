@@ -2,6 +2,7 @@ package com.audiobookshelf.app.data
 
 import android.content.Context
 import android.net.Uri
+import android.provider.DocumentsContract
 import android.support.v4.media.MediaDescriptionCompat
 import android.util.Log
 import com.fasterxml.jackson.annotation.JsonIgnore
@@ -83,6 +84,28 @@ data class LocalFile(
       }
     }
     return File(absolutePath).exists()
+  }
+
+  /**
+   * Existence check backed by a pre-fetched set of sibling document ids.
+   *
+   * Opening a file descriptor per file (see [exists]) costs a ContentResolver IPC round-trip
+   * (~15ms each), which adds up to minutes on libraries with thousands of downloaded files.
+   * When the caller already listed the parent folder once, this only does a set lookup.
+   * Falls back to the per-file check when no sibling set is available.
+   */
+  @JsonIgnore
+  fun exists(ctx: Context, siblingDocumentIds: Set<String>?): Boolean {
+    if (siblingDocumentIds != null && contentUrl.startsWith("content:")) {
+      val documentId =
+              try {
+                DocumentsContract.getDocumentId(Uri.parse(contentUrl))
+              } catch (e: Exception) {
+                null
+              }
+      if (documentId != null) return siblingDocumentIds.contains(documentId)
+    }
+    return exists(ctx)
   }
 
   @JsonIgnore

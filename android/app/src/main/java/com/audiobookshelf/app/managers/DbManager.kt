@@ -1,6 +1,8 @@
 package com.audiobookshelf.app.managers
 
 import android.content.Context
+import android.net.Uri
+import android.provider.DocumentsContract
 import android.util.Log
 import com.audiobookshelf.app.data.*
 import com.audiobookshelf.app.models.DownloadItem
@@ -147,16 +149,52 @@ class DbManager {
   }
 
   // Make sure all local file ids still exist
+  /**
+   * Lists the document ids of all children of the given SAF folder with a single
+   * ContentResolver query. Returns null when the folder cannot be listed (e.g. not a
+   * tree-based uri or permission lost) so callers can fall back to per-file checks.
+   */
+  private fun listFolderDocumentIds(context: Context, folderContentUrl: String?): Set<String>? {
+    if (folderContentUrl.isNullOrEmpty() || !folderContentUrl.startsWith("content:")) return null
+    return try {
+      val folderUri = Uri.parse(folderContentUrl)
+      val folderDocumentId =
+              if (DocumentsContract.isDocumentUri(context, folderUri)) {
+                DocumentsContract.getDocumentId(folderUri)
+              } else {
+                DocumentsContract.getTreeDocumentId(folderUri)
+              }
+      val childrenUri =
+              DocumentsContract.buildChildDocumentsUriUsingTree(folderUri, folderDocumentId)
+      val documentIds = mutableSetOf<String>()
+      context.contentResolver.query(
+              childrenUri,
+              arrayOf(DocumentsContract.Document.COLUMN_DOCUMENT_ID),
+              null,
+              null,
+              null
+      )?.use { cursor -> while (cursor.moveToNext()) documentIds.add(cursor.getString(0)) }
+              ?: return null
+      documentIds
+    } catch (e: Exception) {
+      Log.w(tag, "listFolderDocumentIds: Failed to list children of $folderContentUrl", e)
+      null
+    }
+  }
+
   fun cleanLocalLibraryItems(context: Context) {
     val localLibraryItems = getLocalLibraryItems()
 
     localLibraryItems.forEach { lli ->
       var hasUpdates = false
 
+      // One folder listing per item instead of one ContentResolver round-trip per file
+      val folderDocumentIds = listFolderDocumentIds(context, lli.contentUrl)
+
       // Check local files
       lli.localFiles =
               lli.localFiles.filter { localFile ->
-                val exists = localFile.exists(context)
+                val exists = localFile.exists(context, folderDocumentIds)
                 if (!exists) {
                   Log.d(
                           tag,
@@ -204,7 +242,7 @@ class DbManager {
       lli.coverAbsolutePath?.let {
         val coverExists =
                 lli.localFiles.any { localFile ->
-                  localFile.absolutePath == it && localFile.exists(context)
+                  localFile.absolutePath == it && localFile.exists(context, folderDocumentIds)
                 }
         if (!coverExists) {
           Log.d(
