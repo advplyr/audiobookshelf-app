@@ -60,7 +60,10 @@ export default {
     }
   },
   watch: {
-    cover() {
+    // Watch the resolved image url rather than the cover path. The url includes a
+    // cache busting timestamp, so it changes when the server cover is fixed or
+    // replaced even though the cover path stays the same.
+    fullCoverUrl() {
       this.imageFailed = false
     }
   },
@@ -151,6 +154,7 @@ export default {
     },
     imageLoaded() {
       this.loading = false
+      this.imageFailed = false
       this.$nextTick(() => {
         this.imageReady = true
       })
