@@ -1,5 +1,5 @@
 <template>
-  <div class="w-full h-full p-4">
+  <div class="w-full h-full p-4 overflow-y-auto">
     <ui-text-input-with-label :value="serverAddress" :label="$strings.LabelHost" disabled class="my-2" />
 
     <ui-text-input-with-label :value="username" :label="$strings.LabelUsername" disabled class="my-2" />
@@ -8,9 +8,27 @@
       <p>Server version: v{{ serverVersion }}</p>
     </div>
 
+    <div class="mt-8">
+      <p class="uppercase text-xs font-semibold text-fg-muted mb-2">Local Connection</p>
+      <div class="my-2">
+        <p class="text-sm text-fg-muted mb-1">Local network address</p>
+        <ui-text-input v-model="localAddress" placeholder="http://192.168.1.20:13378" type="url" class="w-full h-10" />
+      </div>
+      <div class="my-4">
+        <div class="flex items-center justify-between mb-1 gap-2">
+          <p class="text-sm text-fg-muted">Local Wi-Fi SSIDs</p>
+          <ui-btn type="button" :disabled="processing" :padding-x="2" :padding-y="1" class="text-xs" @click="addCurrentWifiSsid">Use current Wi-Fi</ui-btn>
+        </div>
+        <textarea v-model="localSsidText" placeholder="Home WiFi&#10;Office WiFi" class="w-full min-h-[5rem] rounded bg-bg border border-fg/20 px-3 py-2 text-sm outline-none focus:border-fg/60"></textarea>
+      </div>
+      <div class="flex justify-end">
+        <ui-btn :disabled="processing || !hasLocalConnectionChanges" @click="saveLocalConnectionSettings">{{ processing ? 'Saving...' : $strings.ButtonSave }}</ui-btn>
+      </div>
+    </div>
+
     <ui-btn color="primary flex items-center justify-between gap-2 ml-auto text-base mt-8" @click="logout">{{ $strings.ButtonSwitchServerUser }}<span class="material-symbols" style="font-size: 1.1rem">logout</span></ui-btn>
 
-    <div class="flex justify-center items-center my-4 left-0 right-0 bottom-0 absolute">
+    <div class="flex justify-center items-center my-4 left-0 right-0">
       <p class="text-sm text-fg">{{ $strings.MessageReportBugsAndContribute }} <a class="underline" href="https://github.com/advplyr/audiobookshelf-app" target="_blank">GitHub</a></p>
       <a href="https://github.com/advplyr/audiobookshelf-app" target="_blank" class="text-fg hover:scale-150 hover:rotate-6 transform duration-500 ml-2">
         <svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" width="24" height="24" viewBox="0 0 24 24">
@@ -32,7 +50,11 @@ export default {
     return {}
   },
   data() {
-    return {}
+    return {
+      processing: false,
+      localAddress: null,
+      localSsidText: ''
+    }
   },
   computed: {
     username() {
@@ -51,15 +73,82 @@ export default {
     serverVersion() {
       // Saved in server connection config after 0.9.81
       return this.serverConnectionConfig.version
+    },
+    normalizedLocalAddress() {
+      return this.$serverAddress.normalizeAddress(this.localAddress) || null
+    },
+    localSsidWhitelist() {
+      return this.localSsidText
+        .split('\n')
+        .map((ssid) => ssid.trim())
+        .filter(Boolean)
+    },
+    hasLocalConnectionChanges() {
+      const savedLocalAddress = this.serverConnectionConfig.localAddress || null
+      const savedSsids = this.serverConnectionConfig.localSsidWhitelist || []
+      return this.normalizedLocalAddress !== savedLocalAddress || JSON.stringify(this.localSsidWhitelist) !== JSON.stringify(savedSsids)
     }
   },
   methods: {
+    loadLocalConnectionSettings() {
+      this.localAddress = this.serverConnectionConfig.localAddress || ''
+      this.localSsidText = (this.serverConnectionConfig.localSsidWhitelist || []).join('\n')
+    },
+    async addCurrentWifiSsid() {
+      const ssid = await this.$serverAddress.getCurrentWifiSsid()
+      if (!ssid) {
+        this.$toast.error('Current Wi-Fi SSID is unavailable')
+        return
+      }
+
+      const ssids = [...this.localSsidWhitelist]
+      if (!ssids.includes(ssid)) {
+        ssids.push(ssid)
+      }
+      this.localSsidText = ssids.join('\n')
+    },
+    async saveLocalConnectionSettings() {
+      if (!this.serverConnectionConfig.id) return
+      this.processing = true
+      try {
+        const updatedConfig = {
+          ...this.serverConnectionConfig,
+          localAddress: this.normalizedLocalAddress,
+          localSsidWhitelist: this.localSsidWhitelist
+        }
+        const savedConfig = await this.$db.setServerConnectionConfig(updatedConfig)
+        this.$store.commit('user/setServerConnectionConfig', savedConfig)
+        this.$store.commit('setActiveServerAddress', null)
+
+        const deviceData = this.$store.state.deviceData
+        if (deviceData?.serverConnectionConfigs) {
+          const updatedDeviceData = {
+            ...deviceData,
+            serverConnectionConfigs: deviceData.serverConnectionConfigs.map((config) => (config.id === savedConfig.id ? savedConfig : config))
+          }
+          this.$store.commit('setDeviceData', updatedDeviceData)
+        }
+
+        const activeServerAddress = await this.$serverAddress.resolve(savedConfig, { forceRefresh: true })
+        this.$socket.logout()
+        this.$socket.connect(activeServerAddress || savedConfig.address, savedConfig.token)
+        this.loadLocalConnectionSettings()
+        this.$toast.success('Local connection settings saved')
+      } catch (error) {
+        console.error('Failed to save local connection settings', error)
+        this.$toast.error('Failed to save local connection settings')
+      } finally {
+        this.processing = false
+      }
+    },
     async logout() {
       await this.$hapticsImpact()
       await this.$store.dispatch('user/logout')
       this.$router.push('/connect')
     }
   },
-  mounted() {}
+  mounted() {
+    this.loadLocalConnectionSettings()
+  }
 }
 </script>

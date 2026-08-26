@@ -1,4 +1,4 @@
-export default function ({ $axios, store, $db }) {
+export default function ({ $axios, store, $db, $serverAddress }) {
   // Track if we're currently refreshing to prevent multiple refresh attempts
   let isRefreshing = false
   let failedQueue = []
@@ -39,7 +39,7 @@ export default function ({ $axios, store, $db }) {
     }
   }
 
-  $axios.onRequest((config) => {
+  $axios.onRequest(async (config) => {
     console.log('[Axios] Making request to ' + config.url)
     if (config.url.startsWith('http:') || config.url.startsWith('https:') || config.url.startsWith('capacitor:')) {
       return
@@ -52,7 +52,7 @@ export default function ({ $axios, store, $db }) {
       console.warn('[Axios] No Bearer Token for request')
     }
 
-    const serverUrl = store.getters['user/getServerAddress']
+    const serverUrl = await $serverAddress.resolve()
     if (serverUrl) {
       config.url = `${serverUrl}${config.url}`
     }

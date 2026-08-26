@@ -29,7 +29,7 @@ class ApiClient {
             "Authorization": "Bearer \(Store.serverConfig!.token)"
         ]
         
-        AF.request("\(Store.serverConfig!.address)/\(endpoint)", method: .post, parameters: parameters, encoding: JSONEncoding.default, headers: headers).responseDecodable(of: decodable) { response in
+        AF.request("\(Store.serverConfig!.resolvedAddress)/\(endpoint)", method: .post, parameters: parameters, encoding: JSONEncoding.default, headers: headers).responseDecodable(of: decodable) { response in
             switch response.result {
             case .success(let obj):
                 callback?(obj)
@@ -50,7 +50,7 @@ class ApiClient {
             "Authorization": "Bearer \(Store.serverConfig!.token)"
         ]
         
-        AF.request("\(Store.serverConfig!.address)/\(endpoint)", method: .post, parameters: parameters, encoder: JSONParameterEncoder.default, headers: headers).responseDecodable(of: decodable) { response in
+        AF.request("\(Store.serverConfig!.resolvedAddress)/\(endpoint)", method: .post, parameters: parameters, encoder: JSONParameterEncoder.default, headers: headers).responseDecodable(of: decodable) { response in
             switch response.result {
             case .success(let obj):
                 callback?(obj)
@@ -80,7 +80,7 @@ class ApiClient {
             "Authorization": "Bearer \(Store.serverConfig!.token)"
         ]
         
-        AF.request("\(Store.serverConfig!.address)/\(endpoint)", method: .post, parameters: parameters, encoder: JSONParameterEncoder.default, headers: headers).response { response in
+        AF.request("\(Store.serverConfig!.resolvedAddress)/\(endpoint)", method: .post, parameters: parameters, encoder: JSONParameterEncoder.default, headers: headers).response { response in
             switch response.result {
             case .success(_):
                 callback?(true)
@@ -104,7 +104,7 @@ class ApiClient {
             "Authorization": "Bearer \(Store.serverConfig!.token)"
         ]
         
-        AF.request("\(Store.serverConfig!.address)/\(endpoint)", method: .patch, parameters: parameters, encoder: JSONParameterEncoder.default, headers: headers).response { response in
+        AF.request("\(Store.serverConfig!.resolvedAddress)/\(endpoint)", method: .patch, parameters: parameters, encoder: JSONParameterEncoder.default, headers: headers).response { response in
             switch response.result {
             case .success(_):
                 callback?(true)
@@ -135,7 +135,7 @@ class ApiClient {
             "Authorization": "Bearer \(Store.serverConfig!.token)"
         ]
         
-        AF.request("\(Store.serverConfig!.address)/\(endpoint)", method: .get, encoding: JSONEncoding.default, headers: headers).responseDecodable(of: decodable) { response in
+        AF.request("\(Store.serverConfig!.resolvedAddress)/\(endpoint)", method: .get, encoding: JSONEncoding.default, headers: headers).responseDecodable(of: decodable) { response in
             switch response.result {
                 case .success(let obj):
                     callback?(obj)
@@ -182,7 +182,7 @@ class ApiClient {
             "Content-Type": "application/json"
         ]
         
-        let refreshRequest = AF.request("\(serverConfig.address)/auth/refresh", method: .post, headers: refreshHeaders)
+        let refreshRequest = AF.request("\(serverConfig.resolvedAddress)/auth/refresh", method: .post, headers: refreshHeaders)
         
         refreshRequest.responseDecodable(of: RefreshResponse.self) { response in
             switch response.result {
@@ -253,20 +253,20 @@ class ApiClient {
         
         switch method {
         case .get:
-            retryRequest = AF.request("\(serverConfig.address)/\(endpoint)", method: .get, headers: headers)
+            retryRequest = AF.request("\(serverConfig.resolvedAddress)/\(endpoint)", method: .get, headers: headers)
         case .post:
             if let parameters = parameters as? [String: Any] {
-                retryRequest = AF.request("\(serverConfig.address)/\(endpoint)", method: .post, parameters: parameters, encoding: JSONEncoding.default, headers: headers)
+                retryRequest = AF.request("\(serverConfig.resolvedAddress)/\(endpoint)", method: .post, parameters: parameters, encoding: JSONEncoding.default, headers: headers)
             } else if let encodableParams = parameters as? Encodable {
-                retryRequest = AF.request("\(serverConfig.address)/\(endpoint)", method: .post, parameters: encodableParams, encoder: JSONParameterEncoder.default, headers: headers)
+                retryRequest = AF.request("\(serverConfig.resolvedAddress)/\(endpoint)", method: .post, parameters: encodableParams, encoder: JSONParameterEncoder.default, headers: headers)
             } else {
-                retryRequest = AF.request("\(serverConfig.address)/\(endpoint)", method: .post, headers: headers)
+                retryRequest = AF.request("\(serverConfig.resolvedAddress)/\(endpoint)", method: .post, headers: headers)
             }
         case .patch:
             if let encodableParams = parameters as? Encodable {
-                retryRequest = AF.request("\(serverConfig.address)/\(endpoint)", method: .patch, parameters: encodableParams, encoder: JSONParameterEncoder.default, headers: headers)
+                retryRequest = AF.request("\(serverConfig.resolvedAddress)/\(endpoint)", method: .patch, parameters: encodableParams, encoder: JSONParameterEncoder.default, headers: headers)
             } else {
-                retryRequest = AF.request("\(serverConfig.address)/\(endpoint)", method: .patch, headers: headers)
+                retryRequest = AF.request("\(serverConfig.resolvedAddress)/\(endpoint)", method: .patch, headers: headers)
             }
         default:
             AbsLogger.error(message: "retryOriginalRequest: Unsupported method \(method)")
@@ -340,7 +340,7 @@ class ApiClient {
             "Authorization": "Bearer \(Store.serverConfig!.token)"
         ]
         
-        let request = AF.request("\(Store.serverConfig!.address)/\(endpoint)", method: .get, headers: headers)
+        let request = AF.request("\(Store.serverConfig!.resolvedAddress)/\(endpoint)", method: .get, headers: headers)
         
         request.responseDecodable(of: decodable) { response in
             if let statusCode = response.response?.statusCode, statusCode == 401 {
@@ -370,7 +370,7 @@ class ApiClient {
             "Authorization": "Bearer \(Store.serverConfig!.token)"
         ]
         
-        let request = AF.request("\(Store.serverConfig!.address)/\(endpoint)", method: .post, parameters: parameters, encoder: JSONParameterEncoder.default, headers: headers)
+        let request = AF.request("\(Store.serverConfig!.resolvedAddress)/\(endpoint)", method: .post, parameters: parameters, encoder: JSONParameterEncoder.default, headers: headers)
         
         request.responseDecodable(of: decodable) { response in
             if let statusCode = response.response?.statusCode, statusCode == 401 {
@@ -403,7 +403,7 @@ class ApiClient {
             "Authorization": "Bearer \(Store.serverConfig!.token)"
         ]
         
-        let request = AF.request("\(Store.serverConfig!.address)/\(endpoint)", method: .post, parameters: parameters, encoder: JSONParameterEncoder.default, headers: headers)
+        let request = AF.request("\(Store.serverConfig!.resolvedAddress)/\(endpoint)", method: .post, parameters: parameters, encoder: JSONParameterEncoder.default, headers: headers)
         
         request.response { response in
             if let statusCode = response.response?.statusCode, statusCode == 401 {
@@ -435,7 +435,7 @@ class ApiClient {
             "Authorization": "Bearer \(Store.serverConfig!.token)"
         ]
         
-        let request = AF.request("\(Store.serverConfig!.address)/\(endpoint)", method: .patch, parameters: parameters, encoder: JSONParameterEncoder.default, headers: headers)
+        let request = AF.request("\(Store.serverConfig!.resolvedAddress)/\(endpoint)", method: .patch, parameters: parameters, encoder: JSONParameterEncoder.default, headers: headers)
         
         request.response { response in
             if let statusCode = response.response?.statusCode, statusCode == 401 {
@@ -495,7 +495,7 @@ class ApiClient {
             
             // Set server connection info on the session
             session.serverConnectionConfigId = Store.serverConfig!.id
-            session.serverAddress = Store.serverConfig!.address
+            session.serverAddress = Store.serverConfig!.resolvedAddress
             
             callback(session)
         }
@@ -631,7 +631,7 @@ class ApiClient {
     
     public static func pingServer() async -> Bool {
         var status = true
-        AF.request("\(Store.serverConfig!.address)/ping", method: .get).responseDecodable(of: PingResponsePayload.self) { response in
+        AF.request("\(Store.serverConfig!.resolvedAddress)/ping", method: .get).responseDecodable(of: PingResponsePayload.self) { response in
             switch response.result {
                 case .success:
                     status = true

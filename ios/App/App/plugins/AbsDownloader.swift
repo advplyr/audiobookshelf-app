@@ -449,7 +449,7 @@ public class AbsDownloader: CAPPlugin, CAPBridgedPlugin, URLSessionDownloadDeleg
             audioFileIno = matchingAudioFile?.ino ?? ""
         }
 
-        let urlstr = "\(Store.serverConfig!.address)/api/items/\(item.id)/file/\(audioFileIno)/download?token=\(Store.serverConfig!.token)"
+        let urlstr = "\(Store.serverConfig!.resolvedAddress)/api/items/\(item.id)/file/\(audioFileIno)/download?token=\(Store.serverConfig!.token)"
         return URL(string: urlstr)!
     }
     
