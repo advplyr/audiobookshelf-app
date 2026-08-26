@@ -378,6 +378,6 @@
   "ToastRSSFeedCloseFailed": "RSS-Feed konnte nicht geschlossen werden",
   "ToastRSSFeedCloseSuccess": "RSS-Feed geschlossen",
   "ToastStreamingNotAllowedOnCellular": "Das Streamen über mobile Daten ist nicht erlaubt",
-  "UnitMinutesShort": "{0}m",
-  "UnitSecondsShort": "{0}s"
+  "UnitMinutesShort": "{0} min",
+  "UnitSecondsShort": "{0} s"
 }
