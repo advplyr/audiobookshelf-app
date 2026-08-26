@@ -240,34 +240,37 @@ class DbManager {
               } as
                       MutableList<LocalFile>
 
-      // Check audio tracks and episodes
+      // Check audio tracks and episodes. Scanning the file list per track is quadratic and
+      // dominates the cleanup on items with hundreds of files, so look ids up in a set.
+      val localFileIds = lli.localFiles.mapTo(HashSet()) { it.id }
       if (lli.isPodcast) {
         val podcast = lli.media as Podcast
         podcast.episodes =
                 podcast.episodes?.filter { ep ->
-                  if (lli.localFiles.find { lf -> lf.id == ep.audioTrack?.localFileId } == null) {
+                  val hasLocalFile = ep.audioTrack?.localFileId?.let(localFileIds::contains) == true
+                  if (!hasLocalFile) {
                     Log.d(
                             tag,
                             "cleanLocalLibraryItems: Podcast episode ${ep.title} was removed from library item ${lli.media.metadata.title}"
                     )
                     hasUpdates = true
                   }
-                  ep.audioTrack != null &&
-                          lli.localFiles.find { lf -> lf.id == ep.audioTrack?.localFileId } != null
+                  ep.audioTrack != null && hasLocalFile
                 } as
                         MutableList<PodcastEpisode>
       } else {
         val book = lli.media as Book
         book.tracks =
                 book.tracks?.filter { track ->
-                  if (lli.localFiles.find { lf -> lf.id == track.localFileId } == null) {
+                  val hasLocalFile = track.localFileId?.let(localFileIds::contains) == true
+                  if (!hasLocalFile) {
                     Log.d(
                             tag,
                             "cleanLocalLibraryItems: Audio track ${track.title} was removed from library item ${lli.media.metadata.title}"
                     )
                     hasUpdates = true
                   }
-                  lli.localFiles.find { lf -> lf.id == track.localFileId } != null
+                  hasLocalFile
                 } as
                         MutableList<AudioTrack>
       }
