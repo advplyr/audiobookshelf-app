@@ -148,7 +148,32 @@ class DbManager {
     Paper.book("localMediaProgress").destroy()
   }
 
-  // Make sure all local file ids still exist
+  /**
+   * Does this app still hold read access to the document tree the given uri belongs to?
+   *
+   * Access is granted per tree, not per document, so asking once per folder answers it for every
+   * file inside. When it holds, presence on disk is enough to consider a file intact; when it does
+   * not, the caller has to fall back to checking each document through the provider.
+   */
+  private fun hasPersistedTreeAccess(context: Context, contentUrl: String?): Boolean {
+    if (contentUrl.isNullOrEmpty() || !contentUrl.startsWith("content:")) return false
+    return try {
+      val uri = Uri.parse(contentUrl)
+      val treeDocumentId = DocumentsContract.getTreeDocumentId(uri)
+      context.contentResolver.persistedUriPermissions.any { permission ->
+        permission.isReadPermission &&
+                permission.uri.authority == uri.authority &&
+                try {
+                  DocumentsContract.getTreeDocumentId(permission.uri)
+                } catch (e: Exception) {
+                  null
+                } == treeDocumentId
+      }
+    } catch (e: Exception) {
+      false
+    }
+  }
+
   /**
    * Lists the document ids of all children of the given SAF folder with a single
    * ContentResolver query. Returns null when the folder cannot be listed (e.g. not a
@@ -182,19 +207,28 @@ class DbManager {
     }
   }
 
+  // Make sure all local file ids still exist
   fun cleanLocalLibraryItems(context: Context) {
     val localLibraryItems = getLocalLibraryItems()
 
     localLibraryItems.forEach { lli ->
       var hasUpdates = false
 
-      // One folder listing per item instead of one ContentResolver round-trip per file
-      val folderDocumentIds = listFolderDocumentIds(context, lli.contentUrl)
+      // Read access is granted per document tree, so establish it once for the whole item. While
+      // it holds, a file that is still on disk is intact, and checking that costs a stat instead
+      // of a round-trip to the storage provider. Without it, fall back to the full check, using
+      // one folder listing rather than a round-trip per file.
+      val folderAccessible = hasPersistedTreeAccess(context, lli.contentUrl)
+      val folderDocumentIds by lazy { listFolderDocumentIds(context, lli.contentUrl) }
+      val fileExists = { localFile: LocalFile ->
+        if (folderAccessible) localFile.existsOnDisk()
+        else localFile.exists(context) { folderDocumentIds }
+      }
 
       // Check local files
       lli.localFiles =
               lli.localFiles.filter { localFile ->
-                val exists = localFile.exists(context, folderDocumentIds)
+                val exists = fileExists(localFile)
                 if (!exists) {
                   Log.d(
                           tag,
@@ -242,7 +276,7 @@ class DbManager {
       lli.coverAbsolutePath?.let {
         val coverExists =
                 lli.localFiles.any { localFile ->
-                  localFile.absolutePath == it && localFile.exists(context, folderDocumentIds)
+                  localFile.absolutePath == it && fileExists(localFile)
                 }
         if (!coverExists) {
           Log.d(

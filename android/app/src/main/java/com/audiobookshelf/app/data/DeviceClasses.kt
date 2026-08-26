@@ -73,6 +73,13 @@ data class LocalFile(
         var mimeType: String?,
         var size: Long
 ) {
+  /**
+   * Full check: does the file exist and can this app actually open it?
+   *
+   * Costs a ContentResolver round-trip per file, so callers holding many files should prefer
+   * [exists] with a folder listing, or [existsOnDisk] when access to the folder is already known
+   * to be intact.
+   */
   @JsonIgnore
   fun exists(ctx: Context): Boolean {
     if (contentUrl.startsWith("content:")) {
@@ -87,26 +94,34 @@ data class LocalFile(
   }
 
   /**
-   * Existence check backed by a pre-fetched set of sibling document ids.
-   *
-   * Opening a file descriptor per file (see [exists]) costs a ContentResolver IPC round-trip
-   * (~15ms each), which adds up to minutes on libraries with thousands of downloaded files.
-   * When the caller already listed the parent folder once, this only does a set lookup.
-   * Falls back to the per-file check when no sibling set is available.
+   * Same check as [exists], but backed by the document ids of the parent folder, so a whole
+   * folder costs one query instead of a round-trip per file. Falls back to the per-file check
+   * when the folder cannot be listed (permission lost, non-tree uri).
    */
   @JsonIgnore
-  fun exists(ctx: Context, siblingDocumentIds: Set<String>?): Boolean {
-    if (siblingDocumentIds != null && contentUrl.startsWith("content:")) {
-      val documentId =
-              try {
-                DocumentsContract.getDocumentId(Uri.parse(contentUrl))
-              } catch (e: Exception) {
-                null
-              }
-      if (documentId != null) return siblingDocumentIds.contains(documentId)
+  fun exists(ctx: Context, siblingDocumentIds: () -> Set<String>?): Boolean {
+    if (contentUrl.startsWith("content:")) {
+      val documentIds = siblingDocumentIds()
+      if (documentIds != null) {
+        val documentId =
+                try {
+                  DocumentsContract.getDocumentId(Uri.parse(contentUrl))
+                } catch (e: Exception) {
+                  null
+                }
+        if (documentId != null) return documentIds.contains(documentId)
+      }
     }
     return exists(ctx)
   }
+
+  /**
+   * Is the file still on disk? Costs a stat, so it is orders of magnitude cheaper than the SAF
+   * checks above, but it only answers presence: under scoped storage a path can be visible while
+   * the file is not openable. Only use it when access to the containing folder has been
+   * established separately.
+   */
+  @JsonIgnore fun existsOnDisk(): Boolean = absolutePath.isNotEmpty() && File(absolutePath).exists()
 
   @JsonIgnore
   fun isAudioFile(): Boolean {
