@@ -61,21 +61,18 @@ class InternalDownloadManager(
           allowRestart: Boolean
   ) {
     var existingBytes = destinationFile.takeIf { it.exists() }?.length() ?: 0L
-    when (DownloadResumePolicy.initialAction(existingBytes, expectedSize)) {
-      DownloadResumePolicy.InitialAction.COMPLETE -> {
-        progressCallback.onProgress(existingBytes, 100L)
-        progressCallback.onComplete(false)
+    if (expectedSize > 0L && existingBytes == expectedSize) {
+      progressCallback.onProgress(existingBytes, 100L)
+      progressCallback.onComplete(false)
+      return
+    }
+    if (expectedSize > 0L && existingBytes > expectedSize) {
+      if (!destinationFile.delete()) {
+        Log.e(tag, "Could not delete oversized staging file ${destinationFile.name}")
+        progressCallback.onComplete(true)
         return
       }
-      DownloadResumePolicy.InitialAction.RESTART -> {
-        if (!destinationFile.delete()) {
-          Log.e(tag, "Could not delete oversized staging file ${destinationFile.name}")
-          progressCallback.onComplete(true)
-          return
-        }
-        existingBytes = 0L
-      }
-      else -> Unit
+      existingBytes = 0L
     }
     val request =
             Request.Builder()
@@ -98,8 +95,9 @@ class InternalDownloadManager(
                   try {
                     if (response.code == 416) {
                       val serverSize =
-                              DownloadResumePolicy.unsatisfiedRangeSize(
-                                      response.header("Content-Range"))
+                              response.header("Content-Range")
+                                      ?.removePrefix("bytes */")
+                                      ?.toLongOrNull()
                       if (serverSize != null && serverSize > 0L && existingBytes == serverSize) {
                         progressCallback.onProgress(existingBytes, 100L)
                         progressCallback.onComplete(false)
