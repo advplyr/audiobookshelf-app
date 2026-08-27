@@ -84,23 +84,17 @@ class DownloadItemManager(
         checkDownloadItemFinished(item)
         return@forEach
       }
+      var resetFailed = false
       item.downloadItemParts.forEach { part ->
         if (part.moved) return@forEach
-        if (item.terminalFailureAt != null) {
-          part.downloadId = null
-          part.isMoving = false
-          part.failed = true
-          part.waitingForSpace = false
-          part.bytesDownloaded = File(part.destinationPath).takeIf(File::exists)?.length() ?: 0L
-          return@forEach
-        }
-        part.downloadId = null
-        part.isMoving = false
-        part.failed = false
-        part.waitingForSpace = false
-        val stagingLength = File(part.destinationPath).takeIf(File::exists)?.length() ?: 0L
-        part.bytesDownloaded = stagingLength
-        if (part.completed && stagingLength <= 0L) part.completed = false
+        if (!resetPartForFreshDownload(part)) resetFailed = true
+      }
+      if (resetFailed) {
+        item.terminalFailureAt = item.terminalFailureAt ?: System.currentTimeMillis()
+        item.stagingCleanupAt = null
+      }
+      if (item.terminalFailureAt != null) {
+        item.downloadItemParts.filter { !it.moved }.forEach { it.failed = true }
       }
       downloadItemQueue.add(item)
       if (item.terminalFailureAt != null) IncompleteDownloadCleanup.schedule(context, item)
@@ -127,19 +121,18 @@ class DownloadItemManager(
     if (item.downloadItemParts.any { it in currentDownloadItemParts }) return false
     if (item.isDownloadFinished) return false
     synchronized(IncompleteDownloadCleanup) {
+      var resetFailed = false
+      item.downloadItemParts.filter { !it.moved }.forEach { part ->
+        if (!resetPartForFreshDownload(part)) resetFailed = true
+      }
+      if (resetFailed) {
+        item.downloadItemParts.filter { !it.moved }.forEach { it.failed = true }
+        persist(item, force = true)
+        return false
+      }
       item.terminalFailureAt = null
       item.stagingCleanupAt = null
       IncompleteDownloadCleanup.cancel(context, item.id)
-      item.downloadItemParts.filter { !it.moved }.forEach { part ->
-        part.failed = false
-        part.isMoving = false
-        part.downloadId = null
-        part.retryCount = 0
-        part.waitingForSpace = false
-        val stagingLength = File(part.destinationPath).takeIf(File::exists)?.length() ?: 0L
-        part.bytesDownloaded = stagingLength
-        part.completed = part.completed && stagingLength > 0L
-      }
       persist(item, force = true)
     }
     clientEventEmitter.onDownloadItem(item)
@@ -560,6 +553,25 @@ class DownloadItemManager(
       }
     }
     return findSharedStorageFile(part) != null
+  }
+
+  /** Resets an unmoved part when recovery crosses a service-session boundary. */
+  private fun resetPartForFreshDownload(part: DownloadItemPart): Boolean {
+    val stagingFile = File(part.destinationPath)
+    if (stagingFile.exists() && !stagingFile.delete()) {
+      Log.e(tag, "Could not delete staging file ${part.filename}")
+      part.failed = true
+      return false
+    }
+    part.completed = false
+    part.bytesDownloaded = 0L
+    part.progress = 0L
+    part.failed = false
+    part.isMoving = false
+    part.downloadId = null
+    part.retryCount = 0
+    part.waitingForSpace = false
+    return true
   }
 
   private fun findDocumentByFilename(folder: DocumentFile, part: DownloadItemPart): DocumentFile? {
