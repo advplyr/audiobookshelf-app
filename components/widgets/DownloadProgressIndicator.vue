@@ -79,9 +79,7 @@ export default {
       this.$store.commit('globals/updateDownloadItemPart', itemPart)
     },
     onQueueChanged(data) {
-      if (data.hasItems === false || (data.hasItems == null && !data.hasWork)) {
-        this.$store.commit('globals/clearItemDownloads')
-      }
+      if (!data.hasWork) this.$store.commit('globals/clearItemDownloads')
     }
   },
   async mounted() {

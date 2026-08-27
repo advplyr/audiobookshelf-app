@@ -185,8 +185,8 @@ object DownloadServiceHost {
     override fun onDownloadItemComplete(jsobj: JSObject) {
       if (bridgeReady) bridgeEmitter.onDownloadItemComplete(jsobj) else deferredCompletions.add(jsobj)
     }
-    override fun onQueueChanged(hasWork: Boolean, hasItems: Boolean) {
-      bridgeEmitter.onQueueChanged(hasWork, hasItems)
+    override fun onQueueChanged(hasWork: Boolean) {
+      bridgeEmitter.onQueueChanged(hasWork)
       service?.onQueueChanged(hasWork)
     }
   }
@@ -195,7 +195,7 @@ object DownloadServiceHost {
     override fun onDownloadItem(downloadItem: DownloadItem) = Unit
     override fun onDownloadItemPartUpdate(downloadItemPart: com.audiobookshelf.app.models.DownloadItemPart) = Unit
     override fun onDownloadItemComplete(jsobj: JSObject) = Unit
-    override fun onQueueChanged(hasWork: Boolean, hasItems: Boolean) = Unit
+    override fun onQueueChanged(hasWork: Boolean) = Unit
   }
 
   private const val NOTIFICATION_PREFERENCES = "download_notifications"

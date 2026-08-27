@@ -52,7 +52,7 @@ class DownloadItemManager(
     fun onDownloadItem(downloadItem: DownloadItem)
     fun onDownloadItemPartUpdate(downloadItemPart: DownloadItemPart)
     fun onDownloadItemComplete(jsobj: JSObject)
-    fun onQueueChanged(hasWork: Boolean, hasItems: Boolean)
+    fun onQueueChanged(hasWork: Boolean)
   }
 
   interface InternalProgressCallback {
@@ -519,7 +519,7 @@ class DownloadItemManager(
   }
 
   private fun notifyQueueChanged() {
-    clientEventEmitter.onQueueChanged(hasWork(), downloadItemQueue.isNotEmpty())
+    clientEventEmitter.onQueueChanged(hasWork())
   }
 
   fun destroy() {

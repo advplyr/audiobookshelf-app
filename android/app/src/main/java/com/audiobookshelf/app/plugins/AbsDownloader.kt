@@ -38,9 +38,8 @@ class AbsDownloader : Plugin() {
     override fun onDownloadItemComplete(jsobj:JSObject) {
       notifyListeners("onItemDownloadComplete", jsobj)
     }
-    override fun onQueueChanged(hasWork: Boolean, hasItems: Boolean) {
-      notifyListeners(
-              "onQueueChanged", JSObject().put("hasWork", hasWork).put("hasItems", hasItems))
+    override fun onQueueChanged(hasWork: Boolean) {
+      notifyListeners("onQueueChanged", JSObject().put("hasWork", hasWork))
     }
   })
 
