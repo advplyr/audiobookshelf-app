@@ -87,52 +87,55 @@ class AbsDownloader : Plugin() {
     Log.d(tag, "Download library item $libraryItemId to folder $localFolderId / episode: $episodeId")
 
     val downloadId = if (episodeId.isEmpty()) libraryItemId else "$libraryItemId-$episodeId"
-    if (downloadItemManager.downloadItemQueue.find { it.id == downloadId } != null) {
-      Log.d(tag, "Download already started for this media entity $downloadId")
-      return call.resolve(JSObject("{\"error\":\"Download already started for this media entity\"}"))
-    }
-
-    apiHandler.getLibraryItemWithProgress(libraryItemId, episodeId) { libraryItem ->
-      if (libraryItem == null) {
-        call.resolve(JSObject("{\"error\":\"Server request failed\"}"))
-      } else {
-        Log.d(tag, "Got library item from server ${libraryItem.id}")
-
-        if (localFolderId == "") {
-          localFolderId = "internal-${libraryItem.mediaType}"
+    DownloadServiceHost.retryExisting(mainActivity, downloadId) { result ->
+      when (result) {
+        DownloadServiceHost.ExistingDownloadResult.RETRIED -> call.resolve()
+        DownloadServiceHost.ExistingDownloadResult.ACTIVE -> {
+          Log.d(tag, "Download already started for this media entity $downloadId")
+          call.resolve(JSObject("{\"error\":\"Download already started for this media entity\"}"))
         }
-        var localFolder = DeviceManager.dbManager.getLocalFolder(localFolderId)
-
-        if (localFolder == null && localFolderId.startsWith("internal-")) {
-          Log.d(tag, "Creating new App Storage internal LocalFolder $localFolderId")
-          localFolder = LocalFolder(localFolderId, "Internal App Storage", "", "", "", "internal", libraryItem.mediaType)
-          DeviceManager.dbManager.saveLocalFolder(localFolder)
-        }
-
-        if (localFolder != null) {
-          if (episodeId.isNotEmpty() && libraryItem.mediaType != "podcast") {
-            Log.e(tag, "Library item is not a podcast but episode was requested")
-            call.resolve(JSObject("{\"error\":\"Invalid library item not a podcast\"}"))
-          } else if (episodeId.isNotEmpty()) {
-            val podcast = libraryItem.media as Podcast
-            val episode = podcast.episodes?.find { podcastEpisode ->
-              podcastEpisode.id == episodeId
-            }
-            if (episode == null) {
-              call.resolve(JSObject("{\"error\":\"Invalid podcast episode not found\"}"))
+        DownloadServiceHost.ExistingDownloadResult.SERVICE_START_FAILED ->
+                call.resolve(JSObject("{\"error\":\"Unable to start the Android download service\"}"))
+        DownloadServiceHost.ExistingDownloadResult.NOT_FOUND -> {
+          apiHandler.getLibraryItemWithProgress(libraryItemId, episodeId) { libraryItem ->
+            if (libraryItem == null) {
+              call.resolve(JSObject("{\"error\":\"Server request failed\"}"))
             } else {
-              startLibraryItemDownload(libraryItem, localFolder, episode)
-              call.resolve()
+              Log.d(tag, "Got library item from server ${libraryItem.id}")
+
+              if (localFolderId == "") localFolderId = "internal-${libraryItem.mediaType}"
+              var localFolder = DeviceManager.dbManager.getLocalFolder(localFolderId)
+              if (localFolder == null && localFolderId.startsWith("internal-")) {
+                Log.d(tag, "Creating new App Storage internal LocalFolder $localFolderId")
+                localFolder = LocalFolder(localFolderId, "Internal App Storage", "", "", "", "internal", libraryItem.mediaType)
+                DeviceManager.dbManager.saveLocalFolder(localFolder)
+              }
+
+              if (localFolder == null) {
+                call.resolve(JSObject("{\"error\":\"Local Folder Not Found\"}"))
+              } else if (episodeId.isNotEmpty() && libraryItem.mediaType != "podcast") {
+                call.resolve(JSObject("{\"error\":\"Invalid library item not a podcast\"}"))
+              } else if (episodeId.isNotEmpty()) {
+                val podcast = libraryItem.media as Podcast
+                val episode = podcast.episodes?.find { it.id == episodeId }
+                if (episode == null) {
+                  call.resolve(JSObject("{\"error\":\"Invalid podcast episode not found\"}"))
+                } else {
+                  startLibraryItemDownload(libraryItem, localFolder, episode) { error -> resolveDownloadCall(call, error) }
+                }
+              } else {
+                startLibraryItemDownload(libraryItem, localFolder, null) { error -> resolveDownloadCall(call, error) }
+              }
             }
-          } else {
-            startLibraryItemDownload(libraryItem, localFolder, null)
-            call.resolve()
           }
-        } else {
-          call.resolve(JSObject("{\"error\":\"Local Folder Not Found\"}"))
         }
       }
     }
+  }
+
+  private fun resolveDownloadCall(call: PluginCall, error: String?) {
+    if (error == null) call.resolve()
+    else call.resolve(JSObject().put("error", error))
   }
 
   // Item filenames could be the same if they are in sub-folders, this will make them unique
@@ -155,7 +158,12 @@ class AbsDownloader : Plugin() {
     return newTitle
   }
 
-  private fun startLibraryItemDownload(libraryItem: LibraryItem, localFolder: LocalFolder, episode:PodcastEpisode?) {
+  private fun startLibraryItemDownload(
+          libraryItem: LibraryItem,
+          localFolder: LocalFolder,
+          episode: PodcastEpisode?,
+          callback: (String?) -> Unit
+  ) {
     val isInternal = localFolder.id.startsWith("internal-")
 
     val finalInternalFolderPath = "${mainActivity.filesDir}/downloads/${libraryItem.id}"
@@ -224,8 +232,8 @@ class AbsDownloader : Plugin() {
           downloadItem.downloadItemParts.add(downloadItemPart)
         }
 
-        DownloadServiceHost.enqueue(mainActivity, downloadItem)
-      }
+        DownloadServiceHost.enqueue(mainActivity, downloadItem, callback)
+      } else callback("No downloadable files found")
     } else {
       // Podcast episode download
       val podcastTitle = cleanStringForFileSystem(libraryItem.media.metadata.title)
@@ -262,7 +270,7 @@ class AbsDownloader : Plugin() {
         downloadItem.downloadItemParts.add(downloadItemPart)
       }
 
-        DownloadServiceHost.enqueue(mainActivity, downloadItem)
+        DownloadServiceHost.enqueue(mainActivity, downloadItem, callback)
     }
   }
 }

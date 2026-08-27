@@ -1,9 +1,7 @@
 package com.audiobookshelf.app.managers
 
 import android.content.Context
-import android.net.Uri
 import android.util.Log
-import androidx.documentfile.provider.DocumentFile
 import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
@@ -14,7 +12,7 @@ import com.audiobookshelf.app.models.DownloadItem
 import java.io.File
 import java.util.concurrent.TimeUnit
 
-/** Removes terminally failed downloads after their retention window elapses. */
+/** Removes only staging data for terminally failed downloads after their retention window. */
 object IncompleteDownloadCleanup {
   private const val tag = "IncompleteDownloadCleanup"
   private const val RETENTION_MS = 24L * 60L * 60L * 1000L
@@ -22,6 +20,7 @@ object IncompleteDownloadCleanup {
 
   fun schedule(context: Context, item: DownloadItem) {
     val failedAt = item.terminalFailureAt ?: return
+    if (item.stagingCleanupAt != null) return
     val delay = (failedAt + RETENTION_MS - System.currentTimeMillis()).coerceAtLeast(0L)
     val request = OneTimeWorkRequestBuilder<IncompleteDownloadCleanupWorker>()
             .setInitialDelay(delay, TimeUnit.MILLISECONDS)
@@ -34,7 +33,8 @@ object IncompleteDownloadCleanup {
     WorkManager.getInstance(context).cancelUniqueWork(WORK_PREFIX + itemId)
   }
 
-  /** Removes failures retained longer than 24 hours when scheduled work did not run. */
+  /** Cleans staging data retained longer than 24 hours when scheduled work did not run. */
+  @Synchronized
   fun cleanupExpired(context: Context) {
     val now = System.currentTimeMillis()
     DeviceManager.dbManager.getDownloadItems()
@@ -46,6 +46,7 @@ object IncompleteDownloadCleanup {
 
   private fun isEligible(item: DownloadItem, now: Long): Boolean {
     val failedAt = item.terminalFailureAt ?: return false
+    if (item.stagingCleanupAt != null) return false
     if (now - failedAt < RETENTION_MS) return false
     return item.downloadItemParts.all { part ->
       part.moved || (part.failed && !part.isMoving)
@@ -55,21 +56,15 @@ object IncompleteDownloadCleanup {
   private fun deleteItem(context: Context, item: DownloadItem) {
     item.downloadItemParts.forEach { part ->
       deleteAppOwnedFile(context, File(part.destinationPath))
-      if (part.isInternalStorage && part.moved) {
-        deleteAppOwnedFile(context, File(part.finalDestinationPath))
-      } else if (!part.isInternalStorage && part.moved) {
-        part.completedDestinationUri?.let { uriString ->
-          try {
-            DocumentFile.fromSingleUri(context, Uri.parse(uriString))?.delete()
-          } catch (e: Exception) {
-            Log.w(tag, "Could not delete expired SAF document for ${part.filename}", e)
-          }
-        }
+      if (!part.moved) {
+        part.bytesDownloaded = 0L
+        part.completed = false
       }
     }
-    DeviceManager.dbManager.removeDownloadItem(item.id)
+    item.stagingCleanupAt = System.currentTimeMillis()
+    DeviceManager.dbManager.saveDownloadItem(item)
     cancel(context, item.id)
-    Log.i(tag, "Deleted terminally failed download item ${item.id}")
+    Log.i(tag, "Deleted staging files for terminally failed download item ${item.id}")
   }
 
   private fun deleteAppOwnedFile(context: Context, file: File) {

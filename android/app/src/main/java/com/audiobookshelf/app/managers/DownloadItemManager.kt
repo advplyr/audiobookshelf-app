@@ -5,6 +5,7 @@ import android.net.Uri
 import android.os.StatFs
 import android.util.Log
 import androidx.documentfile.provider.DocumentFile
+import com.anggrayudi.storage.file.fullName
 import com.audiobookshelf.app.device.DeviceManager
 import com.audiobookshelf.app.device.FolderScanner
 import com.audiobookshelf.app.models.DownloadItem
@@ -22,7 +23,6 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import okhttp3.Call
 
 /** Manages the process-owned queue for app-managed downloads. */
 class DownloadItemManager(
@@ -32,10 +32,11 @@ class DownloadItemManager(
 ) {
   private val tag = "DownloadItemManager"
   private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-  private val activeCalls = ConcurrentHashMap<String, Call>()
+  private val activeCalls = ConcurrentHashMap<String, InternalDownloadManager.DownloadHandle>()
   private val safFolderLocks = ConcurrentHashMap<String, Any>()
   private val reservations = mutableMapOf<String, Long>()
   private val lastPersistTime = mutableMapOf<String, Long>()
+  private val finalizingItems = mutableSetOf<String>()
   private var watcherRunning = false
   private val jacksonMapper =
           jacksonObjectMapper()
@@ -58,10 +59,6 @@ class DownloadItemManager(
     fun onComplete(failed: Boolean)
   }
 
-  init {
-    IncompleteDownloadCleanup.cleanupExpired(context)
-  }
-
   @Synchronized
   fun setEventEmitter(eventEmitter: DownloadEventEmitter) {
     clientEventEmitter = eventEmitter
@@ -73,6 +70,15 @@ class DownloadItemManager(
   fun restoreQueue() {
     if (downloadItemQueue.isNotEmpty()) return
     DeviceManager.dbManager.getDownloadItems().forEach { item ->
+      item.downloadItemParts.filter { it.moved }.forEach { part ->
+        if (!finalizedFileExists(part)) {
+          Log.w(tag, "Finalized file is missing; resetting ${part.filename}")
+          part.moved = false
+          part.completed = false
+          part.completedDestinationUri = null
+          part.downloadId = null
+        }
+      }
       if (item.isDownloadFinished) {
         downloadItemQueue.add(item)
         checkDownloadItemFinished(item)
@@ -80,19 +86,26 @@ class DownloadItemManager(
       }
       item.downloadItemParts.forEach { part ->
         if (part.moved) return@forEach
-        if (item.terminalFailureAt != null && part.failed) return@forEach
+        if (item.terminalFailureAt != null) {
+          part.downloadId = null
+          part.isMoving = false
+          part.failed = true
+          part.waitingForSpace = false
+          part.bytesDownloaded = File(part.destinationPath).takeIf(File::exists)?.length() ?: 0L
+          return@forEach
+        }
         part.downloadId = null
         part.isMoving = false
         part.failed = false
-        part.completed = false
         part.waitingForSpace = false
-        part.bytesDownloaded = File(part.destinationPath).takeIf(File::exists)?.length() ?: 0L
+        val stagingLength = File(part.destinationPath).takeIf(File::exists)?.length() ?: 0L
+        part.bytesDownloaded = stagingLength
+        if (part.completed && stagingLength <= 0L) part.completed = false
       }
       downloadItemQueue.add(item)
       if (item.terminalFailureAt != null) IncompleteDownloadCleanup.schedule(context, item)
       clientEventEmitter.onDownloadItem(item)
     }
-    checkUpdateDownloadQueue()
     notifyQueueChanged()
   }
 
@@ -100,39 +113,66 @@ class DownloadItemManager(
   fun addDownloadItem(downloadItem: DownloadItem) {
     val existingItem = downloadItemQueue.find { it.id == downloadItem.id }
     if (existingItem != null) {
-      if (existingItem.terminalFailureAt != null) {
-        retryDownloadItem(existingItem)
-        checkUpdateDownloadQueue()
-        notifyQueueChanged()
-      }
       return
     }
     persist(downloadItem, force = true)
     downloadItemQueue.add(downloadItem)
     clientEventEmitter.onDownloadItem(downloadItem)
+    notifyQueueChanged()
+  }
+
+  @Synchronized
+  fun retryDownloadItem(downloadItemId: String): Boolean {
+    val item = downloadItemQueue.find { it.id == downloadItemId } ?: return false
+    if (item.downloadItemParts.any { it in currentDownloadItemParts }) return false
+    if (item.isDownloadFinished) return false
+    synchronized(IncompleteDownloadCleanup) {
+      item.terminalFailureAt = null
+      item.stagingCleanupAt = null
+      IncompleteDownloadCleanup.cancel(context, item.id)
+      item.downloadItemParts.filter { !it.moved }.forEach { part ->
+        part.failed = false
+        part.isMoving = false
+        part.downloadId = null
+        part.retryCount = 0
+        part.waitingForSpace = false
+        val stagingLength = File(part.destinationPath).takeIf(File::exists)?.length() ?: 0L
+        part.bytesDownloaded = stagingLength
+        part.completed = part.completed && stagingLength > 0L
+      }
+      persist(item, force = true)
+    }
+    clientEventEmitter.onDownloadItem(item)
+    notifyQueueChanged()
+    return true
+  }
+
+  @Synchronized
+  fun resumeWork() {
     checkUpdateDownloadQueue()
     notifyQueueChanged()
   }
 
-  private fun retryDownloadItem(item: DownloadItem) {
-    item.terminalFailureAt = null
-    IncompleteDownloadCleanup.cancel(context, item.id)
-    item.downloadItemParts.filter { it.failed }.forEach { part ->
-      part.failed = false
-      part.completed = false
-      part.isMoving = false
-      part.downloadId = null
-      part.retryCount = 0
-    }
-    persist(item, force = true)
-  }
-
   @Synchronized
   fun cancelAll() {
-    activeCalls.values.forEach(Call::cancel)
+    activeCalls.values.forEach(InternalDownloadManager.DownloadHandle::cancel)
     activeCalls.clear()
     downloadItemQueue.forEach { item ->
-      item.downloadItemParts.forEach { part -> File(part.destinationPath).delete() }
+      item.downloadItemParts.forEach { part ->
+        File(part.destinationPath).delete()
+        if (part.moved && part.isInternalStorage) {
+          File(part.finalDestinationPath).delete()
+        } else if (part.moved) {
+          part.completedDestinationUri?.let { uri ->
+            try {
+              DocumentFile.fromSingleUri(context, Uri.parse(uri))?.delete()
+            } catch (e: Exception) {
+              Log.w(tag, "Could not delete cancelled SAF file ${part.filename}", e)
+            }
+          }
+        }
+      }
+      IncompleteDownloadCleanup.cancel(context, item.id)
       DeviceManager.dbManager.removeDownloadItem(item.id)
     }
     currentDownloadItemParts.clear()
@@ -145,14 +185,26 @@ class DownloadItemManager(
   fun hasWork(): Boolean =
           downloadItemQueue.any { item ->
             item.downloadItemParts.any { part ->
-              (!part.completed && !part.failed) || part.isMoving
+              (!part.moved && !part.failed) || part.isMoving
             }
           }
 
   @Synchronized
   private fun checkUpdateDownloadQueue() {
     downloadItemQueue.toList().forEach { item ->
-      val slots = MAX_SIMULTANEOUS_DOWNLOADS - currentDownloadItemParts.size
+      var slots = MAX_SIMULTANEOUS_DOWNLOADS - currentDownloadItemParts.size
+      if (slots <= 0) return@forEach
+      item.downloadItemParts
+              .filter { part ->
+                part.completed && !part.moved && !part.failed && !part.isMoving &&
+                        part !in currentDownloadItemParts && File(part.destinationPath).exists()
+              }
+              .take(slots)
+              .forEach { part ->
+                currentDownloadItemParts.add(part)
+                part.downloadId = APP_MANAGED_DOWNLOAD_ID
+              }
+      slots = MAX_SIMULTANEOUS_DOWNLOADS - currentDownloadItemParts.size
       if (slots <= 0) return@forEach
       item.getNextDownloadItemParts(slots).forEach { part ->
         val existingFile = findSharedStorageFile(part)
@@ -189,7 +241,7 @@ class DownloadItemManager(
             else
                     DeviceManager.getServerConnectionConfig(item.serverConnectionConfigId)?.token
                             ?: DeviceManager.token
-    activeCalls[part.id] =
+    val handle =
             InternalDownloadManager(
                             stagingFile,
                             part.fileSize,
@@ -216,8 +268,10 @@ class DownloadItemManager(
                               }
                             },
                             { hasAvailableSpace(part) }
-                    )
-                    .download(serverUrl(item, part), token)
+                    ).download(serverUrl(item, part), token)
+    if (part in currentDownloadItemParts && !part.completed && !part.failed) {
+      activeCalls[part.id] = handle
+    }
   }
 
   @Synchronized
@@ -277,6 +331,7 @@ class DownloadItemManager(
       part.completed = false
       part.downloadId = null
       item.terminalFailureAt = item.terminalFailureAt ?: System.currentTimeMillis()
+      item.stagingCleanupAt = null
       persist(item, force = true)
       IncompleteDownloadCleanup.schedule(context, item)
       notifyQueueChanged()
@@ -341,13 +396,13 @@ class DownloadItemManager(
         }
         if (temporary.length() != staging.length())
                 throw IllegalStateException("SAF copy size mismatch")
-        val existing = folder.findFile(part.filename)
+        val existing = findDocumentByFilename(folder, part)
         if (existing != null && !existing.delete())
                 throw IllegalStateException("Could not replace existing file")
         if (!temporary.renameTo(part.filename))
                 throw IllegalStateException("Could not finalize SAF temporary file")
         val destination =
-                folder.findFile(part.filename)
+                findDocumentByFilename(folder, part)
                         ?: throw IllegalStateException("Could not reopen finalized SAF file")
         if (destination.length() != staging.length())
                 throw IllegalStateException("SAF final size mismatch")
@@ -380,8 +435,10 @@ class DownloadItemManager(
     checkDownloadItemFinished(item)
   }
 
+  @Synchronized
   private fun checkDownloadItemFinished(item: DownloadItem) {
-    if (!item.isDownloadFinished) return
+    if (!item.isDownloadFinished || !finalizingItems.add(item.id)) return
+    IncompleteDownloadCleanup.cancel(context, item.id)
     scope.launch {
       folderScanner.scanDownloadItem(item) { scanResult ->
         val event =
@@ -397,6 +454,7 @@ class DownloadItemManager(
                 }
         clientEventEmitter.onDownloadItemComplete(event)
         synchronized(this@DownloadItemManager) {
+          finalizingItems.remove(item.id)
           downloadItemQueue.remove(item)
           DeviceManager.dbManager.removeDownloadItem(item.id)
           notifyQueueChanged()
@@ -457,7 +515,7 @@ class DownloadItemManager(
   }
 
   fun destroy() {
-    activeCalls.values.forEach(Call::cancel)
+    activeCalls.values.forEach(InternalDownloadManager.DownloadHandle::cancel)
     activeCalls.clear()
     scope.cancel()
   }
@@ -479,11 +537,42 @@ class DownloadItemManager(
       if (segment == "." || segment == "..") return null
       folder = folder.findFile(segment) ?: return null
     }
-    val file = folder.findFile(part.filename) ?: return null
+    val file = findDocumentByFilename(folder, part) ?: return null
     if (!file.isFile) return null
     if (part.fileSize > 0L && file.length() != part.fileSize) return null
     if (part.fileSize <= 0L && file.length() <= 0L) return null
     return file
+  }
+
+  private fun finalizedFileExists(part: DownloadItemPart): Boolean {
+    if (part.isInternalStorage) {
+      val file = File(part.finalDestinationPath)
+      return file.isFile &&
+              if (part.fileSize > 0L) file.length() == part.fileSize else file.length() > 0L
+    }
+    part.completedDestinationUri?.let { uri ->
+      try {
+        val file = DocumentFile.fromSingleUri(context, Uri.parse(uri))
+        if (file?.isFile == true &&
+                        (part.fileSize <= 0L || file.length() == part.fileSize)) return true
+      } catch (e: Exception) {
+        Log.w(tag, "Could not validate SAF file ${part.filename}", e)
+      }
+    }
+    return findSharedStorageFile(part) != null
+  }
+
+  private fun findDocumentByFilename(folder: DocumentFile, part: DownloadItemPart): DocumentFile? {
+    folder.findFile(part.filename)?.let { return it }
+    val expectedBaseName = part.filename.substringBeforeLast('.')
+    return folder.listFiles().firstOrNull { document ->
+      document.name == part.filename ||
+              document.fullName == part.filename ||
+              (part.audioTrack != null && document.isFile &&
+                      (document.name ?: "").substringBeforeLast('.') == expectedBaseName) ||
+              (part.audioTrack != null && document.isFile &&
+                      document.fullName.substringBeforeLast('.') == expectedBaseName)
+    }
   }
 
   private fun mimeTypeFor(part: DownloadItemPart): String =
