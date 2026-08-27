@@ -34,6 +34,7 @@ class DownloadItemManager(
   private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
   private val activeCalls = ConcurrentHashMap<String, InternalDownloadManager.DownloadHandle>()
   private val safFolderLocks = ConcurrentHashMap<String, Any>()
+  private val scanLocks = ConcurrentHashMap<String, Any>()
   private val reservations = mutableMapOf<String, Long>()
   private val lastPersistTime = mutableMapOf<String, Long>()
   private val finalizingItems = mutableSetOf<String>()
@@ -51,7 +52,7 @@ class DownloadItemManager(
     fun onDownloadItem(downloadItem: DownloadItem)
     fun onDownloadItemPartUpdate(downloadItemPart: DownloadItemPart)
     fun onDownloadItemComplete(jsobj: JSObject)
-    fun onQueueChanged(hasWork: Boolean)
+    fun onQueueChanged(hasWork: Boolean, hasItems: Boolean)
   }
 
   interface InternalProgressCallback {
@@ -77,6 +78,7 @@ class DownloadItemManager(
           part.completed = false
           part.completedDestinationUri = null
           part.downloadId = null
+          part.reusedExistingFile = false
         }
       }
       if (item.isDownloadFinished) {
@@ -153,9 +155,9 @@ class DownloadItemManager(
     downloadItemQueue.forEach { item ->
       item.downloadItemParts.forEach { part ->
         File(part.destinationPath).delete()
-        if (part.moved && part.isInternalStorage) {
+        if (part.moved && !part.reusedExistingFile && part.isInternalStorage) {
           File(part.finalDestinationPath).delete()
-        } else if (part.moved) {
+        } else if (part.moved && !part.reusedExistingFile) {
           part.completedDestinationUri?.let { uri ->
             try {
               DocumentFile.fromSingleUri(context, Uri.parse(uri))?.delete()
@@ -176,7 +178,7 @@ class DownloadItemManager(
 
   @Synchronized
   fun hasWork(): Boolean =
-          downloadItemQueue.any { item ->
+          finalizingItems.isNotEmpty() || downloadItemQueue.any { item ->
             item.downloadItemParts.any { part ->
               (!part.moved && !part.failed) || part.isMoving
             }
@@ -190,7 +192,8 @@ class DownloadItemManager(
       item.downloadItemParts
               .filter { part ->
                 part.completed && !part.moved && !part.failed && !part.isMoving &&
-                        part !in currentDownloadItemParts && File(part.destinationPath).exists()
+                        part !in currentDownloadItemParts && File(part.destinationPath).exists() &&
+                        !hasActiveDestinationConflict(part)
               }
               .take(slots)
               .forEach { part ->
@@ -205,9 +208,17 @@ class DownloadItemManager(
           part.bytesDownloaded = existingFile.length()
           part.progress = 100L
           part.completedDestinationUri = existingFile.uri.toString()
+          part.reusedExistingFile = true
           File(part.destinationPath).delete()
           completePart(item, part)
           clientEventEmitter.onDownloadItemPartUpdate(part)
+          return@forEach
+        }
+        if (completeFromExistingInternalCover(item, part)) return@forEach
+        if (hasActiveDestinationConflict(part)) {
+          leaveQueued(item, part)
+        } else if (part.fileSize <= 0L && currentDownloadItemParts.any { it.fileSize <= 0L }) {
+          leaveQueued(item, part)
         } else if (tryReserve(part)) startDownload(item, part)
         else {
           part.waitingForSpace = true
@@ -327,6 +338,7 @@ class DownloadItemManager(
       item.stagingCleanupAt = null
       persist(item, force = true)
       IncompleteDownloadCleanup.schedule(context, item)
+      clientEventEmitter.onDownloadItemPartUpdate(part)
       notifyQueueChanged()
       return
     }
@@ -335,6 +347,7 @@ class DownloadItemManager(
     part.downloadId = null
     part.isMoving = false
     persist(item, force = true)
+    clientEventEmitter.onDownloadItemPartUpdate(part)
   }
 
   private fun finalizeInternalFile(item: DownloadItem, part: DownloadItemPart) {
@@ -433,31 +446,33 @@ class DownloadItemManager(
     if (!item.isDownloadFinished || !finalizingItems.add(item.id)) return
     IncompleteDownloadCleanup.cancel(context, item.id)
     scope.launch {
-      folderScanner.scanDownloadItem(item) { scanResult ->
-        val event =
-                JSObject().apply {
-                  put("libraryItemId", item.id)
-                  put("localFolderId", item.localFolder.id)
-                  scanResult?.localLibraryItem?.let {
-                    put("localLibraryItem", JSObject(jacksonMapper.writeValueAsString(it)))
+      val scanLock = scanLocks.computeIfAbsent(scanDestinationKey(item)) { Any() }
+      synchronized(scanLock) {
+        folderScanner.scanDownloadItem(item) { scanResult ->
+          val event =
+                  JSObject().apply {
+                    put("libraryItemId", item.id)
+                    put("localFolderId", item.localFolder.id)
+                    scanResult?.localLibraryItem?.let {
+                      put("localLibraryItem", JSObject(jacksonMapper.writeValueAsString(it)))
+                    }
+                    scanResult?.localMediaProgress?.let {
+                      put("localMediaProgress", JSObject(jacksonMapper.writeValueAsString(it)))
+                    }
                   }
-                  scanResult?.localMediaProgress?.let {
-                    put("localMediaProgress", JSObject(jacksonMapper.writeValueAsString(it)))
-                  }
-                }
-        clientEventEmitter.onDownloadItemComplete(event)
-        synchronized(this@DownloadItemManager) {
-          finalizingItems.remove(item.id)
-          downloadItemQueue.remove(item)
-          DeviceManager.dbManager.removeDownloadItem(item.id)
-          notifyQueueChanged()
+          clientEventEmitter.onDownloadItemComplete(event)
+          synchronized(this@DownloadItemManager) {
+            finalizingItems.remove(item.id)
+            downloadItemQueue.remove(item)
+            DeviceManager.dbManager.removeDownloadItem(item.id)
+            notifyQueueChanged()
+          }
         }
       }
     }
   }
 
   private fun tryReserve(part: DownloadItemPart): Boolean {
-    if (part.fileSize <= 0L && currentDownloadItemParts.any { it.fileSize <= 0L }) return false
     val staging = File(part.destinationPath)
     staging.parentFile?.mkdirs()
     val expectedSize = if (part.fileSize > 0L) part.fileSize else UNKNOWN_PART_RESERVATION_BYTES
@@ -504,7 +519,7 @@ class DownloadItemManager(
   }
 
   private fun notifyQueueChanged() {
-    clientEventEmitter.onQueueChanged(hasWork())
+    clientEventEmitter.onQueueChanged(hasWork(), downloadItemQueue.isNotEmpty())
   }
 
   fun destroy() {
@@ -536,6 +551,40 @@ class DownloadItemManager(
     if (part.fileSize <= 0L && file.length() <= 0L) return null
     return file
   }
+
+  private fun completeFromExistingInternalCover(
+          item: DownloadItem,
+          part: DownloadItemPart
+  ): Boolean {
+    if (!part.isInternalStorage || !part.serverPath.endsWith("/cover")) return false
+    val file = File(part.finalDestinationPath)
+    if (!file.isFile || file.length() <= 0L) return false
+    if (part.fileSize > 0L && file.length() != part.fileSize) return false
+    part.bytesDownloaded = file.length()
+    part.progress = 100L
+    part.reusedExistingFile = true
+    File(part.destinationPath).delete()
+    completePart(item, part)
+    clientEventEmitter.onDownloadItemPartUpdate(part)
+    return true
+  }
+
+  private fun hasActiveDestinationConflict(part: DownloadItemPart): Boolean =
+          currentDownloadItemParts.any { activePart ->
+            activePart !== part && activePart.localFolderId == part.localFolderId &&
+                    activePart.finalDestinationPath == part.finalDestinationPath
+          }
+
+  private fun leaveQueued(item: DownloadItem, part: DownloadItemPart) {
+    if (!part.waitingForSpace) return
+    part.waitingForSpace = false
+    part.downloadId = null
+    persist(item)
+    clientEventEmitter.onDownloadItemPartUpdate(part)
+  }
+
+  private fun scanDestinationKey(item: DownloadItem): String =
+          "${item.localFolder.id}:${item.itemFolderPath}"
 
   private fun finalizedFileExists(part: DownloadItemPart): Boolean {
     if (part.isInternalStorage) {
@@ -571,6 +620,7 @@ class DownloadItemManager(
     part.downloadId = null
     part.retryCount = 0
     part.waitingForSpace = false
+    part.reusedExistingFile = false
     return true
   }
 
