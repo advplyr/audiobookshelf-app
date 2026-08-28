@@ -66,6 +66,7 @@ class InternalDownloadManager(
             "Starting ${if (existingBytes > 0L) "resumed" else "new"} download for ${destinationFile.name} at byte $existingBytes")
     if (expectedSize > 0L && existingBytes == expectedSize) {
       progressCallback.onProgress(existingBytes, 100L)
+      AbsLogger.info(tag, "Download completed for ${destinationFile.name} ($existingBytes bytes)")
       progressCallback.onComplete(false)
       return
     }
@@ -103,6 +104,7 @@ class InternalDownloadManager(
                                       ?.toLongOrNull()
                       if (serverSize != null && serverSize > 0L && existingBytes == serverSize) {
                         progressCallback.onProgress(existingBytes, 100L)
+                        AbsLogger.info(tag, "Download completed for ${destinationFile.name} ($existingBytes bytes)")
                         progressCallback.onComplete(false)
                       } else if (allowRestart && destinationFile.delete()) {
                         AbsLogger.info(tag, "Restarting stale range from byte zero for ${destinationFile.name}")
@@ -162,6 +164,10 @@ class InternalDownloadManager(
                       )
                       progressCallback.onComplete(true)
                     } else {
+                      AbsLogger.info(
+                              tag,
+                              "Download completed for ${destinationFile.name} (${destinationFile.length()} bytes)"
+                      )
                       progressCallback.onComplete(false)
                     }
                   } catch (e: IOException) {
