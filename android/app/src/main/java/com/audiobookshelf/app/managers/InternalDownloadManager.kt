@@ -1,6 +1,6 @@
 package com.audiobookshelf.app.managers
 
-import android.util.Log
+import com.audiobookshelf.app.plugins.AbsLogger
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
@@ -61,6 +61,9 @@ class InternalDownloadManager(
           allowRestart: Boolean
   ) {
     var existingBytes = destinationFile.takeIf { it.exists() }?.length() ?: 0L
+    AbsLogger.info(
+            tag,
+            "Starting ${if (existingBytes > 0L) "resumed" else "new"} download for ${destinationFile.name} at byte $existingBytes")
     if (expectedSize > 0L && existingBytes == expectedSize) {
       progressCallback.onProgress(existingBytes, 100L)
       progressCallback.onComplete(false)
@@ -68,7 +71,7 @@ class InternalDownloadManager(
     }
     if (expectedSize > 0L && existingBytes > expectedSize) {
       if (!destinationFile.delete()) {
-        Log.e(tag, "Could not delete oversized staging file ${destinationFile.name}")
+        AbsLogger.error(tag, "Could not delete oversized staging file ${destinationFile.name}")
         progressCallback.onComplete(true)
         return
       }
@@ -86,7 +89,7 @@ class InternalDownloadManager(
     call.enqueue(
             object : Callback {
               override fun onFailure(call: Call, e: IOException) {
-                Log.e(tag, "Download URL failed", e)
+                AbsLogger.error(tag, "Download request failed for ${destinationFile.name}: ${e.message}")
                 progressCallback.onComplete(true)
               }
 
@@ -102,10 +105,10 @@ class InternalDownloadManager(
                         progressCallback.onProgress(existingBytes, 100L)
                         progressCallback.onComplete(false)
                       } else if (allowRestart && destinationFile.delete()) {
-                        Log.w(tag, "Restarting stale range from byte zero")
+                        AbsLogger.info(tag, "Restarting stale range from byte zero for ${destinationFile.name}")
                         startRequest(url, token, handle, allowRestart = false)
                       } else {
-                        Log.e(tag, "Could not recover invalid range at offset $existingBytes")
+                        AbsLogger.error(tag, "Could not recover invalid range for ${destinationFile.name} at byte $existingBytes")
                         progressCallback.onComplete(true)
                       }
                       return
@@ -115,15 +118,15 @@ class InternalDownloadManager(
                                     response.code == 206 &&
                                     hasExpectedRange(response, existingBytes)
                     if (existingBytes > 0L && !append && response.code != 200) {
-                      Log.e(
+                      AbsLogger.error(
                               tag,
-                              "Invalid resume response ${response.code} for offset $existingBytes"
+                              "Invalid resume response ${response.code} for ${destinationFile.name} at byte $existingBytes"
                       )
                       progressCallback.onComplete(true)
                       return
                     }
                     if (!response.isSuccessful || response.body == null) {
-                      Log.e(tag, "Download HTTP failure ${response.code}")
+                      AbsLogger.error(tag, "Download HTTP failure ${response.code} for ${destinationFile.name}")
                       progressCallback.onComplete(true)
                       return
                     }
@@ -153,16 +156,16 @@ class InternalDownloadManager(
                     }
 
                     if (expectedSize > 0L && destinationFile.length() != expectedSize) {
-                      Log.e(
+                      AbsLogger.error(
                               tag,
-                              "Downloaded size ${destinationFile.length()} did not match $expectedSize"
+                              "Downloaded size for ${destinationFile.name} was ${destinationFile.length()}, expected $expectedSize"
                       )
                       progressCallback.onComplete(true)
                     } else {
                       progressCallback.onComplete(false)
                     }
                   } catch (e: IOException) {
-                    Log.e(tag, "Could not write staging file", e)
+                    AbsLogger.error(tag, "Could not write staging file ${destinationFile.name}: ${e.message}")
                     progressCallback.onComplete(true)
                   }
                 }

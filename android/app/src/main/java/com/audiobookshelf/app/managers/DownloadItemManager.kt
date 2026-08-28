@@ -3,12 +3,12 @@ package com.audiobookshelf.app.managers
 import android.content.Context
 import android.net.Uri
 import android.os.StatFs
-import android.util.Log
 import androidx.documentfile.provider.DocumentFile
 import com.audiobookshelf.app.device.DeviceManager
 import com.audiobookshelf.app.device.FolderScanner
 import com.audiobookshelf.app.models.DownloadItem
 import com.audiobookshelf.app.models.DownloadItemPart
+import com.audiobookshelf.app.plugins.AbsLogger
 import com.fasterxml.jackson.core.json.JsonReadFeature
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.getcapacitor.JSObject
@@ -72,7 +72,7 @@ class DownloadItemManager(
     DeviceManager.dbManager.getDownloadItems().forEach { item ->
       item.downloadItemParts.filter { it.moved }.forEach { part ->
         if (!finalizedFileExists(part)) {
-          Log.w(tag, "Finalized file is missing; resetting ${part.filename}")
+          AbsLogger.error(tag, "Finalized file is missing; resetting ${part.filename}")
           part.moved = false
           part.completed = false
           part.completedDestinationUri = null
@@ -161,7 +161,10 @@ class DownloadItemManager(
             try {
               DocumentFile.fromSingleUri(context, Uri.parse(uri))?.delete()
             } catch (e: Exception) {
-              Log.w(tag, "Could not delete cancelled SAF file ${part.filename}", e)
+              AbsLogger.error(
+                      tag,
+                      "Could not delete cancelled SAF file ${part.filename}: ${e.message}"
+              )
             }
           }
         }
@@ -177,11 +180,12 @@ class DownloadItemManager(
 
   @Synchronized
   fun hasWork(): Boolean =
-          finalizingItems.isNotEmpty() || downloadItemQueue.any { item ->
-            item.downloadItemParts.any { part ->
-              (!part.moved && !part.failed) || part.isMoving
-            }
-          }
+          finalizingItems.isNotEmpty() ||
+                  downloadItemQueue.any { item ->
+                    item.downloadItemParts.any { part ->
+                      (!part.moved && !part.failed) || part.isMoving
+                    }
+                  }
 
   @Synchronized
   private fun checkUpdateDownloadQueue() {
@@ -190,8 +194,12 @@ class DownloadItemManager(
       if (slots <= 0) return@forEach
       item.downloadItemParts
               .filter { part ->
-                part.completed && !part.moved && !part.failed && !part.isMoving &&
-                        part !in currentDownloadItemParts && File(part.destinationPath).exists() &&
+                part.completed &&
+                        !part.moved &&
+                        !part.failed &&
+                        !part.isMoving &&
+                        part !in currentDownloadItemParts &&
+                        File(part.destinationPath).exists() &&
                         !hasActiveDestinationConflict(part)
               }
               .take(slots)
@@ -238,6 +246,7 @@ class DownloadItemManager(
     part.lastUpdateTime = System.currentTimeMillis()
     currentDownloadItemParts.add(part)
     persist(item, force = true)
+    AbsLogger.info(tag, "Starting download for ${part.filename}")
     val activeConfig = DeviceManager.serverConnectionConfig
     val token =
             if (activeConfig?.id == item.serverConnectionConfigId) activeConfig.token
@@ -271,7 +280,8 @@ class DownloadItemManager(
                               }
                             },
                             { hasAvailableSpace(part) }
-                    ).download(serverUrl(item, part), token)
+                    )
+                    .download(serverUrl(item, part), token)
     if (part in currentDownloadItemParts && !part.completed && !part.failed) {
       activeCalls[part.id] = handle
     }
@@ -310,7 +320,7 @@ class DownloadItemManager(
     if (!part.completed && !part.failed) {
       val lastUpdate = part.lastUpdateTime ?: return
       if (System.currentTimeMillis() - lastUpdate > STALL_TIMEOUT_MS) {
-        Log.w(tag, "Download stalled: ${part.filename}")
+        AbsLogger.error(tag, "Download stalled: ${part.filename}")
         activeCalls.remove(part.id)?.cancel()
         failOrRetry(item, part, "Download stalled")
       }
@@ -329,7 +339,7 @@ class DownloadItemManager(
     part.retryCount += 1
     reservations.remove(part.destinationPath)
     if (part.retryCount > MAX_RETRIES) {
-      Log.e(tag, "$reason after $MAX_RETRIES retries: ${part.filename}")
+      AbsLogger.error(tag, "$reason after $MAX_RETRIES retries: ${part.filename}")
       part.failed = true
       part.completed = false
       part.downloadId = null
@@ -411,7 +421,7 @@ class DownloadItemManager(
                         ?: throw IllegalStateException("Could not reopen finalized SAF file")
         if (destination.length() != staging.length())
                 throw IllegalStateException("SAF final size mismatch")
-        if (!staging.delete()) Log.w(tag, "Could not remove staging file ${staging.name}")
+        if (!staging.delete()) AbsLogger.error(tag, "Could not remove staging file ${staging.name}")
         part.completedDestinationUri = destination.uri.toString()
         completePart(item, part)
       } catch (e: Exception) {
@@ -422,7 +432,7 @@ class DownloadItemManager(
 
   @Synchronized
   private fun failFinalization(item: DownloadItem, part: DownloadItemPart, message: String) {
-    Log.e(tag, message)
+    AbsLogger.error(tag, message)
     part.isMoving = false
     part.failed = true
     failOrRetry(item, part, message)
@@ -562,6 +572,7 @@ class DownloadItemManager(
     part.bytesDownloaded = file.length()
     part.progress = 100L
     part.reusedExistingFile = true
+    AbsLogger.info(tag, "Reusing existing cover ${part.filename}")
     File(part.destinationPath).delete()
     completePart(item, part)
     clientEventEmitter.onDownloadItemPartUpdate(part)
@@ -570,7 +581,8 @@ class DownloadItemManager(
 
   private fun hasActiveDestinationConflict(part: DownloadItemPart): Boolean =
           currentDownloadItemParts.any { activePart ->
-            activePart !== part && activePart.localFolderId == part.localFolderId &&
+            activePart !== part &&
+                    activePart.localFolderId == part.localFolderId &&
                     activePart.finalDestinationPath == part.finalDestinationPath
           }
 
@@ -594,10 +606,10 @@ class DownloadItemManager(
     part.completedDestinationUri?.let { uri ->
       try {
         val file = DocumentFile.fromSingleUri(context, Uri.parse(uri))
-        if (file?.isFile == true &&
-                        (part.fileSize <= 0L || file.length() == part.fileSize)) return true
+        if (file?.isFile == true && (part.fileSize <= 0L || file.length() == part.fileSize))
+                return true
       } catch (e: Exception) {
-        Log.w(tag, "Could not validate SAF file ${part.filename}", e)
+        AbsLogger.error(tag, "Could not validate SAF file ${part.filename}: ${e.message}")
       }
     }
     return findSharedStorageFile(part) != null
@@ -607,7 +619,7 @@ class DownloadItemManager(
   private fun resetPartForFreshDownload(part: DownloadItemPart): Boolean {
     val stagingFile = File(part.destinationPath)
     if (stagingFile.exists() && !stagingFile.delete()) {
-      Log.e(tag, "Could not delete staging file ${part.filename}")
+      AbsLogger.error(tag, "Could not delete staging file ${part.filename}")
       part.failed = true
       return false
     }
@@ -624,11 +636,14 @@ class DownloadItemManager(
   }
 
   private fun findDocumentByFilename(folder: DocumentFile, part: DownloadItemPart): DocumentFile? {
-    folder.findFile(part.filename)?.let { return it }
+    folder.findFile(part.filename)?.let {
+      return it
+    }
     val expectedBaseName = part.filename.substringBeforeLast('.')
     return folder.listFiles().firstOrNull { document ->
       document.name == part.filename ||
-              (part.audioTrack != null && document.isFile &&
+              (part.audioTrack != null &&
+                      document.isFile &&
                       (document.name ?: "").substringBeforeLast('.') == expectedBaseName)
     }
   }

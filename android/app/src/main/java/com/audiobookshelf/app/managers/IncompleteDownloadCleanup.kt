@@ -1,7 +1,6 @@
 package com.audiobookshelf.app.managers
 
 import android.content.Context
-import android.util.Log
 import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
@@ -9,6 +8,7 @@ import androidx.work.Worker
 import androidx.work.WorkerParameters
 import com.audiobookshelf.app.device.DeviceManager
 import com.audiobookshelf.app.models.DownloadItem
+import com.audiobookshelf.app.plugins.AbsLogger
 import java.io.File
 import java.util.concurrent.TimeUnit
 
@@ -64,7 +64,7 @@ object IncompleteDownloadCleanup {
     item.stagingCleanupAt = System.currentTimeMillis()
     DeviceManager.dbManager.saveDownloadItem(item)
     cancel(context, item.id)
-    Log.i(tag, "Deleted staging files for terminally failed download item ${item.id}")
+    AbsLogger.info(tag, "Deleted staging files for terminally failed download item ${item.id}")
   }
 
   private fun deleteAppOwnedFile(context: Context, file: File) {
@@ -72,10 +72,10 @@ object IncompleteDownloadCleanup {
     val internal = context.filesDir.absolutePath
     val external = context.getExternalFilesDir(null)?.absolutePath
     if (path.startsWith(internal) || (external != null && path.startsWith(external))) {
-      if (file.exists() && !file.delete()) Log.w(tag, "Could not delete expired staging file $path")
+      if (file.exists() && !file.delete()) AbsLogger.error(tag, "Could not delete expired staging file $path")
       file.parentFile?.takeIf { it.isDirectory && it.list()?.isEmpty() == true }?.delete()
     } else {
-      Log.w(tag, "Refusing to delete non-app-owned path $path")
+      AbsLogger.error(tag, "Refusing to delete non-app-owned path $path")
     }
   }
 }

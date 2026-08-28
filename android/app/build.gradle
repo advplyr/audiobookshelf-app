@@ -60,9 +60,6 @@ android {
       proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
     }
   }
-  testOptions {
-    unitTests.returnDefaultValues = true
-  }
 }
 
 repositories {
@@ -84,7 +81,6 @@ configurations.configureEach {
 }
 
 dependencies {
-  testImplementation "junit:junit:$junit_version"
   implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
   implementation fileTree(include: ['*.jar'], dir: 'libs')
   implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"

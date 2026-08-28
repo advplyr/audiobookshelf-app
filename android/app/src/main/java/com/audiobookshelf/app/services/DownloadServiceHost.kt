@@ -1,13 +1,13 @@
 package com.audiobookshelf.app.services
 
 import android.content.Context
-import android.util.Log
 import androidx.core.content.ContextCompat
 import com.audiobookshelf.app.device.FolderScanner
 import com.audiobookshelf.app.managers.DbManager
 import com.audiobookshelf.app.managers.DownloadItemManager
 import com.audiobookshelf.app.managers.IncompleteDownloadCleanup
 import com.audiobookshelf.app.models.DownloadItem
+import com.audiobookshelf.app.plugins.AbsLogger
 import com.getcapacitor.JSObject
 import java.util.Collections
 import kotlinx.coroutines.CoroutineScope
@@ -171,7 +171,7 @@ object DownloadServiceHost {
       ContextCompat.startForegroundService(context, DownloadService.intent(context))
       true
     } catch (e: RuntimeException) {
-      Log.e(TAG, "Could not start download foreground service", e)
+      AbsLogger.error(TAG, "Could not start download foreground service: ${e.message}")
       false
     }
   }
