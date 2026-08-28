@@ -834,7 +834,7 @@ class ApiHandler(var ctx:Context) {
                 updateLogs.add("Updated isFinished from ${localMediaProgress.isFinished} to ${mediaProgress.isFinished}")
               }
               if (mediaProgress.ebookProgress != localMediaProgress.ebookProgress) {
-                updateLogs.add("Updated ebookProgress from ${localMediaProgress.isFinished} to ${mediaProgress.isFinished}")
+                updateLogs.add("Updated ebookProgress from ${localMediaProgress.ebookProgress} to ${mediaProgress.ebookProgress}")
               }
               if (updateLogs.isNotEmpty()) {
                 AbsLogger.info("ApiHandler", "syncLocalMediaProgressForUser: Server progress for item \"${mediaProgress.mediaItemId}\" is more recent than local (server lastUpdate=${mediaProgress.lastUpdate}, local lastUpdate=${localMediaProgress.lastUpdate}). ${updateLogs.joinToString()}")
@@ -848,16 +848,50 @@ class ApiHandler(var ctx:Context) {
               }
               DeviceManager.dbManager.saveLocalMediaProgress(localMediaProgress)
               numLocalMediaProgressUpdated++
-            } else if (localMediaProgress.lastUpdate > mediaProgress.lastUpdate && localMediaProgress.ebookLocation != null && localMediaProgress.ebookLocation != mediaProgress.ebookLocation) {
-              // Patch ebook progress to server
-              AbsLogger.info("ApiHandler", "syncLocalMediaProgressForUser: Local progress for ebook item \"${mediaProgress.mediaItemId}\" is more recent than server progress. Local progress last updated ${localMediaProgress.lastUpdate}, server progress last updated ${mediaProgress.lastUpdate}. Sending server request to update ebook progress from ${mediaProgress.ebookProgress} to ${localMediaProgress.ebookProgress}")
-              val endpoint = "/api/me/progress/${localMediaProgress.libraryItemId}"
-              val updatePayload = JSObject()
-              updatePayload.put("ebookLocation", localMediaProgress.ebookLocation)
-              updatePayload.put("ebookProgress", localMediaProgress.ebookProgress)
-              updatePayload.put("lastUpdate", localMediaProgress.lastUpdate)
-              patchRequest(endpoint,updatePayload) {
-                AbsLogger.info("ApiHandler", "syncLocalMediaProgressForUser: Successfully updated server ebook progress for item item \"${mediaProgress.mediaItemId}\"")
+            } else if (localMediaProgress.lastUpdate > mediaProgress.lastUpdate) {
+              // Local progress is more recent than the server's - e.g. the user listened, or marked
+              // the item finished, while offline. Push the local values up so the server (the source
+              // of truth that other devices read, and that would otherwise overwrite this local
+              // progress on the next sync) is not left behind.
+              //
+              // Local lastUpdate is only advanced to "now" when something actually happened locally
+              // (playback save, mark finished, ebook progress); updateFromServerMediaProgress copies
+              // the server timestamp. So a newer local timestamp reliably means real local activity,
+              // and the position values are correct even if the device clock is skewed.
+              val pushLogs = mutableListOf<String>()
+              if (mediaProgress.progress != localMediaProgress.progress) {
+                pushLogs.add("progress ${mediaProgress.progress} -> ${localMediaProgress.progress}")
+              }
+              if (mediaProgress.currentTime != localMediaProgress.currentTime) {
+                pushLogs.add("currentTime ${mediaProgress.currentTime} -> ${localMediaProgress.currentTime}")
+              }
+              if (mediaProgress.isFinished != localMediaProgress.isFinished) {
+                pushLogs.add("isFinished ${mediaProgress.isFinished} -> ${localMediaProgress.isFinished}")
+              }
+              if (localMediaProgress.ebookLocation != null && localMediaProgress.ebookLocation != mediaProgress.ebookLocation) {
+                pushLogs.add("ebookLocation ${mediaProgress.ebookLocation} -> ${localMediaProgress.ebookLocation}")
+              }
+
+              if (pushLogs.isEmpty()) {
+                numLocalMediaProgressUptToDate++
+              } else {
+                AbsLogger.info("ApiHandler", "syncLocalMediaProgressForUser: Local progress for item \"${mediaProgress.mediaItemId}\" is more recent than server (local lastUpdate=${localMediaProgress.lastUpdate}, server lastUpdate=${mediaProgress.lastUpdate}). Sending server update: ${pushLogs.joinToString()}")
+
+                val endpoint = if (localMediaProgress.episodeId.isNullOrEmpty()) "/api/me/progress/${localMediaProgress.libraryItemId}" else "/api/me/progress/${localMediaProgress.libraryItemId}/${localMediaProgress.episodeId}"
+                val updatePayload = JSObject()
+                updatePayload.put("currentTime", localMediaProgress.currentTime)
+                updatePayload.put("progress", localMediaProgress.progress)
+                updatePayload.put("isFinished", localMediaProgress.isFinished)
+                updatePayload.put("duration", localMediaProgress.duration)
+                localMediaProgress.ebookLocation?.let { updatePayload.put("ebookLocation", it) }
+                localMediaProgress.ebookProgress?.let { updatePayload.put("ebookProgress", it) }
+                updatePayload.put("lastUpdate", localMediaProgress.lastUpdate)
+                patchRequest(endpoint, updatePayload) {
+                  AbsLogger.info("ApiHandler", "syncLocalMediaProgressForUser: Successfully pushed local progress to server for item \"${mediaProgress.mediaItemId}\"")
+                }
+
+                MediaEventManager.syncEvent(mediaProgress, "Pushed local progress to server on connection")
+                numLocalMediaProgressUpdated++
               }
             } else {
               numLocalMediaProgressUptToDate++
