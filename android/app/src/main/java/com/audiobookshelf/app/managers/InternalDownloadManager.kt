@@ -47,6 +47,11 @@ class InternalDownloadManager(
               override fun onResponse(call: Call, response: Response) {
                 response.use {
                   try {
+                    if (response.code == 401) {
+                      Log.e(tag, "Download unauthorized (401) - access token likely expired for $url")
+                      progressCallback.onAuthError()
+                      return
+                    }
                     if (response.code == 416 && expectedSize > 0L && existingBytes == expectedSize
                     ) {
                       progressCallback.onProgress(existingBytes, 100L)

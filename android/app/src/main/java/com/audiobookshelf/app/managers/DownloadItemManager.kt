@@ -9,12 +9,14 @@ import com.audiobookshelf.app.device.DeviceManager
 import com.audiobookshelf.app.device.FolderScanner
 import com.audiobookshelf.app.models.DownloadItem
 import com.audiobookshelf.app.models.DownloadItemPart
+import com.audiobookshelf.app.server.ApiHandler
 import com.fasterxml.jackson.core.json.JsonReadFeature
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.getcapacitor.JSObject
 import java.io.File
 import java.io.FileInputStream
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.math.max
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -33,6 +35,8 @@ class DownloadItemManager(
   private val tag = "DownloadItemManager"
   private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
   private val activeCalls = ConcurrentHashMap<String, Call>()
+  private val apiHandler = ApiHandler(context)
+  private val isRefreshingToken = AtomicBoolean(false)
   private val safFolderLocks = ConcurrentHashMap<String, Any>()
   private val reservations = mutableMapOf<String, Long>()
   private val lastPersistTime = mutableMapOf<String, Long>()
@@ -56,6 +60,8 @@ class DownloadItemManager(
   interface InternalProgressCallback {
     fun onProgress(totalBytesWritten: Long, progress: Long)
     fun onComplete(failed: Boolean)
+    /** Transfer returned 401 - the access token expired and needs to be refreshed before retrying. */
+    fun onAuthError()
   }
 
   init {
@@ -123,6 +129,7 @@ class DownloadItemManager(
       part.isMoving = false
       part.downloadId = null
       part.retryCount = 0
+      part.authRetryCount = 0
     }
     persist(item, force = true)
   }
@@ -214,6 +221,13 @@ class DownloadItemManager(
                                   persist(item, force = true)
                                 }
                               }
+
+                              override fun onAuthError() {
+                                synchronized(this@DownloadItemManager) {
+                                  if (part !in currentDownloadItemParts) return
+                                  handleAuthError(item, part)
+                                }
+                              }
                             },
                             { hasAvailableSpace(part) }
                     )
@@ -250,6 +264,12 @@ class DownloadItemManager(
                       removeActivePart(part)
                       return
                     }
+    // Item already latched a terminal failure (e.g. unrecoverable auth) - ignore stale updates for
+    // parts that a watcher iteration captured before the latch.
+    if (item.terminalFailureAt != null) {
+      removeActivePart(part)
+      return
+    }
     if (!part.completed && !part.failed) {
       val lastUpdate = part.lastUpdateTime ?: return
       if (System.currentTimeMillis() - lastUpdate > STALL_TIMEOUT_MS) {
@@ -272,14 +292,7 @@ class DownloadItemManager(
     part.retryCount += 1
     reservations.remove(part.destinationPath)
     if (part.retryCount > MAX_RETRIES) {
-      Log.e(tag, "$reason after $MAX_RETRIES retries: ${part.filename}")
-      part.failed = true
-      part.completed = false
-      part.downloadId = null
-      item.terminalFailureAt = item.terminalFailureAt ?: System.currentTimeMillis()
-      persist(item, force = true)
-      IncompleteDownloadCleanup.schedule(context, item)
-      notifyQueueChanged()
+      markTerminalFailure(item, part, "$reason after $MAX_RETRIES retries")
       return
     }
     part.failed = false
@@ -287,6 +300,86 @@ class DownloadItemManager(
     part.downloadId = null
     part.isMoving = false
     persist(item, force = true)
+  }
+
+  /**
+   * Handles a 401 from the file download endpoint. Unlike [failOrRetry] this does not consume a
+   * transfer retry - the access token simply expired while the item sat in the queue. The part is
+   * parked (downloadId=null, not failed) and a single token refresh is kicked off; on success
+   * [checkUpdateDownloadQueue] restarts the parked part(s) with the fresh token.
+   */
+  @Synchronized
+  private fun handleAuthError(item: DownloadItem, part: DownloadItemPart) {
+    removeActivePart(part)
+    reservations.remove(part.destinationPath)
+    part.downloadId = null
+    part.isMoving = false
+    part.failed = false
+    part.completed = false
+    part.authRetryCount += 1
+
+    if (part.authRetryCount > MAX_AUTH_RETRIES) {
+      markTerminalFailure(item, part, "Download unauthorized - token refresh did not resolve after $MAX_AUTH_RETRIES attempts")
+      return
+    }
+
+    part.lastUpdateTime = System.currentTimeMillis()
+    persist(item, force = true)
+    Log.w(tag, "Download unauthorized (401): ${part.filename} - refreshing auth token (attempt ${part.authRetryCount})")
+    clientEventEmitter.onDownloadItemPartUpdate(part)
+    refreshTokenThenResume()
+  }
+
+  /** Kicks off a single (deduplicated) token refresh and resumes or fails parked parts on the result. */
+  private fun refreshTokenThenResume() {
+    if (!isRefreshingToken.compareAndSet(false, true)) {
+      Log.d(tag, "Auth token refresh already in progress for downloads")
+      return
+    }
+    Log.d(tag, "Requesting auth token refresh for downloads")
+    apiHandler.refreshAuthTokens { newAccessToken ->
+      isRefreshingToken.set(false)
+      synchronized(this@DownloadItemManager) {
+        if (newAccessToken.isNullOrEmpty()) {
+          Log.e(tag, "Auth token refresh for downloads failed - failing parked downloads")
+          failParkedAuthParts()
+        } else {
+          Log.d(tag, "Auth token refresh for downloads succeeded - resuming queue")
+          checkUpdateDownloadQueue()
+        }
+      }
+    }
+  }
+
+  /** Fails parts that were parked awaiting a token refresh which ultimately failed. */
+  @Synchronized
+  private fun failParkedAuthParts() {
+    downloadItemQueue.toList().forEach { item ->
+      item.downloadItemParts
+              .filter {
+                it.authRetryCount > 0 &&
+                        !it.completed &&
+                        !it.failed &&
+                        it.downloadId == null &&
+                        it !in currentDownloadItemParts
+              }
+              .forEach { part -> markTerminalFailure(item, part, "Download unauthorized - auth token refresh failed") }
+    }
+  }
+
+  @Synchronized
+  private fun markTerminalFailure(item: DownloadItem, part: DownloadItemPart, reason: String) {
+    Log.e(tag, "$reason: ${part.filename}")
+    removeActivePart(part)
+    reservations.remove(part.destinationPath)
+    part.failed = true
+    part.completed = false
+    part.downloadId = null
+    part.isMoving = false
+    item.terminalFailureAt = item.terminalFailureAt ?: System.currentTimeMillis()
+    persist(item, force = true)
+    IncompleteDownloadCleanup.schedule(context, item)
+    notifyQueueChanged()
   }
 
   private fun finalizeInternalFile(item: DownloadItem, part: DownloadItemPart) {
@@ -505,6 +598,7 @@ class DownloadItemManager(
     const val WATCH_INTERVAL_MS = 1_000L
     const val STALL_TIMEOUT_MS = 60_000L
     const val MAX_RETRIES = 5
+    const val MAX_AUTH_RETRIES = 2
     const val PERSIST_INTERVAL_MS = 2_000L
     const val MIN_FREE_SPACE_BYTES = 100L * 1024L * 1024L
     const val UNKNOWN_PART_RESERVATION_BYTES = 100L * 1024L * 1024L
