@@ -1429,6 +1429,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackStateHost
       result.sendResult(localBrowseItems)
     } else if (parentMediaId == CONTINUE_ROOT) {
       val localBrowseItems: MutableList<MediaBrowserCompat.MediaItem> = mutableListOf()
+      val localItemsByLId = DeviceManager.dbManager.getLocalLibraryItemsByLId()
       mediaManager.serverItemsInProgress.forEach { itemInProgress ->
         val progress: MediaProgressWrapper?
         val mediaDescription: MediaDescriptionCompat
@@ -1447,12 +1448,10 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackStateHost
 
             // to show download icon
             val localLibraryItem =
-                    DeviceManager.dbManager.getLocalLibraryItemByLId(
-                            itemInProgress.libraryItemWrapper.id
-                    )
+                    localItemsByLId[itemInProgress.libraryItemWrapper.id]
             localLibraryItem?.let { lli ->
               val localEpisode =
-                      (lli.media as Podcast).episodes?.find {
+                      (lli.media as? Podcast)?.episodes?.find {
                         it.serverEpisodeId == itemInProgress.episode.id
                       }
               itemInProgress.episode.localEpisodeId = localEpisode?.id
@@ -1477,9 +1476,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackStateHost
                     }
 
             val localLibraryItem =
-                    DeviceManager.dbManager.getLocalLibraryItemByLId(
-                            itemInProgress.libraryItemWrapper.id
-                    )
+                    localItemsByLId[itemInProgress.libraryItemWrapper.id]
             (itemInProgress.libraryItemWrapper as LibraryItem).localLibraryItemId =
                     localLibraryItem?.id // To show downloaded icon
           }
@@ -1737,6 +1734,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackStateHost
           if (shelf === null) {
             result.sendResult(mutableListOf())
           } else {
+            val localItemsByLId = DeviceManager.dbManager.getLocalLibraryItemsByLId()
             if (shelf.type == "book") {
               val children =
                       (shelf as LibraryShelfBookEntity).entities?.map { libraryItem ->
@@ -1744,8 +1742,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackStateHost
                                 mediaManager.serverUserMediaProgress.find {
                                   it.libraryItemId == libraryItem.id
                                 }
-                        val localLibraryItem =
-                                DeviceManager.dbManager.getLocalLibraryItemByLId(libraryItem.id)
+                        val localLibraryItem = localItemsByLId[libraryItem.id]
                         libraryItem.localLibraryItemId = localLibraryItem?.id
                         val description =
                                 libraryItem.getMediaDescription(progress, ctx, null, false)
@@ -1762,28 +1759,26 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackStateHost
                       }
               val children =
                       episodesWithRecentEpisode?.map { libraryItem ->
-                        libraryItem.media as Podcast
+                        // Non-null by the filter above
+                        val recentEpisode = libraryItem.recentEpisode!!
                         val progress =
                                 mediaManager.serverUserMediaProgress.find {
-                                  it.libraryItemId == libraryItem.libraryId &&
-                                          it.episodeId == libraryItem.recentEpisode?.id
+                                  it.libraryItemId == libraryItem.id &&
+                                          it.episodeId == recentEpisode.id
                                 }
 
                         // to show download icon
-                        val localLibraryItem =
-                                DeviceManager.dbManager.getLocalLibraryItemByLId(
-                                        libraryItem.recentEpisode!!.id
-                                )
+                        val localLibraryItem = localItemsByLId[libraryItem.id]
                         localLibraryItem?.let { lli ->
                           val localEpisode =
-                                  (lli.media as Podcast).episodes?.find {
-                                    it.serverEpisodeId == libraryItem.recentEpisode.id
+                                  (lli.media as? Podcast)?.episodes?.find {
+                                    it.serverEpisodeId == recentEpisode.id
                                   }
-                          libraryItem.recentEpisode.localEpisodeId = localEpisode?.id
+                          recentEpisode.localEpisodeId = localEpisode?.id
                         }
 
                         val description =
-                                libraryItem.recentEpisode.getMediaDescription(
+                                recentEpisode.getMediaDescription(
                                         libraryItem,
                                         progress,
                                         ctx
@@ -1937,14 +1932,14 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackStateHost
           ) {
             items = libraryItems.reversed()
           }
+          val localItemsByLId = DeviceManager.dbManager.getLocalLibraryItemsByLId()
           val children =
                   items.map { libraryItem ->
                     val progress =
                             mediaManager.serverUserMediaProgress.find {
                               it.libraryItemId == libraryItem.id
                             }
-                    val localLibraryItem =
-                            DeviceManager.dbManager.getLocalLibraryItemByLId(libraryItem.id)
+                    val localLibraryItem = localItemsByLId[libraryItem.id]
                     libraryItem.localLibraryItemId = localLibraryItem?.id
                     val description = libraryItem.getMediaDescription(progress, ctx, null, true)
                     MediaBrowserCompat.MediaItem(
@@ -2031,14 +2026,14 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackStateHost
         }
       } else if (mediaIdParts[3] == "AUTHOR") {
         mediaManager.loadAuthorBooksWithAudio(mediaIdParts[2], mediaIdParts[4]) { libraryItems ->
+          val localItemsByLId = DeviceManager.dbManager.getLocalLibraryItemsByLId()
           val children =
                   libraryItems.map { libraryItem ->
                     val progress =
                             mediaManager.serverUserMediaProgress.find {
                               it.libraryItemId == libraryItem.id
                             }
-                    val localLibraryItem =
-                            DeviceManager.dbManager.getLocalLibraryItemByLId(libraryItem.id)
+                    val localLibraryItem = localItemsByLId[libraryItem.id]
                     libraryItem.localLibraryItemId = localLibraryItem?.id
                     if (libraryItem.collapsedSeries != null) {
                       val description =
@@ -2069,14 +2064,14 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackStateHost
           ) {
             items = libraryItems.reversed()
           }
+          val localItemsByLId = DeviceManager.dbManager.getLocalLibraryItemsByLId()
           val children =
                   items.map { libraryItem ->
                     val progress =
                             mediaManager.serverUserMediaProgress.find {
                               it.libraryItemId == libraryItem.id
                             }
-                    val localLibraryItem =
-                            DeviceManager.dbManager.getLocalLibraryItemByLId(libraryItem.id)
+                    val localLibraryItem = localItemsByLId[libraryItem.id]
                     libraryItem.localLibraryItemId = localLibraryItem?.id
                     val description = libraryItem.getMediaDescription(progress, ctx, null, true)
                     if (libraryItem.collapsedSeries != null) {
@@ -2112,14 +2107,14 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackStateHost
         mediaManager.loadLibraryCollectionBooksWithAudio(mediaIdParts[2], mediaIdParts[4]) {
                 libraryItems ->
           Log.d(tag, "Received ${libraryItems.size} collections")
+          val localItemsByLId = DeviceManager.dbManager.getLocalLibraryItemsByLId()
           val children =
                   libraryItems.map { libraryItem ->
                     val progress =
                             mediaManager.serverUserMediaProgress.find {
                               it.libraryItemId == libraryItem.id
                             }
-                    val localLibraryItem =
-                            DeviceManager.dbManager.getLocalLibraryItemByLId(libraryItem.id)
+                    val localLibraryItem = localItemsByLId[libraryItem.id]
                     libraryItem.localLibraryItemId = localLibraryItem?.id
                     val description = libraryItem.getMediaDescription(progress, ctx)
                     MediaBrowserCompat.MediaItem(
@@ -2133,14 +2128,14 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackStateHost
         Log.d(tag, "Loading discovery from library ${mediaIdParts[2]}")
         mediaManager.loadLibraryDiscoveryBooksWithAudio(mediaIdParts[2]) { libraryItems ->
           Log.d(tag, "Received ${libraryItems.size} libraryItems for discovery")
+          val localItemsByLId = DeviceManager.dbManager.getLocalLibraryItemsByLId()
           val children =
                   libraryItems.map { libraryItem ->
                     val progress =
                             mediaManager.serverUserMediaProgress.find {
                               it.libraryItemId == libraryItem.id
                             }
-                    val localLibraryItem =
-                            DeviceManager.dbManager.getLocalLibraryItemByLId(libraryItem.id)
+                    val localLibraryItem = localItemsByLId[libraryItem.id]
                     libraryItem.localLibraryItemId = localLibraryItem?.id
                     val description = libraryItem.getMediaDescription(progress, ctx)
                     MediaBrowserCompat.MediaItem(

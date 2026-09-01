@@ -729,12 +729,14 @@ class MediaManager(private var apiHandler: ApiHandler, var ctx: Context) {
               selectedLibraryItemId = libraryItemWrapper.id
               selectedPodcast = podcast
               val episodes = podcast.episodes?.sortedByDescending { it.publishedAt }
+              // The downloaded podcast is the same for every episode in this loop
+              val localLibraryItem =
+                DeviceManager.dbManager.getLocalLibraryItemByLId(libraryItemWrapper.id)
               val children = episodes?.map { podcastEpisode ->
 
                 val progress = serverUserMediaProgress.find { it.libraryItemId == libraryItemWrapper.id && it.episodeId == podcastEpisode.id }
 
                 // to show download icon
-                val localLibraryItem = DeviceManager.dbManager.getLocalLibraryItemByLId(libraryItemWrapper.id)
                 localLibraryItem?.let { lli ->
                   val localEpisode = (lli.media as Podcast).episodes?.find { it.serverEpisodeId == podcastEpisode.id }
                   podcastEpisode.localEpisodeId = localEpisode?.id
@@ -1019,6 +1021,7 @@ class MediaManager(private var apiHandler: ApiHandler, var ctx: Context) {
         // Books
         if (searchResult.book !== null && searchResult.book!!.isNotEmpty()) {
           Log.d(tag, "searchLocalCache: found ${searchResult.book!!.size} books")
+          val localItemsByLId = DeviceManager.dbManager.getLocalLibraryItemsByLId()
           val children = searchResult.book!!.filter { it.libraryItem.checkHasTracks() }.map { bookResult ->
             val libraryItem = bookResult.libraryItem
 
@@ -1026,7 +1029,7 @@ class MediaManager(private var apiHandler: ApiHandler, var ctx: Context) {
               serverLibraryItems.add(libraryItem)
             }
             val progress = serverUserMediaProgress.find { it.libraryItemId == libraryItem.id }
-            val localLibraryItem = DeviceManager.dbManager.getLocalLibraryItemByLId(libraryItem.id)
+            val localLibraryItem = localItemsByLId[libraryItem.id]
             libraryItem.localLibraryItemId = localLibraryItem?.id
             val description = libraryItem.getMediaDescription(progress, ctx, null, null, "Books (${serverLibrary?.name})")
             MediaBrowserCompat.MediaItem(description, MediaBrowserCompat.MediaItem.FLAG_PLAYABLE)

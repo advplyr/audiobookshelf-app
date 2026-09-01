@@ -26,6 +26,7 @@ import com.audiobookshelf.app.data.LibraryCollection
 import com.audiobookshelf.app.data.LibraryItem
 import com.audiobookshelf.app.data.LibrarySeriesItem
 import com.audiobookshelf.app.data.LocalLibraryItem
+import com.audiobookshelf.app.data.Podcast
 import com.audiobookshelf.app.device.DeviceManager
 import com.audiobookshelf.app.media.MediaManager
 import com.audiobookshelf.app.media.getUriToAbsIconDrawable
@@ -178,12 +179,24 @@ class Media3BrowseItemBuilder(
   }
 
   fun buildContinueListeningItems(): List<MediaItem> {
+    val localItemsByLId = DeviceManager.dbManager.getLocalLibraryItemsByLId()
     return mediaManager.serverItemsInProgress.mapNotNull { inProgressItem ->
       val libraryItem = inProgressItem.libraryItemWrapper as? LibraryItem ?: return@mapNotNull null
       val progress =
         mediaManager.serverUserMediaProgress.find { it.libraryItemId == libraryItem.id && it.episodeId == inProgressItem.episode?.id }
-      inProgressItem.episode?.getMediaItem(libraryItem, progress, context)
-        ?: libraryItem.getMediaItem(progress, context)
+      val localLibraryItem = localItemsByLId[libraryItem.id]
+      val episode = inProgressItem.episode
+      if (episode != null) {
+        // Without the local ids these play from the server even when downloaded
+        episode.localEpisodeId =
+          (localLibraryItem?.media as? Podcast)?.episodes
+            ?.find { it.serverEpisodeId == episode.id }
+            ?.id
+        episode.getMediaItem(libraryItem, progress, context)
+      } else {
+        libraryItem.localLibraryItemId = localLibraryItem?.id
+        libraryItem.getMediaItem(progress, context)
+      }
     }
   }
 
@@ -480,7 +493,7 @@ class Media3BrowseItemBuilder(
   private fun resolveLocalCoverUri(libraryItem: LibraryItem): Uri? {
     val localLibraryItemId = libraryItem.localLibraryItemId ?: return null
     val localLibraryItem =
-      DeviceManager.dbManager.getLocalLibraryItemByLId(localLibraryItemId) ?: return null
+      DeviceManager.dbManager.getLocalLibraryItem(localLibraryItemId) ?: return null
 
     localLibraryItem.coverAbsolutePath?.let { coverPath ->
       val coverFile = File(coverPath)
@@ -555,9 +568,9 @@ class Media3BrowseItemBuilder(
         .mapNotNull { podcastItem ->
           val recentEpisode = podcastItem.recentEpisode ?: return@mapNotNull null
           podcastItem.localLibraryItemId?.let { localId ->
-            val localLibraryItem = DeviceManager.dbManager.getLocalLibraryItemByLId(localId)
+            val localLibraryItem = DeviceManager.dbManager.getLocalLibraryItem(localId)
             val localEpisode =
-              (localLibraryItem?.media as? com.audiobookshelf.app.data.Podcast)?.episodes
+              (localLibraryItem?.media as? Podcast)?.episodes
                 ?.find { it.serverEpisodeId == recentEpisode.id }
             recentEpisode.localEpisodeId = localEpisode?.id
           }

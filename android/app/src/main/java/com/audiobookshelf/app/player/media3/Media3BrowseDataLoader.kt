@@ -215,9 +215,9 @@ class Media3BrowseDataLoader(private val mediaManager: MediaManager) {
     val recentShelf = withSingleItemCallback {
       mediaManager.getLibraryRecentShelfByType(libraryId, "book", it)
     } as? LibraryShelfBookEntity
+    val localItemsByLId = DeviceManager.dbManager.getLocalLibraryItemsByLId()
     return recentShelf?.entities?.map { item ->
-      val localLibraryItem = DeviceManager.dbManager.getLocalLibraryItemByLId(item.id)
-      item.localLibraryItemId = localLibraryItem?.id
+      item.localLibraryItemId = localItemsByLId[item.id]?.id
       item
     } ?: emptyList()
   }
@@ -233,9 +233,9 @@ class Media3BrowseDataLoader(private val mediaManager: MediaManager) {
     val recentShelf = withSingleItemCallback {
       mediaManager.getLibraryRecentShelfByType(libraryId, "podcast", it)
     } as? LibraryShelfPodcastEntity
+    val localItemsByLId = DeviceManager.dbManager.getLocalLibraryItemsByLId()
     return recentShelf?.entities?.map { item ->
-      val localLibraryItem = DeviceManager.dbManager.getLocalLibraryItemByLId(item.id)
-      item.localLibraryItemId = localLibraryItem?.id
+      item.localLibraryItemId = localItemsByLId[item.id]?.id
       item
     } ?: emptyList()
   }
@@ -244,9 +244,9 @@ class Media3BrowseDataLoader(private val mediaManager: MediaManager) {
     val recentShelf = withSingleItemCallback {
       mediaManager.getLibraryRecentShelfByType(libraryId, "episode", it)
     } as? LibraryShelfEpisodeEntity
+    val localItemsByLId = DeviceManager.dbManager.getLocalLibraryItemsByLId()
     return recentShelf?.entities?.map { item ->
-      val localLibraryItem = DeviceManager.dbManager.getLocalLibraryItemByLId(item.id)
-      item.localLibraryItemId = localLibraryItem?.id
+      item.localLibraryItemId = localItemsByLId[item.id]?.id
       item
     } ?: emptyList()
   }

@@ -52,6 +52,15 @@ class DbManager {
     return getLocalLibraryItems().find { it.libraryItemId == libraryItemId }
   }
 
+  /** Indexed so resolving a list of server items costs one scan instead of one per item. */
+  fun getLocalLibraryItemsByLId(mediaType: String? = null): Map<String, LocalLibraryItem> {
+    // Same server item downloaded twice keeps the first, matching getLocalLibraryItemByLId.
+    return getLocalLibraryItems(mediaType)
+            .filter { it.libraryItemId != null }
+            .groupBy { it.libraryItemId!! }
+            .mapValues { it.value.first() }
+  }
+
   fun getLocalLibraryItem(localLibraryItemId: String): LocalLibraryItem? {
     return Paper.book("localLibraryItems").read(localLibraryItemId)
   }
