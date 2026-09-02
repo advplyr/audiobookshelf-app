@@ -64,20 +64,6 @@ class InternalDownloadManager(
     AbsLogger.info(
             tag,
             "Starting ${if (existingBytes > 0L) "resumed" else "new"} download for ${destinationFile.name} at byte $existingBytes")
-    if (expectedSize > 0L && existingBytes == expectedSize) {
-      progressCallback.onProgress(existingBytes, 100L)
-      AbsLogger.info(tag, "Download completed for ${destinationFile.name} ($existingBytes bytes)")
-      progressCallback.onComplete(false)
-      return
-    }
-    if (expectedSize > 0L && existingBytes > expectedSize) {
-      if (!destinationFile.delete()) {
-        AbsLogger.error(tag, "Could not delete oversized staging file ${destinationFile.name}")
-        progressCallback.onComplete(true)
-        return
-      }
-      existingBytes = 0L
-    }
     val request =
             Request.Builder()
                     .url(url)
@@ -107,7 +93,8 @@ class InternalDownloadManager(
                               response.header("Content-Range")
                                       ?.removePrefix("bytes */")
                                       ?.toLongOrNull()
-                      if (serverSize != null && serverSize > 0L && existingBytes == serverSize) {
+                      if (serverSize != null) progressCallback.onSizeResolved(serverSize)
+                      if (serverSize != null && existingBytes == serverSize) {
                         progressCallback.onProgress(existingBytes, 100L)
                         AbsLogger.info(tag, "Download completed for ${destinationFile.name} ($existingBytes bytes)")
                         progressCallback.onComplete(false)
@@ -140,9 +127,12 @@ class InternalDownloadManager(
 
                     val startingBytes = if (append) existingBytes else 0L
                     val responseLength = response.body!!.contentLength()
+                    val serverSize =
+                            if (append) contentRangeTotal(response)
+                            else responseLength.takeIf { it >= 0L }
+                    if (serverSize != null) progressCallback.onSizeResolved(serverSize)
                     val totalLength =
-                            if (expectedSize > 0L) expectedSize
-                            else if (responseLength >= 0L) startingBytes + responseLength else 0L
+                            serverSize ?: if (expectedSize > 0L) expectedSize else 0L
 
                     FileOutputStream(destinationFile, append).use { output ->
                       response.body!!.byteStream().use { input ->
@@ -162,16 +152,17 @@ class InternalDownloadManager(
                       }
                     }
 
-                    if (expectedSize > 0L && destinationFile.length() != expectedSize) {
+                    val downloadedSize = destinationFile.length()
+                    if (serverSize != null && downloadedSize != serverSize) {
                       AbsLogger.error(
                               tag,
-                              "Downloaded size for ${destinationFile.name} was ${destinationFile.length()}, expected $expectedSize"
+                              "Downloaded size for ${destinationFile.name} was $downloadedSize, expected server size $serverSize"
                       )
                       progressCallback.onComplete(true)
                     } else {
                       AbsLogger.info(
                               tag,
-                              "Download completed for ${destinationFile.name} (${destinationFile.length()} bytes)"
+                              "Download completed for ${destinationFile.name} ($downloadedSize bytes)"
                       )
                       progressCallback.onComplete(false)
                     }
@@ -192,9 +183,16 @@ class InternalDownloadManager(
             match.groupValues[2].toLongOrNull()?.let { it >= offset } == true
   }
 
+  private fun contentRangeTotal(response: Response): Long? =
+          CONTENT_RANGE.matchEntire(response.header("Content-Range") ?: "")
+                  ?.groupValues
+                  ?.get(3)
+                  ?.takeUnless { it == "*" }
+                  ?.toLongOrNull()
+
   private companion object {
     const val CHUNK_SIZE = 512 * 1024 // 512 KB
-    val CONTENT_RANGE = Regex("bytes (\\d+)-(\\d+)/(?:\\d+|\\*)")
+    val CONTENT_RANGE = Regex("bytes (\\d+)-(\\d+)/(\\d+|\\*)")
     val client =
             OkHttpClient.Builder()
                     .connectTimeout(30, TimeUnit.SECONDS)

@@ -14,7 +14,7 @@ data class DownloadItemPart(
   val id: String,
   val downloadItemId: String,
   val filename: String,
-  val fileSize: Long,
+  var fileSize: Long,
   @JsonIgnore val destinationPath: String,
   val finalDestinationPath:String,
   val serverPath: String,

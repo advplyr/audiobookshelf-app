@@ -4,13 +4,13 @@ import android.content.Context
 import android.net.Uri
 import android.os.StatFs
 import androidx.documentfile.provider.DocumentFile
+import com.anggrayudi.storage.file.fullName
 import com.audiobookshelf.app.device.DeviceManager
 import com.audiobookshelf.app.device.FolderScanner
 import com.audiobookshelf.app.models.DownloadItem
 import com.audiobookshelf.app.models.DownloadItemPart
 import com.audiobookshelf.app.plugins.AbsLogger
 import com.audiobookshelf.app.server.ApiHandler
-import com.anggrayudi.storage.file.fullName
 import com.fasterxml.jackson.core.json.JsonReadFeature
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.getcapacitor.JSObject
@@ -59,6 +59,7 @@ class DownloadItemManager(
   }
 
   interface InternalProgressCallback {
+    fun onSizeResolved(totalBytes: Long)
     fun onProgress(totalBytesWritten: Long, progress: Long)
     fun onComplete(failed: Boolean)
     fun onAuthError()
@@ -263,6 +264,21 @@ class DownloadItemManager(
                             stagingFile,
                             part.fileSize,
                             object : InternalProgressCallback {
+                              override fun onSizeResolved(totalBytes: Long) {
+                                synchronized(this@DownloadItemManager) {
+                                  if (part !in currentDownloadItemParts || totalBytes < 0L) return
+                                  if (part.fileSize == totalBytes) return
+                                  AbsLogger.info(
+                                          tag,
+                                          "Using server size $totalBytes instead of metadata size ${part.fileSize} for ${part.filename}"
+                                  )
+                                  part.fileSize = totalBytes
+                                  part.lastUpdateTime = System.currentTimeMillis()
+                                  persist(item, force = true)
+                                  clientEventEmitter.onDownloadItemPartUpdate(part)
+                                }
+                              }
+
                               override fun onProgress(totalBytesWritten: Long, progress: Long) {
                                 synchronized(this@DownloadItemManager) {
                                   if (part !in currentDownloadItemParts) return
@@ -395,7 +411,10 @@ class DownloadItemManager(
         if (newAccessToken.isNullOrEmpty()) {
           failParkedAuthParts(serverConnectionConfigId)
         } else {
-          AbsLogger.info(tag, "Token refresh succeeded; resuming downloads for $serverConnectionConfigId")
+          AbsLogger.info(
+                  tag,
+                  "Token refresh succeeded; resuming downloads for $serverConnectionConfigId"
+          )
           checkUpdateDownloadQueue()
         }
       }
