@@ -39,6 +39,8 @@ class DownloadItemManager(
   private val reservations = mutableMapOf<String, Long>()
   private val lastPersistTime = mutableMapOf<String, Long>()
   private val finalizingItems = mutableSetOf<String>()
+  private val refreshingServerIds = mutableSetOf<String>()
+  private val apiHandler = ApiHandler(context)
   private var watcherRunning = false
   private val jacksonMapper =
           jacksonObjectMapper()
@@ -59,6 +61,7 @@ class DownloadItemManager(
   interface InternalProgressCallback {
     fun onProgress(totalBytesWritten: Long, progress: Long)
     fun onComplete(failed: Boolean)
+    fun onAuthError()
   }
 
   @Synchronized
@@ -280,6 +283,13 @@ class DownloadItemManager(
                                   persist(item, force = true)
                                 }
                               }
+
+                              override fun onAuthError() {
+                                synchronized(this@DownloadItemManager) {
+                                  if (part !in currentDownloadItemParts) return
+                                  handleAuthError(item, part)
+                                }
+                              }
                             },
                             { hasAvailableSpace(part) }
                     )
@@ -341,16 +351,7 @@ class DownloadItemManager(
     part.retryCount += 1
     reservations.remove(part.destinationPath)
     if (part.retryCount > MAX_RETRIES) {
-      AbsLogger.error(tag, "$reason after $MAX_RETRIES retries: ${part.filename}")
-      part.failed = true
-      part.completed = false
-      part.downloadId = null
-      item.terminalFailureAt = item.terminalFailureAt ?: System.currentTimeMillis()
-      item.stagingCleanupAt = null
-      persist(item, force = true)
-      IncompleteDownloadCleanup.schedule(context, item)
-      clientEventEmitter.onDownloadItemPartUpdate(part)
-      notifyQueueChanged()
+      markTerminalFailure(item, part, "$reason after $MAX_RETRIES retries")
       return
     }
     part.failed = false
@@ -359,6 +360,81 @@ class DownloadItemManager(
     part.isMoving = false
     persist(item, force = true)
     clientEventEmitter.onDownloadItemPartUpdate(part)
+  }
+
+  /** A 401 refreshes the token for this queued item's server without consuming transfer retries. */
+  @Synchronized
+  private fun handleAuthError(item: DownloadItem, part: DownloadItemPart) {
+    removeActivePart(part)
+    reservations.remove(part.destinationPath)
+    part.downloadId = null
+    part.isMoving = false
+    part.failed = false
+    part.completed = false
+    part.authRetryCount += 1
+    part.lastUpdateTime = System.currentTimeMillis()
+    if (part.authRetryCount > MAX_AUTH_RETRIES) {
+      markTerminalFailure(item, part, "Unauthorized after $MAX_AUTH_RETRIES token refresh attempts")
+      return
+    }
+
+    AbsLogger.info(
+            tag,
+            "Refreshing token after 401 for ${part.filename} (attempt ${part.authRetryCount})"
+    )
+    persist(item, force = true)
+    clientEventEmitter.onDownloadItemPartUpdate(part)
+    refreshTokenThenResume(item.serverConnectionConfigId)
+  }
+
+  private fun refreshTokenThenResume(serverConnectionConfigId: String) {
+    if (!refreshingServerIds.add(serverConnectionConfigId)) return
+    apiHandler.refreshAuthTokens(serverConnectionConfigId) { newAccessToken ->
+      synchronized(this@DownloadItemManager) {
+        refreshingServerIds.remove(serverConnectionConfigId)
+        if (newAccessToken.isNullOrEmpty()) {
+          failParkedAuthParts(serverConnectionConfigId)
+        } else {
+          AbsLogger.info(tag, "Token refresh succeeded; resuming downloads for $serverConnectionConfigId")
+          checkUpdateDownloadQueue()
+        }
+      }
+    }
+  }
+
+  @Synchronized
+  private fun failParkedAuthParts(serverConnectionConfigId: String) {
+    downloadItemQueue.toList().forEach { item ->
+      if (item.serverConnectionConfigId != serverConnectionConfigId) return@forEach
+      item.downloadItemParts
+              .filter {
+                it.authRetryCount > 0 &&
+                        !it.completed &&
+                        !it.failed &&
+                        it.downloadId == null &&
+                        it !in currentDownloadItemParts
+              }
+              .forEach { part ->
+                markTerminalFailure(item, part, "Unable to refresh download authorization")
+              }
+    }
+  }
+
+  @Synchronized
+  private fun markTerminalFailure(item: DownloadItem, part: DownloadItemPart, reason: String) {
+    AbsLogger.error(tag, "$reason: ${part.filename}")
+    removeActivePart(part)
+    reservations.remove(part.destinationPath)
+    part.failed = true
+    part.completed = false
+    part.downloadId = null
+    part.isMoving = false
+    item.terminalFailureAt = item.terminalFailureAt ?: System.currentTimeMillis()
+    item.stagingCleanupAt = null
+    persist(item, force = true)
+    IncompleteDownloadCleanup.schedule(context, item)
+    clientEventEmitter.onDownloadItemPartUpdate(part)
+    notifyQueueChanged()
   }
 
   private fun finalizeInternalFile(item: DownloadItem, part: DownloadItemPart) {
@@ -634,6 +710,7 @@ class DownloadItemManager(
     part.isMoving = false
     part.downloadId = null
     part.retryCount = 0
+    part.authRetryCount = 0
     part.waitingForSpace = false
     part.reusedExistingFile = false
     return true
@@ -673,6 +750,7 @@ class DownloadItemManager(
     const val WATCH_INTERVAL_MS = 1_000L
     const val STALL_TIMEOUT_MS = 60_000L
     const val MAX_RETRIES = 5
+    const val MAX_AUTH_RETRIES = 2
     const val PERSIST_INTERVAL_MS = 2_000L
     const val MIN_FREE_SPACE_BYTES = 100L * 1024L * 1024L
     const val UNKNOWN_PART_RESERVATION_BYTES = 100L * 1024L * 1024L

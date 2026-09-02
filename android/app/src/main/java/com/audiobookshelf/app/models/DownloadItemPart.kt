@@ -38,6 +38,7 @@ data class DownloadItemPart(
   var progress: Long,
   var bytesDownloaded: Long,
   @JsonIgnore var retryCount: Int = 0,
+  @JsonIgnore var authRetryCount: Int = 0,
   @JsonIgnore var waitingForSpace: Boolean = false,
   @JsonIgnore var reusedExistingFile: Boolean = false
 ) {

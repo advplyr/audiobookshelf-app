@@ -97,6 +97,11 @@ class InternalDownloadManager(
               override fun onResponse(call: Call, response: Response) {
                 response.use {
                   try {
+                    if (response.code == 401) {
+                      AbsLogger.error(tag, "Download unauthorized (401) for ${destinationFile.name}")
+                      progressCallback.onAuthError()
+                      return
+                    }
                     if (response.code == 416) {
                       val serverSize =
                               response.header("Content-Range")

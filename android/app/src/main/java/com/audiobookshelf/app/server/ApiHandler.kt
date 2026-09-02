@@ -174,98 +174,90 @@ class ApiHandler(var ctx:Context) {
    * @param callback The callback to return the response
    */
   private fun handleTokenRefresh(originalRequest: Request, httpClient: OkHttpClient?, callback: (JSObject) -> Unit) {
-    try {
-      AbsLogger.info(tag, "handleTokenRefresh: Attempting to refresh auth tokens for server ${DeviceManager.serverConnectionConfigString}")
+    val serverConnectionConfigId = DeviceManager.serverConnectionConfigId
+    refreshAuthTokens(serverConnectionConfigId, httpClient) { newAccessToken ->
+      if (newAccessToken.isNullOrEmpty()) {
+        handleRefreshFailure(callback)
+      } else {
+        retryOriginalRequest(originalRequest, newAccessToken, httpClient, callback)
+      }
+    }
+  }
 
-      // Get current server connection config ID
-      val serverConnectionConfigId = DeviceManager.serverConnectionConfigId
-      if (serverConnectionConfigId.isEmpty()) {
-        AbsLogger.error(tag, "handleTokenRefresh: Unable to refresh auth tokens. No server connection config ID")
-        val errorObj = JSObject()
-        errorObj.put("error", "No server connection available")
-        callback(errorObj)
-        return
+  /** Refreshes tokens for a specific saved server, including downloads queued while another server is active. */
+  fun refreshAuthTokens(
+          serverConnectionConfigId: String,
+          httpClient: OkHttpClient? = null,
+          onResult: (String?) -> Unit
+  ) {
+    val config = DeviceManager.getServerConnectionConfig(serverConnectionConfigId)
+    val refreshToken = secureStorage.getRefreshToken(serverConnectionConfigId)
+    if (config == null || refreshToken.isNullOrEmpty()) {
+      AbsLogger.error(tag, "No refresh token or server configuration for $serverConnectionConfigId")
+      handleDownloadRefreshFailure(serverConnectionConfigId)
+      onResult(null)
+      return
+    }
+    val request = try {
+      Request.Builder()
+              .url("${config.address}/auth/refresh")
+              .addHeader("x-refresh-token", refreshToken)
+              .addHeader("Content-Type", "application/json")
+              .post(EMPTY_REQUEST)
+              .build()
+    } catch (e: Exception) {
+      AbsLogger.error(tag, "Could not create refresh request for ${config.name}: ${e.message}")
+      handleDownloadRefreshFailure(serverConnectionConfigId)
+      onResult(null)
+      return
+    }
+    (httpClient ?: defaultClient).newCall(request).enqueue(object : Callback {
+      override fun onFailure(call: Call, e: IOException) {
+        AbsLogger.error(tag, "Token refresh failed for ${config.name}: ${e.message}")
+        handleDownloadRefreshFailure(serverConnectionConfigId)
+        onResult(null)
       }
 
-      // Get refresh token from secure storage
-      val refreshToken = secureStorage.getRefreshToken(serverConnectionConfigId)
-      if (refreshToken.isNullOrEmpty()) {
-        AbsLogger.error(tag, "handleTokenRefresh: Unable to refresh auth tokens. No refresh token available for server ${DeviceManager.serverConnectionConfigString}")
-        val errorObj = JSObject()
-        errorObj.put("error", "No refresh token available")
-        callback(errorObj)
-        return
-      }
-
-      Log.d(tag, "handleTokenRefresh: Retrieved refresh token, attempting to refresh access token")
-
-      // Create refresh token request
-      val refreshEndpoint = "${DeviceManager.serverAddress}/auth/refresh"
-      val refreshRequest = Request.Builder()
-        .url(refreshEndpoint)
-        .addHeader("x-refresh-token", refreshToken)
-        .addHeader("Content-Type", "application/json")
-        .post(EMPTY_REQUEST)
-        .build()
-
-      // Make the refresh request
-      val client = httpClient ?: defaultClient
-      client.newCall(refreshRequest).enqueue(object : Callback {
-        override fun onFailure(call: Call, e: IOException) {
-          Log.e(tag, "handleTokenRefresh: Failed to connect to refresh endpoint", e)
-          AbsLogger.error(tag, "handleTokenRefresh: Failed to connect to refresh endpoint for server ${DeviceManager.serverConnectionConfigString} (error: ${e.message})")
-          handleRefreshFailure(callback)
-        }
-
-        override fun onResponse(call: Call, response: Response) {
-          response.use {
-            if (!it.isSuccessful) {
-              AbsLogger.error(tag, "handleTokenRefresh: Refresh request failed with status ${it.code} for server ${DeviceManager.serverConnectionConfigString}")
-              handleRefreshFailure(callback)
+      override fun onResponse(call: Call, response: Response) {
+        response.use {
+          if (!it.isSuccessful) {
+            AbsLogger.error(tag, "Token refresh returned ${it.code} for ${config.name}")
+            handleDownloadRefreshFailure(serverConnectionConfigId)
+            onResult(null)
+            return
+          }
+          try {
+            val user = JSONObject(it.body!!.string()).optJSONObject("user")
+            val accessToken = user?.optString("accessToken").orEmpty()
+            if (accessToken.isEmpty()) {
+              AbsLogger.error(tag, "Refresh response had no access token for ${config.name}")
+              handleDownloadRefreshFailure(serverConnectionConfigId)
+              onResult(null)
               return
             }
-
-            val bodyString = it.body!!.string()
-            try {
-              val responseJson = JSONObject(bodyString)
-              val userObj = responseJson.optJSONObject("user")
-
-              if (userObj == null) {
-                AbsLogger.error(tag, "handleTokenRefresh: No user object in refresh response for server ${DeviceManager.serverConnectionConfigString}")
-                handleRefreshFailure(callback)
-                return
-              }
-
-              val newAccessToken = userObj.optString("accessToken")
-              val newRefreshToken = userObj.optString("refreshToken")
-
-              if (newAccessToken.isEmpty()) {
-                AbsLogger.error(tag, "handleTokenRefresh: No access token in refresh response for server ${DeviceManager.serverConnectionConfigString}")
-                handleRefreshFailure(callback)
-                return
-              }
-
-              Log.d(tag, "handleTokenRefresh: Successfully obtained new access token")
-
-              // Update tokens in secure storage and device manager
-              updateTokens(newAccessToken, newRefreshToken.ifEmpty { refreshToken }, serverConnectionConfigId)
-
-              // Retry the original request with the new access token
-              Log.d(tag, "handleTokenRefresh: Retrying original request with new token")
-              retryOriginalRequest(originalRequest, newAccessToken, httpClient, callback)
-
-            } catch (e: Exception) {
-              Log.e(tag, "handleTokenRefresh: Failed to parse refresh response", e)
-              AbsLogger.error(tag, "handleTokenRefresh: Failed to parse refresh response for server ${DeviceManager.serverConnectionConfigString} (error: ${e.message})")
-              handleRefreshFailure(callback)
-            }
+            updateTokens(accessToken, user?.optString("refreshToken").orEmpty().ifEmpty { refreshToken }, serverConnectionConfigId)
+            onResult(accessToken)
+          } catch (e: Exception) {
+            AbsLogger.error(tag, "Could not parse refresh response for ${config.name}: ${e.message}")
+            handleDownloadRefreshFailure(serverConnectionConfigId)
+            onResult(null)
           }
         }
-      })
+      }
+    })
+  }
 
-    } catch (e: Exception) {
-      Log.e(tag, "handleTokenRefresh: Unexpected error during token refresh", e)
-      handleRefreshFailure(callback)
+  /** Clears only the server whose refresh token failed; queued downloads can target a non-active server. */
+  private fun handleDownloadRefreshFailure(serverConnectionConfigId: String) {
+    secureStorage.removeRefreshToken(serverConnectionConfigId)
+    if (DeviceManager.serverConnectionConfigId != serverConnectionConfigId) return
+    DeviceManager.serverConnectionConfig = null
+    DeviceManager.deviceData.lastServerConnectionConfigId = null
+    DeviceManager.dbManager.saveDeviceData(DeviceManager.deviceData)
+    if (checkAbsDatabaseNotifyListenersInitted()) {
+      absDatabaseNotifyListeners(
+              "onTokenRefreshFailure",
+              JSObject().put("error", "Token refresh failed").put("serverConnectionConfigId", serverConnectionConfigId))
     }
   }
 
@@ -283,15 +275,15 @@ class ApiHandler(var ctx:Context) {
         Log.d(tag, "updateTokens: Updated refresh token in secure storage")
       }
 
-      // Update the access token in the current server connection config
-      DeviceManager.serverConnectionConfig?.let { config ->
+      // The refreshed connection may be queued in the downloader rather than currently active.
+      DeviceManager.getServerConnectionConfig(serverConnectionConfigId)?.let { config ->
         config.token = newAccessToken
         DeviceManager.dbManager.saveDeviceData(DeviceManager.deviceData)
         Log.d(tag, "updateTokens: Updated access token in server connection config")
       }
 
       // Send access token to Webview frontend
-      if (checkAbsDatabaseNotifyListenersInitted()) {
+      if (DeviceManager.serverConnectionConfigId == serverConnectionConfigId && checkAbsDatabaseNotifyListenersInitted()) {
         val tokenJsObject = JSObject()
         tokenJsObject.put("accessToken", newAccessToken)
         absDatabaseNotifyListeners("onTokenRefresh", tokenJsObject)
