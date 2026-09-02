@@ -9,6 +9,8 @@ import com.audiobookshelf.app.device.FolderScanner
 import com.audiobookshelf.app.models.DownloadItem
 import com.audiobookshelf.app.models.DownloadItemPart
 import com.audiobookshelf.app.plugins.AbsLogger
+import com.audiobookshelf.app.server.ApiHandler
+import com.anggrayudi.storage.file.fullName
 import com.fasterxml.jackson.core.json.JsonReadFeature
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.getcapacitor.JSObject
@@ -644,9 +646,11 @@ class DownloadItemManager(
     val expectedBaseName = part.filename.substringBeforeLast('.')
     return folder.listFiles().firstOrNull { document ->
       document.name == part.filename ||
+              document.fullName == part.filename ||
               (part.audioTrack != null &&
                       document.isFile &&
-                      (document.name ?: "").substringBeforeLast('.') == expectedBaseName)
+                      ((document.name ?: "").substringBeforeLast('.') == expectedBaseName ||
+                              document.fullName.substringBeforeLast('.') == expectedBaseName))
     }
   }
 
