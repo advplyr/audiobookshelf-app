@@ -4,7 +4,7 @@
 
     <div v-if="!downloadItemParts.length" class="py-6 text-center text-lg">No download item parts</div>
     <template v-for="(itemPart, num) in downloadItemParts">
-      <div :key="itemPart.id" class="w-full">
+      <div :key="`${itemPart.downloadItemId}-${itemPart.id}`" class="w-full">
         <div class="flex">
           <div class="w-14">
             <span v-if="itemPart.completed" class="material-symbols text-success">check_circle</span>
@@ -40,4 +40,3 @@ export default {
   beforeDestroy() {}
 }
 </script>
-
