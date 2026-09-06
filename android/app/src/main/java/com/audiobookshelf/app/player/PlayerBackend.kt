@@ -62,6 +62,9 @@ interface PlayerBackend {
 
   /** Re-sync playback state to the web UI after the app returns to the foreground. */
   fun onAppResume()
+
+  /** The webview has mounted and can receive events; [onAppResume] fires before it can. */
+  fun onUiReady() {}
   fun onDestroy()
 
   /** ExoPlayer v2 needs its service for Cast session transfer; Media3 handles Cast internally. */
@@ -231,6 +234,12 @@ class Media3PlayerBackend(
 
     playbackController.listener = this
     SleepTimerNotificationCenter.register(sleepTimerNotifier)
+
+    // Attaching hands a session started outside the app UI to the web UI. Binding the service
+    // does not promote it to foreground, so this posts no notification.
+    if (DeviceManager.getLastPlaybackSession() != null) {
+      playbackController.connect()
+    }
   }
 
   override fun stopPlayback(onStopped: () -> Unit) {
@@ -297,9 +306,17 @@ class Media3PlayerBackend(
   override fun cancelSleepTimer() = playbackController.cancelSleepTimer()
 
   override fun onAppResume() {
-    mainHandler.postDelayed({
-      playbackController.resyncUiState()
-    }, PlayerBackend.RESUME_SYNC_DELAY_MS)
+    mainHandler.postDelayed({ resyncWebUi() }, PlayerBackend.RESUME_SYNC_DELAY_MS)
+  }
+
+  override fun onUiReady() {
+    resyncWebUi()
+  }
+
+  private fun resyncWebUi() {
+    // Resyncing without a controller silently does nothing; connect() is a no-op when held.
+    if (activePlaybackSession == null && DeviceManager.getLastPlaybackSession() == null) return
+    playbackController.connect { playbackController.resyncUiState() }
   }
 
   override fun onDestroy() {
@@ -374,6 +391,12 @@ class Media3PlayerBackend(
 
   /* ======== Widget ======== */
 
+  private fun currentAbsolutePositionMs(session: PlaybackSession): Long {
+    val trackIndex = playbackController.currentMediaItemIndex()
+    val offsetMs = session.getTrackStartOffsetMs(trackIndex)
+    return playbackController.currentPosition() + offsetMs
+  }
+
   private fun notifyWidgetState(isClosed: Boolean = false) {
     val updater = DeviceManager.widgetUpdater ?: return
     if (isClosed) {
@@ -392,11 +415,5 @@ class Media3PlayerBackend(
       lastWidgetSnapshot = snapshot
       updater.onPlayerChanged(snapshot)
     }
-  }
-
-  private fun currentAbsolutePositionMs(session: PlaybackSession): Long {
-    val trackIndex = playbackController.currentMediaItemIndex()
-    val offsetMs = session.getTrackStartOffsetMs(trackIndex)
-    return playbackController.currentPosition() + offsetMs
   }
 }

@@ -55,6 +55,7 @@ class PlaybackController(private val context: Context) {
   private var activePlaybackSession: PlaybackSession? = null
   private var currentMediaPlayer: String? = null
   private var hasEmittedCloseEvent = false
+  private var hasEmittedSessionToUi = false
   private var lastNotifiedIsPlaying: Boolean? = null
   private var forceNextPlayingStateUpdate = false
   private var isPreparingPlayback = false
@@ -131,7 +132,10 @@ class PlaybackController(private val context: Context) {
           hasEmittedCloseEvent = false
           maybeEmitMediaPlayerFromExtras()
           sessionResult?.let { listener?.onPlaybackSpeedChanged(it.playbackParameters.speed) }
-          sessionResult?.let { maybeAttachToServiceSession(it) }
+          sessionResult?.let {
+            maybeAttachToServiceSession(it)
+            maybeClearStaleUiSession(it)
+          }
           onConnectionSuccess?.invoke()
         }
       }
@@ -203,7 +207,6 @@ class PlaybackController(private val context: Context) {
       }
       maybeEmitMediaPlayerFromExtras()
       notifyPlayingState(effectiveIsPlaying(player))
-      lastKnownPositionMs = player.currentPosition
       lastKnownMediaItemIndex = player.currentMediaItemIndex
       this@PlaybackController.mediaController?.let {
         emitMetadata(it)
@@ -251,11 +254,11 @@ class PlaybackController(private val context: Context) {
       }
 
       notifyPlayingState(effectiveIsPlaying(controller))
+      if (effectiveIsPlaying(controller)) startProgressUpdates()
     }
 
     private fun updateStateSnapshot(controller: MediaController) {
       maybeEmitMediaPlayerFromExtras()
-      lastKnownPositionMs = controller.currentPosition
       lastKnownMediaItemIndex = controller.currentMediaItemIndex
       emitMetadata(controller)
     }
@@ -326,10 +329,31 @@ class PlaybackController(private val context: Context) {
       return
     }
     activePlaybackSession = session
-    listener?.onPlaybackSession(session)
+    emitPlaybackSession(session)
     emitMetadata(mediaController)
     notifyPlayingState(effectiveIsPlaying(mediaController))
     if (effectiveIsPlaying(mediaController)) startProgressUpdates()
+  }
+
+  // Drops the dedup caches, which hold what the previous webview consumed.
+  private fun emitPlaybackSession(session: PlaybackSession) {
+    hasEmittedSessionToUi = true
+    hasEmittedCloseEvent = false
+    lastEmittedMetadata = null
+    forceNextPlayingStateUpdate = true
+    listener?.onPlaybackSession(session)
+  }
+
+  // Capacitor retains onPlaybackSession until consumed, so a webview reloading inside a live
+  // process shows a session already dropped here. Skipping a cold start avoids clearing the widget.
+  private fun maybeClearStaleUiSession(mediaController: MediaController) {
+    if (!hasEmittedSessionToUi) return
+    if (isPreparingPlayback) return
+    if (mediaController.mediaItemCount > 0) return
+    if (activePlaybackSession != null) return
+    if (hasEmittedCloseEvent) return
+    hasEmittedCloseEvent = true
+    listener?.onPlaybackClosed()
   }
 
   private fun maybeEmitMediaPlayerFromExtras() {
@@ -340,7 +364,7 @@ class PlaybackController(private val context: Context) {
       if (hasLoadedQueue()) {
         activePlaybackSession?.let { session ->
           session.mediaPlayer = mediaPlayer
-          listener?.onPlaybackSession(session)
+          emitPlaybackSession(session)
         }
       }
       listener?.onMediaPlayerChanged(mediaPlayer)
@@ -355,7 +379,7 @@ class PlaybackController(private val context: Context) {
   ) {
     isPreparingPlayback = true
     activePlaybackSession = playbackSession
-    listener?.onPlaybackSession(playbackSession)
+    emitPlaybackSession(playbackSession)
 
     // Connecting the MediaController binds (and creates) the service; the service promotes
     // itself to foreground once playback starts. Starting it eagerly with
@@ -504,6 +528,16 @@ class PlaybackController(private val context: Context) {
   }
 
 
+  // A cast handoff stops the local player only after handing state to the receiver, and nothing
+  // distinguishes that from a real stop. Hold the last known state instead.
+  private fun hasMeaningfulPlayerState(mediaController: MediaController): Boolean {
+    val isTornDownWithSessionHeld =
+      mediaController.playbackState == Player.STATE_IDLE &&
+        mediaController.mediaItemCount == 0 &&
+        activePlaybackSession != null
+    return !isTornDownWithSessionHeld
+  }
+
   private fun startProgressUpdates() {
     if (isProgressUpdaterScheduled) return
     isProgressUpdaterScheduled = true
@@ -517,16 +551,7 @@ class PlaybackController(private val context: Context) {
   }
 
   private fun emitMetadata(mediaController: MediaController) {
-    // CastPlayer transfers state to the receiver and only then stops the local player, so the
-    // IDLE it reports mid-handoff is an internal transition rather than playback state. Media3
-    // exposes no transfer status to forward instead, so hold the last known state until the
-    // target player reports its own.
-    if (mediaController.playbackState == Player.STATE_IDLE &&
-      mediaController.mediaItemCount == 0 &&
-      activePlaybackSession != null
-    ) {
-      return
-    }
+    if (!hasMeaningfulPlayerState(mediaController)) return
 
     val durationMs = computeAbsoluteDuration(mediaController)
     val currentMs = computeAbsolutePosition(mediaController)
@@ -547,10 +572,13 @@ class PlaybackController(private val context: Context) {
   }
 
   fun resyncUiState() {
-    // Force a fresh emit even if the payload matches the last one (e.g. webview returning to
-    // foreground needs the current state pushed regardless of the dedup in emitMetadata).
     lastEmittedMetadata = null
+    forceNextPlayingStateUpdate = true
     mediaController?.let { controller ->
+      // Re-announcing puts the UI into loading, which only emitMetadata clears.
+      if (hasMeaningfulPlayerState(controller)) {
+        activePlaybackSession?.let { emitPlaybackSession(it) }
+      }
       emitMetadata(controller)
       notifyPlayingState(effectiveIsPlaying(controller))
     }
@@ -613,7 +641,7 @@ class PlaybackController(private val context: Context) {
     val mediaController = mediaController
     if (mediaController != null) {
       onControllerReady(mediaController)
-      lastKnownPositionMs = mediaController.currentPosition
+      lastKnownPositionMs = computeAbsolutePosition(mediaController)
       return
     }
     connect {

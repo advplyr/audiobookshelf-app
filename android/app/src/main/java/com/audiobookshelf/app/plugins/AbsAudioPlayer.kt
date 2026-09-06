@@ -143,6 +143,15 @@ class AbsAudioPlayer : Plugin() {
     playerBackend.initialize()
   }
 
+  /** The webview has registered its listeners; state pushed before this is dropped. */
+  @PluginMethod
+  fun onReady(call: PluginCall) {
+    if (::playerBackend.isInitialized) {
+      playerBackend.onUiReady()
+    }
+    call.resolve()
+  }
+
   fun emit(evtName: String, value: Any) {
     val ret = JSObject()
     ret.put("value", value)
