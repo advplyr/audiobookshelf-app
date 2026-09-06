@@ -207,14 +207,12 @@ class ApiHandler(var ctx:Context) {
               .build()
     } catch (e: Exception) {
       AbsLogger.error(tag, "Could not create refresh request for ${config.name}: ${e.message}")
-      handleDownloadRefreshFailure(serverConnectionConfigId)
       onResult(null)
       return
     }
     (httpClient ?: defaultClient).newCall(request).enqueue(object : Callback {
       override fun onFailure(call: Call, e: IOException) {
         AbsLogger.error(tag, "Token refresh failed for ${config.name}: ${e.message}")
-        handleDownloadRefreshFailure(serverConnectionConfigId)
         onResult(null)
       }
 
@@ -222,7 +220,7 @@ class ApiHandler(var ctx:Context) {
         response.use {
           if (!it.isSuccessful) {
             AbsLogger.error(tag, "Token refresh returned ${it.code} for ${config.name}")
-            handleDownloadRefreshFailure(serverConnectionConfigId)
+            if (it.code == 401 || it.code == 403) handleDownloadRefreshFailure(serverConnectionConfigId)
             onResult(null)
             return
           }
@@ -231,7 +229,6 @@ class ApiHandler(var ctx:Context) {
             val accessToken = user?.optString("accessToken").orEmpty()
             if (accessToken.isEmpty()) {
               AbsLogger.error(tag, "Refresh response had no access token for ${config.name}")
-              handleDownloadRefreshFailure(serverConnectionConfigId)
               onResult(null)
               return
             }
@@ -239,7 +236,6 @@ class ApiHandler(var ctx:Context) {
             onResult(accessToken)
           } catch (e: Exception) {
             AbsLogger.error(tag, "Could not parse refresh response for ${config.name}: ${e.message}")
-            handleDownloadRefreshFailure(serverConnectionConfigId)
             onResult(null)
           }
         }
@@ -247,7 +243,11 @@ class ApiHandler(var ctx:Context) {
     })
   }
 
-  /** Clears only the server whose refresh token failed; queued downloads can target a non-active server. */
+  /**
+   * Clears only the server whose refresh token failed; queued downloads can target a non-active server.
+   *
+   * Only call this when the server explicitly rejected the refresh token. Transient failures should not log the user out
+   */
   private fun handleDownloadRefreshFailure(serverConnectionConfigId: String) {
     secureStorage.removeRefreshToken(serverConnectionConfigId)
     if (DeviceManager.serverConnectionConfigId != serverConnectionConfigId) return
