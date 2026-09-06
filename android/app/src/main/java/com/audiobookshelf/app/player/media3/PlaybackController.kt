@@ -76,17 +76,6 @@ class PlaybackController(private val context: Context) {
     PlaybackConstants.sessionCommand(PlaybackConstants.Commands.RESYNC_SLEEP_TIMER)
 
   var listener: Listener? = null
-  private var isProgressUpdaterScheduled = false
-
-  private val progressUpdater = object : Runnable {
-    override fun run() {
-      mediaController?.let { emitMetadata(it) }
-      if (isProgressUpdaterScheduled) {
-        mainHandler.postDelayed(this, PROGRESS_UPDATE_INTERVAL_MS)
-      }
-    }
-  }
-
 
   fun connect(onConnectionSuccess: (() -> Unit)? = null) {
     if (mediaController != null) {
@@ -144,7 +133,6 @@ class PlaybackController(private val context: Context) {
   }
 
   private fun disconnect() {
-    stopProgressUpdates()
     mediaControllerFuture?.cancel(true)
     mediaController?.let { disconnectControllerSync(it, playbackEnded = false) }
     mediaController = null
@@ -163,7 +151,6 @@ class PlaybackController(private val context: Context) {
     playbackEnded: Boolean
   ) {
     if (hasEmittedCloseEvent) return
-    stopProgressUpdates()
     mediaController.removeListener(controllerListener)
     mediaController.release()
     this@PlaybackController.mediaController = null
@@ -215,12 +202,6 @@ class PlaybackController(private val context: Context) {
       val isEffectivelyPlaying = controller?.let { effectiveIsPlaying(it) } ?: isPlaying
 
       notifyPlayingState(isEffectivelyPlaying)
-
-      if (isEffectivelyPlaying) {
-        startProgressUpdates()
-      } else {
-        stopProgressUpdates()
-      }
     }
 
     override fun onPlaybackStateChanged(playbackState: Int) {
@@ -235,7 +216,6 @@ class PlaybackController(private val context: Context) {
         }
 
         Player.STATE_ENDED -> {
-          stopProgressUpdates()
           listener?.onPlaybackEnded()
         }
         Player.STATE_IDLE -> {
@@ -244,7 +224,6 @@ class PlaybackController(private val context: Context) {
       }
 
       notifyPlayingState(effectiveIsPlaying(controller))
-      if (effectiveIsPlaying(controller)) startProgressUpdates()
     }
 
     private fun updateStateSnapshot(controller: MediaController) {
@@ -256,8 +235,6 @@ class PlaybackController(private val context: Context) {
       // A cast handoff also passes through IDLE with playWhenReady still set while the queue
       // moves to the receiver, so this guard is what stops it being treated as a close.
       if (isPreparingPlayback || controller.playWhenReady) return
-
-      stopProgressUpdates()
 
       if (controller.mediaItemCount == 0 && activePlaybackSession != null) {
         activePlaybackSession = null
@@ -321,7 +298,6 @@ class PlaybackController(private val context: Context) {
     emitPlaybackSession(session)
     emitMetadata(mediaController)
     notifyPlayingState(effectiveIsPlaying(mediaController))
-    if (effectiveIsPlaying(mediaController)) startProgressUpdates()
   }
 
   // Drops the dedup caches, which hold what the previous webview consumed.
@@ -527,18 +503,6 @@ class PlaybackController(private val context: Context) {
     return !isTornDownWithSessionHeld
   }
 
-  private fun startProgressUpdates() {
-    if (isProgressUpdaterScheduled) return
-    isProgressUpdaterScheduled = true
-    mainHandler.post(progressUpdater)
-  }
-
-  private fun stopProgressUpdates() {
-    if (!isProgressUpdaterScheduled) return
-    isProgressUpdaterScheduled = false
-    mainHandler.removeCallbacks(progressUpdater)
-  }
-
   private fun emitMetadata(mediaController: MediaController) {
     if (!hasMeaningfulPlayerState(mediaController)) return
 
@@ -550,9 +514,8 @@ class PlaybackController(private val context: Context) {
         currentMs / 1000.0,
         controllerPlaybackState(mediaController)
       )
-    // currentTime is reported in whole seconds, so consecutive ticks within the same second
-    // (and repeated paused/buffering ticks) produce an identical payload. Skip the redundant
-    // JSON serialization and JS-bridge dispatch when nothing changed.
+    // Player events often arrive in bursts, and currentTime is reported in whole seconds, so
+    // several can produce an identical payload. Skip the JSON serialization and bridge dispatch.
     if (metadata == lastEmittedMetadata) return
     lastEmittedMetadata = metadata
     listener?.onMetadata(metadata)
@@ -699,7 +662,6 @@ class PlaybackController(private val context: Context) {
 
   companion object {
     private const val TAG = "PlaybackController"
-    private const val PROGRESS_UPDATE_INTERVAL_MS = 1_000L
     private const val CONNECTION_TIMEOUT_SEC = 2L
 
     private val DEFAULT_SUCCESS_RESULT = SessionResult(SessionResult.RESULT_SUCCESS)
