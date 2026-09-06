@@ -563,27 +563,35 @@ class DownloadItemManager(
     if (!item.isDownloadFinished || !finalizingItems.add(item.id)) return
     IncompleteDownloadCleanup.cancel(context, item.id)
     scope.launch {
-      val scanLock = scanLocks.computeIfAbsent(scanDestinationKey(item)) { Any() }
-      synchronized(scanLock) {
-        folderScanner.scanDownloadItem(item) { scanResult ->
-          val event =
-                  JSObject().apply {
-                    put("libraryItemId", item.id)
-                    put("localFolderId", item.localFolder.id)
-                    scanResult?.localLibraryItem?.let {
-                      put("localLibraryItem", JSObject(jacksonMapper.writeValueAsString(it)))
+      try {
+        val scanLock = scanLocks.computeIfAbsent(scanDestinationKey(item)) { Any() }
+        synchronized(scanLock) {
+          folderScanner.scanDownloadItem(item) { scanResult ->
+            val event =
+                    JSObject().apply {
+                      put("libraryItemId", item.id)
+                      put("localFolderId", item.localFolder.id)
+                      scanResult?.localLibraryItem?.let {
+                        put("localLibraryItem", JSObject(jacksonMapper.writeValueAsString(it)))
+                      }
+                      scanResult?.localMediaProgress?.let {
+                        put("localMediaProgress", JSObject(jacksonMapper.writeValueAsString(it)))
+                      }
                     }
-                    scanResult?.localMediaProgress?.let {
-                      put("localMediaProgress", JSObject(jacksonMapper.writeValueAsString(it)))
-                    }
-                  }
-          clientEventEmitter.onDownloadItemComplete(event)
-          synchronized(this@DownloadItemManager) {
-            finalizingItems.remove(item.id)
-            downloadItemQueue.remove(item)
-            DeviceManager.dbManager.removeDownloadItem(item.id)
-            notifyQueueChanged()
+            clientEventEmitter.onDownloadItemComplete(event)
+            synchronized(this@DownloadItemManager) {
+              downloadItemQueue.remove(item)
+              DeviceManager.dbManager.removeDownloadItem(item.id)
+            }
           }
+        }
+      } catch (e: Exception) {
+        // The files are already in place, so leave the item queued for restoreQueue to rescan.
+        AbsLogger.error(tag, "Could not finalize download item ${item.id}: ${e.message}")
+      } finally {
+        synchronized(this@DownloadItemManager) {
+          finalizingItems.remove(item.id)
+          notifyQueueChanged()
         }
       }
     }
