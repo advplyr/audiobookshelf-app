@@ -74,6 +74,30 @@ object PlaybackConstants {
     const val EXTRA_ADJUST_INCREASE = "sleep_timer_adjust_increase"
   }
 
+  val MEDIA_CONTROL_SESSION_ACTIONS: List<String> = listOf(
+    Commands.CYCLE_PLAYBACK_SPEED,
+    Commands.SEEK_BACK_INCREMENT,
+    Commands.SEEK_FORWARD_INCREMENT,
+    Commands.SEEK_TO_PREVIOUS_TRACK,
+    Commands.SEEK_TO_NEXT_TRACK,
+    Commands.CLOSE_PLAYBACK
+  )
+
+  private val APP_UI_SESSION_ACTIONS: List<String> = listOf(
+    Commands.SEEK_TO_PREVIOUS_CHAPTER,
+    Commands.SEEK_TO_NEXT_CHAPTER,
+    Commands.SEEK_TO_CHAPTER,
+    Commands.SYNC_PROGRESS_FORCE,
+    Commands.RESYNC_SLEEP_TIMER,
+    SleepTimer.ACTION_SET,
+    SleepTimer.ACTION_CANCEL,
+    SleepTimer.ACTION_ADJUST,
+    SleepTimer.ACTION_GET_TIME
+  )
+
+  val ALL_SESSION_ACTIONS: List<String> =
+    MEDIA_CONTROL_SESSION_ACTIONS + APP_UI_SESSION_ACTIONS
+
   /**
    * Convenience helper to create a SessionCommand for the given action using an empty Bundle.
    */

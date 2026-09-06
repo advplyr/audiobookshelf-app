@@ -1,11 +1,9 @@
 package com.audiobookshelf.app.player.media3
 
 import android.os.Bundle
-import android.support.v4.media.MediaBrowserCompat
 import android.util.Log
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
-import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.LibraryResult
@@ -15,7 +13,6 @@ import androidx.media3.session.MediaSession
 import androidx.media3.session.SessionCommand
 import androidx.media3.session.SessionError
 import androidx.media3.session.SessionResult
-import com.audiobookshelf.app.BuildConfig
 import com.audiobookshelf.app.data.PlaybackSession
 import com.audiobookshelf.app.media.MediaManager
 import com.audiobookshelf.app.player.PlaybackConstants
@@ -40,10 +37,6 @@ interface BrowseApi {
   ): Boolean
 }
 
-/**
- * Media3 MediaSession.Callback implementation handling session interactions, browsing, and custom commands.
- * Manages Android Auto integration, custom playback controls, and session state.
- */
 @UnstableApi
 class Media3SessionCallback(
   private val logTag: String,
@@ -56,7 +49,6 @@ class Media3SessionCallback(
   private val seekConfig: SeekConfig,
   private val browseApi: BrowseApi,
   private val awaitFinalSync: suspend () -> Unit,
-  private val debug: ((() -> String) -> Unit),
   private val sessionController: SessionController? = null
 ) : MediaLibraryService.MediaLibrarySession.Callback {
 
@@ -73,10 +65,6 @@ class Media3SessionCallback(
     searchCache[query] = results
   }
 
-  private fun isWearController(controllerInfo: MediaSession.ControllerInfo): Boolean =
-    PlaybackConstants.isWearController(controllerInfo.packageName)
-
-
   override fun onConnectAsync(
     session: MediaSession,
     controller: MediaSession.ControllerInfo
@@ -91,7 +79,7 @@ class Media3SessionCallback(
     // handshake delaying playback start, at the cost of post-reboot/dead-app media resumption
     // from quick settings. Media notification controls are unaffected (they use the session token).
     if (controller.packageName == "com.android.systemui") {
-      debug { "Rejecting MediaSession connection from system UI" }
+      debugLog(logTag) { "Rejecting MediaSession connection from system UI" }
       return MediaSession.ConnectionResult.reject()
     }
 
@@ -104,7 +92,7 @@ class Media3SessionCallback(
       controllerInfo = controller,
       allowSeekingOnMediaControls = seekConfig.allowSeekingOnMediaControls
     ) ?: run {
-      debug { "onConnect: sessionController is null, using fallback commands for pkg=${controller.packageName}" }
+      debugLog(logTag) { "onConnect: sessionController is null, using fallback commands for pkg=${controller.packageName}" }
       val availablePlayerCommands = player.availableCommands
       Player.Commands.Builder().addAll(availablePlayerCommands)
         .add(Player.COMMAND_SEEK_BACK)
@@ -116,51 +104,11 @@ class Media3SessionCallback(
         .build()
     }
 
-    if (BuildConfig.DEBUG) {
-      val controllerType = when {
-        isAppUiController -> "APP_UI"
-        isWearController(controller) -> "WEAR"
-        controller.packageName.contains("gearhead", ignoreCase = true) -> "AUTO"
-        else -> "OTHER"
-      }
-      fun cmd(commandCode: Int) = if (playerCommands.contains(commandCode)) "Y" else "N"
-      Log.d(logTag, "onConnect: $controllerType controller (${controller.packageName})")
-      Log.d(
-        logTag,
-        "  Commands: SEEK_IN_ITEM=${cmd(Player.COMMAND_SEEK_IN_CURRENT_MEDIA_ITEM)} BACK=${
-          cmd(Player.COMMAND_SEEK_BACK)
-        } FWD=${cmd(Player.COMMAND_SEEK_FORWARD)} " +
-          "PREV=${cmd(Player.COMMAND_SEEK_TO_PREVIOUS)} NEXT=${cmd(Player.COMMAND_SEEK_TO_NEXT)} " +
-          "PREV_ITEM=${cmd(Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM)} NEXT_ITEM=${cmd(Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM)} " +
-          "VOL_GET=${cmd(Player.COMMAND_GET_DEVICE_VOLUME)} VOL_SET=${cmd(Player.COMMAND_SET_DEVICE_VOLUME_WITH_FLAGS)} VOL_ADJ=${
-            cmd(
-              Player.COMMAND_ADJUST_DEVICE_VOLUME_WITH_FLAGS
-            )
-          } " +
-          "(allowSeekSetting=${seekConfig.allowSeekingOnMediaControls})"
-      )
-    }
-
-    val sessionCommands = run {
-      val baseSessionCommands = sessionController?.availableSessionCommands
+    val sessionCommands = SessionController.buildSessionCommands(
+      isAppUiController,
+      sessionController?.availableSessionCommands
         ?: MediaSession.ConnectionResult.DEFAULT_SESSION_AND_LIBRARY_COMMANDS
-      val builder = baseSessionCommands.buildUpon()
-      builder.add(PlaybackConstants.sessionCommand(PlaybackConstants.Commands.CYCLE_PLAYBACK_SPEED))
-      builder.add(PlaybackConstants.sessionCommand(PlaybackConstants.Commands.SEEK_BACK_INCREMENT))
-      builder.add(PlaybackConstants.sessionCommand(PlaybackConstants.Commands.SEEK_FORWARD_INCREMENT))
-      builder.add(PlaybackConstants.sessionCommand(PlaybackConstants.Commands.SEEK_TO_PREVIOUS_TRACK))
-      builder.add(PlaybackConstants.sessionCommand(PlaybackConstants.Commands.SEEK_TO_NEXT_TRACK))
-      builder.add(PlaybackConstants.sessionCommand(PlaybackConstants.Commands.SEEK_TO_PREVIOUS_CHAPTER))
-      builder.add(PlaybackConstants.sessionCommand(PlaybackConstants.Commands.SEEK_TO_NEXT_CHAPTER))
-      builder.add(PlaybackConstants.sessionCommand(PlaybackConstants.Commands.SEEK_TO_CHAPTER))
-      builder.add(PlaybackConstants.sessionCommand(PlaybackConstants.Commands.SYNC_PROGRESS_FORCE))
-      builder.add(PlaybackConstants.sessionCommand(PlaybackConstants.Commands.CLOSE_PLAYBACK))
-      builder.add(PlaybackConstants.sessionCommand(PlaybackConstants.SleepTimer.ACTION_SET))
-      builder.add(PlaybackConstants.sessionCommand(PlaybackConstants.SleepTimer.ACTION_CANCEL))
-      builder.add(PlaybackConstants.sessionCommand(PlaybackConstants.SleepTimer.ACTION_ADJUST))
-      builder.add(PlaybackConstants.sessionCommand(PlaybackConstants.SleepTimer.ACTION_GET_TIME))
-      builder.build()
-    }
+    )
 
     return MediaSession.ConnectionResult.AcceptedResultBuilder(session, controller)
       .setAvailableSessionCommands(sessionCommands)
@@ -213,16 +161,14 @@ class Media3SessionCallback(
       awaitFinalSync()
       val requestedMediaItem = mediaItems.firstOrNull()
       if (requestedMediaItem == null) {
-        debug { "onAddMediaItems: empty request from ${controller.packageName}" }
         return@future mutableListOf()
       }
 
       val isPlayable =
         requestedMediaItem.localConfiguration != null || requestedMediaItem.requestMetadata.mediaUri != null
       if (isPlayable) {
-        debug { "onAddMediaItems: passthrough playable request '${requestedMediaItem.mediaId}'" }
         if (!browseApi.passthroughAllowed(requestedMediaItem.mediaId, controller)) {
-          debug { "onAddMediaItems: rejecting passthrough request for id=${requestedMediaItem.mediaId}" }
+          debugLog(logTag) { "onAddMediaItems: rejecting passthrough request for id=${requestedMediaItem.mediaId}" }
           return@future mutableListOf()
         }
         return@future mediaItems
@@ -233,22 +179,11 @@ class Media3SessionCallback(
       val resolvedPlayable = browseApi.resolve(mediaId, preferCastStream)
 
       if (resolvedPlayable == null) {
-        debug { "onAddMediaItems: unable to resolve mediaId=$mediaId" }
+        debugLog(logTag) { "onAddMediaItems: unable to resolve mediaId=$mediaId" }
         return@future mutableListOf()
       }
 
       browseApi.assignSession(resolvedPlayable.session)
-      if (BuildConfig.DEBUG) {
-        debug {
-          "onAddMediaItems: resolved ${resolvedPlayable.mediaItems.size} items for session=${resolvedPlayable.session.id} " +
-            "startIndex=${resolvedPlayable.startIndex} startPos=${resolvedPlayable.startPositionMs}"
-        }
-        try {
-          debug { "onAddMediaItems: resolved URIs=${resolvedPlayable.mediaItems.map { item -> (item.localConfiguration?.uri ?: item.requestMetadata.mediaUri)?.toString() }}" }
-        } catch (t: Throwable) {
-          Log.w(logTag, "Failed to log resolvedPlayable URIs: ${t.message}")
-        }
-      }
       // Only return the resolved items: the session applies them to the player itself.
       // Mutating the player here would double-add the queue for addMediaItems flows.
       return@future resolvedPlayable.mediaItems.toMutableList()
@@ -279,7 +214,6 @@ class Media3SessionCallback(
 
       val requestedMediaItem = mediaItems.firstOrNull()
       if (requestedMediaItem == null) {
-        debug { "onSetMediaItems: empty request from ${controller.packageName}" }
         return@future MediaSession.MediaItemsWithStartPosition(emptyList(), 0, C.TIME_UNSET)
       }
 
@@ -288,15 +222,14 @@ class Media3SessionCallback(
       val resolvedPlayable = browseApi.resolve(mediaId, preferCastStream)
 
       if (resolvedPlayable == null || resolvedPlayable.mediaItems.isEmpty()) {
-        debug { "onSetMediaItems: unable to resolve mediaId=$mediaId" }
+        debugLog(logTag) { "onSetMediaItems: unable to resolve mediaId=$mediaId" }
         return@future MediaSession.MediaItemsWithStartPosition(emptyList(), 0, C.TIME_UNSET)
       }
 
       browseApi.assignSession(resolvedPlayable.session)
 
-      // Auto-restart logic: prevents awkward UX of resuming at the very end of a book
-      // If within 5s of completion, restart from the first track instead.
-      // startPositionMs is relative to the start track, so compare using the absolute position.
+      // Avoid resuming in the final five seconds. startPositionMs is relative to its track, so
+      // the completion check must use the absolute position.
       var adjustedStartIndex =
         resolvedPlayable.startIndex.coerceIn(0, resolvedPlayable.mediaItems.lastIndex)
       var adjustedStartPositionMs = resolvedPlayable.startPositionMs
@@ -305,15 +238,10 @@ class Media3SessionCallback(
       val absoluteStartMs =
         resolvedSession.getTrackStartOffsetMs(adjustedStartIndex) + adjustedStartPositionMs
       if (totalDurationMs > 0 && (totalDurationMs - absoluteStartMs) < FINISHED_BOOK_THRESHOLD_MS) {
-        debug { "onSetMediaItems: Book is finished (within ${FINISHED_BOOK_THRESHOLD_MS}ms of end), resetting to start" }
         adjustedStartIndex = 0
         adjustedStartPositionMs = 0L
       }
 
-      debug {
-        "onSetMediaItems: resolved ${resolvedPlayable.mediaItems.size} items for session=${resolvedSession.id} " +
-          "startIndex=$adjustedStartIndex startPos=$adjustedStartPositionMs"
-      }
       MediaSession.MediaItemsWithStartPosition(
         resolvedPlayable.mediaItems,
         adjustedStartIndex,
@@ -328,7 +256,6 @@ class Media3SessionCallback(
     browser: MediaSession.ControllerInfo,
     params: LibraryParams?
   ): ListenableFuture<LibraryResult<MediaItem>> {
-    debug { "onGetLibraryRoot requested by ${browser.packageName}" }
     return Futures.immediateFuture(LibraryResult.ofItem(browseTree.getRootItem(), params))
   }
 
@@ -340,9 +267,6 @@ class Media3SessionCallback(
     pageSize: Int,
     params: LibraryParams?
   ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
-    if (BuildConfig.DEBUG) {
-      Log.d(logTag, "onGetChildren requested for parentId: '$parentId' page=$page pageSize=$pageSize by ${browser.packageName}")
-    }
     return autoLibraryCoordinator.requestChildren(parentId, page, pageSize, params)
   }
 
@@ -351,11 +275,10 @@ class Media3SessionCallback(
     browser: MediaSession.ControllerInfo,
     mediaId: String
   ): ListenableFuture<LibraryResult<MediaItem>> {
-    debug { "onGetItem: Resolving '$mediaId' via browseTree for ${browser.packageName}" }
     return scope.future {
       val mediaItem = browseTree.getItem(mediaId)
       if (mediaItem == null) {
-        debug { "onGetItem: browseTree.getItem failed to resolve '$mediaId'" }
+        debugLog(logTag) { "onGetItem: browseTree.getItem failed to resolve '$mediaId'" }
         return@future LibraryResult.ofError(SessionError.ERROR_BAD_VALUE)
       }
       LibraryResult.ofItem(mediaItem, null)
@@ -409,40 +332,17 @@ class Media3SessionCallback(
     val aggregatedResults = mutableListOf<MediaItem>()
     mediaManager.serverLibraries.forEach { library ->
       if ((library.stats?.numAudioFiles ?: 0) == 0) return@forEach
-      val searchResult = runCatching { mediaManager.doSearch(library.id, query) }
+      val searchResult = runCatching { mediaManager.doSearchMedia3(library.id, query) }
         .onFailure { throwable ->
           Log.w(logTag, "onSearch: Failed to search ${library.id}", throwable)
         }
         .getOrNull()
         ?: return@forEach
-      searchResult.values.forEach { searchResultItems ->
-        aggregatedResults.addAll(searchResultItems.mapNotNull { it.toMedia3Item() })
-      }
+      aggregatedResults.addAll(searchResult)
     }
     return aggregatedResults
   }
 
 
-  private fun MediaBrowserCompat.MediaItem.toMedia3Item(): MediaItem? {
-    val mediaDescription = description
-    val isPlayable = flags and MediaBrowserCompat.MediaItem.FLAG_PLAYABLE != 0
-    val isBrowsable = flags and MediaBrowserCompat.MediaItem.FLAG_BROWSABLE != 0
-    val mediaExtras = mediaDescription.extras?.let { Bundle(it) }
-    val metadata = MediaMetadata.Builder()
-      .setTitle(mediaDescription.title?.toString())
-      .setSubtitle(mediaDescription.subtitle?.toString())
-      .setIsPlayable(isPlayable)
-      .setIsBrowsable(isBrowsable)
-      .apply {
-        mediaDescription.iconUri?.let { setArtworkUri(it) }
-        mediaExtras?.let { setExtras(it) }
-      }
-      .build()
-    val mediaId = mediaDescription.mediaId ?: return null
-    return MediaItem.Builder()
-      .setMediaId(mediaId)
-      .setMediaMetadata(metadata)
-      .also { mediaDescription.mediaUri?.let { artworkUri -> it.setUri(artworkUri) } }
-      .build()
-  }
+
 }

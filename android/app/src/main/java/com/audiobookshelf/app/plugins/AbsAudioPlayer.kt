@@ -3,8 +3,6 @@ package com.audiobookshelf.app.plugins
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
-import androidx.annotation.OptIn
-import androidx.media3.common.util.UnstableApi
 import com.audiobookshelf.app.BuildConfig
 import com.audiobookshelf.app.MainActivity
 import com.audiobookshelf.app.data.*
@@ -26,7 +24,6 @@ import com.google.android.gms.common.GoogleApiAvailability
 import org.json.JSONObject
 
 @CapacitorPlugin(name = "AbsAudioPlayer")
-@OptIn(UnstableApi::class) // Media3PlayerBackend uses Media3 APIs via PlaybackController
 class AbsAudioPlayer : Plugin() {
   private val tag = "AbsAudioPlayer"
   private var jacksonMapper = jacksonObjectMapper().enable(JsonReadFeature.ALLOW_UNESCAPED_CONTROL_CHARS.mappedFeature())

@@ -4,6 +4,7 @@ import android.content.Context
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import androidx.annotation.OptIn
 import androidx.media3.common.util.UnstableApi
 import com.audiobookshelf.app.MainActivity
 import com.audiobookshelf.app.data.DeviceInfo
@@ -166,7 +167,11 @@ class ExoV2PlayerBackend(
   }
 
   override fun onDestroy() {
-    // Foreground service lifecycle is owned by MainActivity
+    // Foreground service lifecycle is owned by MainActivity, but the process-wide emitter is set
+    // here too and transitively holds MainActivity, so it must be released like the media3 backend.
+    if (MediaEventManager.clientEventEmitter === clientEventEmitter) {
+      MediaEventManager.clientEventEmitter = null
+    }
   }
 
   override fun castSessionService(): PlayerNotificationService? {
@@ -183,7 +188,7 @@ class ExoV2PlayerBackend(
  * bookkeeping (active session, current media player id, widget snapshots) and
  * relays controller events to the shared client event emitter.
  */
-@UnstableApi
+@OptIn(UnstableApi::class)
 class Media3PlayerBackend(
   private val context: Context,
   private val clientEventEmitter: PlayerNotificationService.ClientEventEmitter,
@@ -299,12 +304,15 @@ class Media3PlayerBackend(
 
   override fun onDestroy() {
     try {
-      playbackController.stopAndDisconnect()
+      playbackController.releaseController()
     } catch (_: Exception) {
     }
     SleepTimerNotificationCenter.unregister()
     networkStateListener?.let { NetworkMonitor.removeListener(it) }
     networkStateListener = null
+    if (MediaEventManager.clientEventEmitter === clientEventEmitter) {
+      MediaEventManager.clientEventEmitter = null
+    }
   }
 
   override fun castSessionService(): PlayerNotificationService? = null

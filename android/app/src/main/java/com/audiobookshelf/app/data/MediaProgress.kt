@@ -22,3 +22,5 @@ class MediaProgress(
   @get:JsonIgnore
   override val mediaItemId get() = if (episodeId.isNullOrEmpty()) libraryItemId else "$libraryItemId-$episodeId"
 }
+
+fun MediaProgress.isNewerThanLocalProgress(localLastUpdate: Long): Boolean = lastUpdate > localLastUpdate

@@ -1,9 +1,7 @@
 package com.audiobookshelf.app.player.media3
 
 import android.content.Context
-import android.util.Log
 import androidx.media3.common.MediaItem
-import com.audiobookshelf.app.BuildConfig
 import com.audiobookshelf.app.data.LibraryAuthorItem
 import com.audiobookshelf.app.data.LibraryCollection
 import com.audiobookshelf.app.data.LibraryItem
@@ -12,6 +10,7 @@ import com.audiobookshelf.app.data.LibraryShelfAuthorEntity
 import com.audiobookshelf.app.data.LibraryShelfBookEntity
 import com.audiobookshelf.app.data.LibraryShelfEpisodeEntity
 import com.audiobookshelf.app.data.LibraryShelfPodcastEntity
+import com.audiobookshelf.app.data.LibraryShelfType
 import com.audiobookshelf.app.device.DeviceManager
 import com.audiobookshelf.app.media.MediaManager
 import kotlinx.coroutines.CompletableDeferred
@@ -21,10 +20,6 @@ import kotlinx.coroutines.withTimeout
 import kotlin.coroutines.resume
 import kotlin.time.Duration.Companion.milliseconds
 
-/**
- * Handles data loading operations for Media3 browse tree.
- * Provides suspend functions for fetching library content from MediaManager.
- */
 class Media3BrowseDataLoader(private val mediaManager: MediaManager) {
 
   private val authorBooksRequests: MutableMap<String, Deferred<List<LibraryItem>>> = mutableMapOf()
@@ -70,10 +65,7 @@ class Media3BrowseDataLoader(private val mediaManager: MediaManager) {
       }
     }
 
-  /**
-   * Coalesces concurrent requests for the same key: the first caller performs the load,
-   * subsequent callers for the same key await the same result.
-   */
+  /** Concurrent browse callbacks for the same key share one network request. */
   private suspend fun <T> coalescedLoad(
     cache: MutableMap<String, Deferred<T>>,
     key: String,
@@ -111,14 +103,9 @@ class Media3BrowseDataLoader(private val mediaManager: MediaManager) {
     }
   }
 
-  private fun debugLog(message: String) {
-    if (BuildConfig.DEBUG) Log.d(TAG, message)
-  }
-
   suspend fun loadLibraryPodcasts(libraryId: String): List<LibraryItem> =
     withMediaManagerCallback {
       mediaManager.loadLibraryPodcasts(libraryId) { result ->
-        debugLog("podcasts loaded library=$libraryId count=${result?.size ?: 0}")
         it(result)
       }
     }
@@ -128,7 +115,6 @@ class Media3BrowseDataLoader(private val mediaManager: MediaManager) {
     return coalescedLoad(authorsListRequests, libraryId) {
       withMediaManagerCallback {
         mediaManager.loadAuthorsWithBooks(libraryId) { result ->
-          debugLog("authors loaded library=$libraryId count=${result.size}")
           it(result)
         }
       }
@@ -140,7 +126,6 @@ class Media3BrowseDataLoader(private val mediaManager: MediaManager) {
     return coalescedLoad(seriesListRequests, libraryId) {
       withMediaManagerCallback {
         mediaManager.loadLibrarySeriesWithAudio(libraryId) { result ->
-          debugLog("series loaded library=$libraryId count=${result.size}")
           it(result)
         }
       }
@@ -152,7 +137,6 @@ class Media3BrowseDataLoader(private val mediaManager: MediaManager) {
     return coalescedLoad(collectionsListRequests, libraryId) {
       withMediaManagerCallback {
         mediaManager.loadLibraryCollectionsWithAudio(libraryId) { result ->
-          debugLog("collections loaded library=$libraryId count=${result.size}")
           it(result)
         }
       }
@@ -163,7 +147,6 @@ class Media3BrowseDataLoader(private val mediaManager: MediaManager) {
     coalescedLoad(discoveryBooksRequests, libraryId) {
       withMediaManagerCallback {
         mediaManager.loadLibraryDiscoveryBooksWithAudio(libraryId) { result ->
-          debugLog("discovery loaded library=$libraryId count=${result.size}")
           it(result)
         }
       }
@@ -173,7 +156,6 @@ class Media3BrowseDataLoader(private val mediaManager: MediaManager) {
     coalescedLoad(authorBooksRequests, "$libraryId:$authorId") {
       withMediaManagerCallback {
         mediaManager.loadAuthorBooksWithAudio(libraryId, authorId) { result ->
-          debugLog("author books loaded library=$libraryId author=$authorId count=${result.size}")
           it(result)
         }
       }
@@ -186,7 +168,6 @@ class Media3BrowseDataLoader(private val mediaManager: MediaManager) {
     coalescedLoad(seriesItemsRequests, "$libraryId:$seriesId") {
       withMediaManagerCallback {
         mediaManager.loadLibrarySeriesItemsWithAudio(libraryId, seriesId) { result ->
-          debugLog("series items loaded library=$libraryId series=$seriesId count=${result.size}")
           it(result)
         }
       }
@@ -199,7 +180,6 @@ class Media3BrowseDataLoader(private val mediaManager: MediaManager) {
     coalescedLoad(collectionBooksRequests, "$libraryId:$collectionId") {
       withMediaManagerCallback {
         mediaManager.loadLibraryCollectionBooksWithAudio(libraryId, collectionId) { result ->
-          debugLog("collection books loaded library=$libraryId collection=$collectionId count=${result.size}")
           it(result)
         }
       }
@@ -207,20 +187,11 @@ class Media3BrowseDataLoader(private val mediaManager: MediaManager) {
 
   suspend fun loadPodcastEpisodes(podcastId: String, context: Context): List<MediaItem> {
     val episodes = mediaManager.loadPodcastEpisodes(podcastId, context) ?: emptyList()
-    debugLog("podcast episodes loaded podcast=$podcastId count=${episodes.size}")
     return episodes.toList()
   }
 
-  suspend fun loadRecentShelfBooks(libraryId: String): List<LibraryItem> {
-    val recentShelf = withSingleItemCallback {
-      mediaManager.getLibraryRecentShelfByType(libraryId, "book", it)
-    } as? LibraryShelfBookEntity
-    val localItemsByLId = DeviceManager.dbManager.getLocalLibraryItemsByLId()
-    return recentShelf?.entities?.map { item ->
-      item.localLibraryItemId = localItemsByLId[item.id]?.id
-      item
-    } ?: emptyList()
-  }
+  suspend fun loadRecentShelfBooks(libraryId: String): List<LibraryItem> =
+    loadRecentShelfLibraryItems(libraryId, "book") { (it as? LibraryShelfBookEntity)?.entities }
 
   suspend fun loadRecentShelfAuthors(libraryId: String): List<LibraryAuthorItem> {
     val recentShelf = withSingleItemCallback {
@@ -229,26 +200,27 @@ class Media3BrowseDataLoader(private val mediaManager: MediaManager) {
     return recentShelf?.entities?.toList() ?: emptyList()
   }
 
-  suspend fun loadRecentShelfPodcasts(libraryId: String): List<LibraryItem> {
-    val recentShelf = withSingleItemCallback {
-      mediaManager.getLibraryRecentShelfByType(libraryId, "podcast", it)
-    } as? LibraryShelfPodcastEntity
-    val localItemsByLId = DeviceManager.dbManager.getLocalLibraryItemsByLId()
-    return recentShelf?.entities?.map { item ->
-      item.localLibraryItemId = localItemsByLId[item.id]?.id
-      item
-    } ?: emptyList()
-  }
+  suspend fun loadRecentShelfPodcasts(libraryId: String): List<LibraryItem> =
+    loadRecentShelfLibraryItems(libraryId, "podcast") { (it as? LibraryShelfPodcastEntity)?.entities }
 
-  suspend fun loadRecentShelfEpisodes(libraryId: String): List<LibraryItem> {
+  suspend fun loadRecentShelfEpisodes(libraryId: String): List<LibraryItem> =
+    loadRecentShelfLibraryItems(libraryId, "episode") { (it as? LibraryShelfEpisodeEntity)?.entities }
+
+  /** Adds local IDs so downloaded copies play locally. */
+  private suspend fun loadRecentShelfLibraryItems(
+    libraryId: String,
+    shelfType: String,
+    entitiesOf: (LibraryShelfType?) -> List<LibraryItem>?
+  ): List<LibraryItem> {
     val recentShelf = withSingleItemCallback {
-      mediaManager.getLibraryRecentShelfByType(libraryId, "episode", it)
-    } as? LibraryShelfEpisodeEntity
+      mediaManager.getLibraryRecentShelfByType(libraryId, shelfType, it)
+    }
+    val entities = entitiesOf(recentShelf) ?: return emptyList()
     val localItemsByLId = DeviceManager.dbManager.getLocalLibraryItemsByLId()
-    return recentShelf?.entities?.map { item ->
+    return entities.map { item ->
       item.localLibraryItemId = localItemsByLId[item.id]?.id
       item
-    } ?: emptyList()
+    }
   }
 
   companion object {

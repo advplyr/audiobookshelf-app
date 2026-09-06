@@ -6,11 +6,6 @@ import com.audiobookshelf.app.data.PlaybackSession
 import com.audiobookshelf.app.media.SyncResult
 import com.audiobookshelf.app.player.core.PlaybackMetricsRecorder
 
-/**
- * Session and progress state shared by every Media3PlaybackService collaborator.
- * Consumers depend on [PlaybackEventSink] or [PlaybackCommandTarget] instead of this
- * directly, unless session bookkeeping is all they need.
- */
 interface PlaybackSessionHost {
   val playbackMetrics: PlaybackMetricsRecorder
   var isPlayerInitialized: Boolean
@@ -26,13 +21,14 @@ interface PlaybackSessionHost {
     targetSession: PlaybackSession? = null,
     onSyncComplete: ((SyncResult?) -> Unit)? = null
   )
+  fun claimTerminalSync(): Boolean
+  fun startProgressSyncIfPlaying(session: PlaybackSession)
   fun resetProgressSyncState()
   fun closeSessionOnServer(sessionId: String)
 
   fun notifyWidgetState(isPlaybackClosed: Boolean = false, isPlayingOverride: Boolean? = null)
 }
 
-/** What the player listener reports back when playback state changes. */
 interface PlaybackEventSink : PlaybackSessionHost {
   fun isEffectivelyPlaying(): Boolean
 
@@ -51,7 +47,6 @@ interface PlaybackEventSink : PlaybackSessionHost {
   fun debug(message: () -> String)
 }
 
-/** What controllers invoke on the service in response to user commands. */
 interface PlaybackCommandTarget : PlaybackSessionHost {
   fun currentAbsolutePositionMs(): Long?
 

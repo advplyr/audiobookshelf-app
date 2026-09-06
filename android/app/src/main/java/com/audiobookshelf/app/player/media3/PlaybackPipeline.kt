@@ -21,36 +21,20 @@ import com.audiobookshelf.app.device.DeviceManager
 import com.audiobookshelf.app.player.PlaybackConstants
 import com.audiobookshelf.app.player.wrapper.AbsPlayerWrapper
 
-/**
- * Creates a unified player with automatic cast support via [CastPlayer.Builder].
- *
- * Wraps ExoPlayer to enable seamless local/remote switching without manual state management.
- * Configures audiobook-optimized buffering, retry policy, and authentication.
- */
 @UnstableApi
-class PlaybackPipeline(
-  private val context: Context,
-  private val log: (msg: () -> String) -> Unit = { }
-) {
+class PlaybackPipeline(private val context: Context) {
   companion object {
     private const val TAG = "PlaybackPipeline"
 
-    // Buffer settings (in milliseconds)
     private const val BUFFER_MIN_MS = 20_000
     private const val BUFFER_MAX_MS = 45_000
     private const val BUFFER_PLAYBACK_MS = 5_000
     private const val BUFFER_REBUFFER_MS = 20_000
 
-    // Error retry settings
     private const val MAX_RETRY_ATTEMPTS = 3
     private const val RETRY_BASE_DELAY_MS = 1_000L
   }
 
-  /**
-   * Initializes player with [CastPlayer] wrapping [ExoPlayer] for automatic cast switching.
-   *
-   * CastPlayer handles local/remote transitions internally, eliminating manual state transfers.
-   */
   fun initializePlayer(
     enableMp3IndexSeeking: Boolean,
     speechAttributes: AudioAttributes,
@@ -122,7 +106,6 @@ class PlaybackPipeline(
     val listener = buildListener()
     val wrapper = AbsPlayerWrapper(playerWithCast).apply { addListener(listener) }
     onPlayerReady(wrapper)
-    log { "Player initialized with cast support via CastPlayer.Builder." }
     return wrapper
   }
 }

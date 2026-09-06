@@ -4,7 +4,6 @@ import android.util.Log
 import androidx.media3.common.MediaItem
 import androidx.media3.session.LibraryResult
 import androidx.media3.session.MediaLibraryService
-import com.audiobookshelf.app.BuildConfig
 import com.audiobookshelf.app.media.MediaManager
 import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.ListenableFuture
@@ -12,6 +11,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.guava.future
@@ -23,17 +23,15 @@ import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
 /**
- * Encapsulates the Android Auto browse-tree async setup so Media3PlaybackService can focus on
- * session management and defer the pull-based loading concerns to this coordinator.
- *
- * A single shared [Deferred] represents the in-flight or completed load; every caller awaits the
- * same instance. On a successful load the deferred is reused (cache). On an unsuccessful load the
- * next request restarts it, so transient server/network failures self-heal.
+ * All callers await one shared [Deferred] to avoid duplicate setup. Successful loads remain
+ * cached; failed loads are discarded so a transient server or network failure can recover.
  */
 class Media3AutoLibraryCoordinator(
   private val mediaManager: MediaManager,
   private val browseTree: Media3BrowseTree,
-  private val scope: CoroutineScope
+  private val scope: CoroutineScope,
+  /** Refreshes Auto after an initially offline root omitted server shelves. */
+  private val onAutoDataLoaded: () -> Unit = {}
 ) {
 
   private val loadMutex = Mutex()
@@ -45,14 +43,18 @@ class Media3AutoLibraryCoordinator(
     pageSize: Int,
     params: MediaLibraryService.LibraryParams?
   ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
-    if (BuildConfig.DEBUG) Log.d(TAG, "requestChildren(parentId=$parentId page=$page pageSize=$pageSize)")
     return scope.future {
-      ensureLoaded()
-      val children = browseTree.getChildren(parentId)
-      val pagedChildren = pageChildren(children, page, pageSize)
-      if (BuildConfig.DEBUG && pagedChildren.size != children.size) {
-        Log.d(TAG, "requestChildren paged parentId=$parentId returned=${pagedChildren.size}/${children.size}")
+      // Downloads and local podcast containers are served from disk, so they never wait on the
+      // server; the root renders immediately and refreshes once the load completes.
+      when {
+        parentId == Media3BrowseTree.ROOT_ID -> scope.launch { ensureLoaded() }
+        parentId == Media3BrowseTree.DOWNLOADS_ID || parentId.startsWith("local_") -> Unit
+        else -> ensureLoaded()
       }
+      val children = browseTree.getChildren(parentId)
+      // Encode artwork only for the page crossing Binder.
+      val pagedChildren =
+        browseTree.withPagedArtwork(parentId, pageChildren(children, page, pageSize))
       LibraryResult.ofItemList(ImmutableList.copyOf(pagedChildren), params)
     }
   }
@@ -93,7 +95,11 @@ class Media3AutoLibraryCoordinator(
         Log.w(TAG, "loadAutoData attempt ${attempt + 1} failed: ${throwable.message}")
         false
       }
-      if (loaded) return true
+      if (loaded) {
+        runCatching { onAutoDataLoaded() }
+          .onFailure { Log.w(TAG, "onAutoDataLoaded failed: ${it.message}") }
+        return true
+      }
       if (attempt < MAX_LOAD_RETRIES - 1) delay(RETRY_BASE_DELAY_MS * (attempt + 1))
     }
     Log.w(TAG, "Auto data load failed after $MAX_LOAD_RETRIES attempts; serving available data")

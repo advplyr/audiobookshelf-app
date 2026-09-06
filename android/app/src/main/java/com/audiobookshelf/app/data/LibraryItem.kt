@@ -16,6 +16,20 @@ import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import androidx.media.utils.MediaConstants as LegacyMediaConstants
 
+const val COVER_WIDTH_PX = 600
+
+/** The caller supplies this because playback sessions validate their own server connection. */
+fun buildServerCoverUrl(
+  serverAddress: String?,
+  libraryItemId: String?,
+  isServerVersionGte: (String) -> Boolean
+): Uri {
+  val coverUrl = "$serverAddress/api/items/$libraryItemId/cover?width=$COVER_WIDTH_PX"
+  // As of v2.17.0 token is not needed with cover image requests
+  if (isServerVersionGte("2.17.0")) return Uri.parse(coverUrl)
+  return Uri.parse("$coverUrl&token=${DeviceManager.token}")
+}
+
 @JsonIgnoreProperties(ignoreUnknown = true)
 class LibraryItem(
   id:String,
@@ -58,12 +72,9 @@ class LibraryItem(
       return Uri.parse("android.resource://${BuildConfig.APPLICATION_ID}/" + R.drawable.icon)
     }
 
-    // As of v2.17.0 token is not needed with cover image requests
-    if (DeviceManager.isServerVersionGreaterThanOrEqualTo("2.17.0")) {
-      return Uri.parse("${DeviceManager.serverAddress}/api/items/$id/cover")
+    return buildServerCoverUrl(DeviceManager.serverAddress, id) {
+      DeviceManager.isServerVersionGreaterThanOrEqualTo(it)
     }
-
-    return Uri.parse("${DeviceManager.serverAddress}/api/items/$id/cover?token=${DeviceManager.token}")
   }
 
   @JsonIgnore

@@ -5,11 +5,9 @@ import androidx.media3.common.Player
 import com.audiobookshelf.app.data.PlaybackSession
 import com.audiobookshelf.app.player.toMedia3MediaItems
 
-/** Builds the player queue from a session and seeks it to the right place. */
-class PlaybackQueueManager(
-  private val context: Context,
-  private val debug: (() -> String) -> Unit
-) {
+private const val TAG = "PlaybackQueueManager"
+
+class PlaybackQueueManager(private val context: Context) {
   /** Returns false when the session has no playable tracks. */
   fun loadSession(
     player: Player,
@@ -31,7 +29,7 @@ class PlaybackQueueManager(
     return true
   }
 
-  /** Rebuilds the queue with server URIs the cast receiver can reach. */
+  /** The cast receiver cannot reach local URIs, so its queue must use server URIs. */
   fun reloadForCast(
     player: Player,
     session: PlaybackSession,
@@ -50,7 +48,7 @@ class PlaybackQueueManager(
     player.prepare()
     player.playWhenReady = wasPlaying
 
-    debug {
+    debugLog(TAG) {
       "Reloaded queue with cast-friendly URIs at track=${target.trackIndex}, position=${target.positionInTrackMs}ms"
     }
   }

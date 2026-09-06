@@ -22,10 +22,10 @@ class Media3NotificationManager(
   private val seekForwardIncrementCommand: SessionCommand,
   private val jumpBackwardMsProvider: () -> Long,
   private val jumpForwardMsProvider: () -> Long,
-  private val currentPlaybackSpeedProvider: () -> Float,
-  private val debugLog: (String) -> Unit
+  private val currentPlaybackSpeedProvider: () -> Float
 ) {
   companion object {
+    private const val TAG = "M3NotificationManager"
     private const val NOTIFICATION_ID = 100
     private const val CHANNEL_ID = PlaybackConstants.MEDIA3_NOTIFICATION_CHANNEL_ID
   }
@@ -85,7 +85,8 @@ class Media3NotificationManager(
   fun buildServiceMediaButtons(): List<CommandButton> {
     val buttons = mutableListOf<CommandButton>()
 
-    // Always include Back/Forward regardless of allowSeekingOnMediaControls for notifications
+    // Notification jumps are app-owned controls; the seeking preference only restricts
+    // external controllers such as Android Auto.
     val backMs = jumpBackwardMsProvider().coerceAtLeast(1_000L)
     val fwdMs = jumpForwardMsProvider().coerceAtLeast(1_000L)
     val back = CommandButton.Builder(CommandButton.ICON_SKIP_BACK_10)
@@ -143,17 +144,10 @@ class Media3NotificationManager(
     playbackSpeedButtonProvider.alignTo(speed)
     val speedButton = playbackSpeedButtonProvider.createButton(speed)
     playbackSpeedCommandButton = speedButton
-    // Refresh media button preferences so controllers/notifications get updated icon/label
-    updateMediaButtonPreferencesAfterSpeedChange(null)
+    refreshMediaButtonPreferences(null)
   }
 
-  fun applyInitialMediaButtonPreferences(mediaSession: MediaSession?) =
-    refreshMediaButtonPreferences(mediaSession)
-
-  fun updateMediaButtonPreferencesAfterSpeedChange(mediaSession: MediaSession?) =
-    refreshMediaButtonPreferences(mediaSession)
-
-  private fun refreshMediaButtonPreferences(mediaSession: MediaSession?) {
+  fun refreshMediaButtonPreferences(mediaSession: MediaSession?) {
     runCatching {
       val built = buildServiceMediaButtons()
       val merged = mergeWithLastPreferences(built)
@@ -161,18 +155,15 @@ class Media3NotificationManager(
       mediaSession?.setMediaButtonPreferences(prefs)
       lastMediaButtonPreferences = prefs
     }.onFailure { t ->
-      debugLog("Failed to refresh media button preferences: ${t.message}")
+      debugLog(TAG) { "Failed to refresh media button preferences: ${t.message}" }
     }
   }
 
   private fun mergeWithLastPreferences(built: List<CommandButton>): List<CommandButton> {
     val existing = lastMediaButtonPreferences ?: emptyList()
-    // Use a simple uniqueness key: sessionCommand.customAction if present, else playerCommand
     val keys = built.mapNotNull { CustomMediaNotificationProvider.keyOf(it) }.toMutableSet()
     val merged = mutableListOf<CommandButton>()
-    // Start with built (service buttons take precedence)
     merged.addAll(built)
-    // Append existing preferences that don't conflict
     existing.forEach { btn ->
       val isNavButton =
         btn.playerCommand == Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM ||

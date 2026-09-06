@@ -4,6 +4,7 @@ import android.content.Context
 import com.audiobookshelf.app.data.PlayItemRequestPayload
 import com.audiobookshelf.app.data.PlaybackSession
 import com.audiobookshelf.app.data.Podcast
+import com.audiobookshelf.app.data.isNewerThanLocalProgress
 import com.audiobookshelf.app.device.DeviceManager
 import com.audiobookshelf.app.media.MediaManager
 import com.audiobookshelf.app.server.ApiHandler
@@ -12,10 +13,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 /**
- * Handles what happens at the edges of playback: an item finishing, and playback resuming
- * after a pause.
- *
- * Resume is the involved case. A long pause may mean progress moved elsewhere (another device,
+ * A long pause may mean progress moved elsewhere (another device,
  * the web player), so past a threshold the server is re-checked before the auto-rewind is
  * applied, and a server session that has since expired is replaced outright.
  */
@@ -70,7 +68,7 @@ class PlaybackLifecycleHandler(
     val seekBackTimeMs =
       if (autoRewindDisabled()) 0L else calcPauseSeekBackTime(pauseDurationMs)
 
-    // Short pause or offline: apply the auto-rewind locally without a server progress recheck
+    // A server recheck adds latency and cannot succeed offline, so reserve it for long pauses.
     if (pauseDurationMs < PAUSE_LEN_BEFORE_RECHECK_MS ||
       !DeviceManager.checkConnectivity(appContext)
     ) {
@@ -95,8 +93,10 @@ class PlaybackLifecycleHandler(
       session.episodeId,
       serverConfig
     ) { mediaProgress ->
+      val localLastUpdate =
+        DeviceManager.dbManager.getLocalMediaProgress(session.localMediaProgressId)?.lastUpdate ?: 0L
       if (mediaProgress != null &&
-        mediaProgress.lastUpdate > session.updatedAt &&
+        mediaProgress.isNewerThanLocalProgress(localLastUpdate) &&
         mediaProgress.currentTime != session.currentTime
       ) {
         onMain {

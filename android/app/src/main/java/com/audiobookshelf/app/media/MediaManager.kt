@@ -1060,6 +1060,52 @@ class MediaManager(private var apiHandler: ApiHandler, var ctx: Context) {
     }
   }
 
+  /** Media3-native search preserves extras dropped by the legacy MediaDescription adapter. */
+  suspend fun doSearchMedia3(libraryId: String, queryString: String): List<MediaItem> {
+    return suspendCoroutine { continuation ->
+      apiHandler.getSearchResults(libraryId, queryString) { searchResult ->
+        if (searchResult === null) {
+          continuation.resume(emptyList())
+          return@getSearchResults
+        }
+
+        val serverLibrary = serverLibraries.find { sl -> sl.id == libraryId }
+        val foundItems = mutableListOf<MediaItem>()
+
+        searchResult.book?.takeIf { it.isNotEmpty() }?.let { books ->
+          val localItemsByLId = DeviceManager.dbManager.getLocalLibraryItemsByLId()
+          books.filter { it.libraryItem.checkHasTracks() }.forEach { bookResult ->
+            val libraryItem = bookResult.libraryItem
+            if (serverLibraryItems.find { li -> li.id == libraryItem.id } == null) {
+              serverLibraryItems.add(libraryItem)
+            }
+            val progress = serverUserMediaProgress.find { it.libraryItemId == libraryItem.id }
+            libraryItem.localLibraryItemId = localItemsByLId[libraryItem.id]?.id
+            foundItems.add(
+              libraryItem.getMediaItem(progress, ctx, null, null, "Books (${serverLibrary?.name})")
+            )
+          }
+        }
+
+        searchResult.series?.takeIf { it.isNotEmpty() }?.forEach { seriesResult ->
+          val seriesItem = seriesResult.series
+          seriesItem.books = seriesResult.books as MutableList<LibraryItem>
+          foundItems.add(
+            seriesItem.getMediaItem(null, ctx, "Series (${serverLibrary?.name})")
+          )
+        }
+
+        searchResult.authors?.takeIf { it.isNotEmpty() }?.forEach { authorItem ->
+          foundItems.add(
+            authorItem.getMediaItem(null, ctx, "Authors (${serverLibrary?.name})")
+          )
+        }
+
+        continuation.resume(foundItems)
+      }
+    }
+  }
+
   fun getFirstItem() : LibraryItemWrapper? {
     if (serverLibraryItems.isNotEmpty()) {
       return serverLibraryItems[0]

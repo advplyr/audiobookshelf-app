@@ -3,10 +3,6 @@ package com.audiobookshelf.app.player.media3
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
-/**
- * LRU cache for Media3BrowseTree.ResolvedPlayable items with TTL and size limits.
- * Thread-safe using Mutex for concurrent access, cleans expired entries on access.
- */
 class ResolvedPlayableCache(
   private val timeToLiveMillis: Long,
   private val limit: Int
@@ -22,16 +18,12 @@ class ResolvedPlayableCache(
 
   private fun key(mediaId: String, preferCastUris: Boolean) = "$mediaId|cast=$preferCastUris"
 
-  private suspend fun cleanup(nowMs: Long) {
-    mutex.withLock {
-      while (deque.isNotEmpty()) {
-        val head = deque.firstOrNull() ?: break
-        if (nowMs - head.timestamp > timeToLiveMillis) {
-          deque.removeFirst()
-        } else {
-          break
-        }
-      }
+  /** Caller must hold [mutex]. Entries are appended in timestamp order, so the head expires first. */
+  private fun evictExpired(nowMs: Long) {
+    while (deque.isNotEmpty()) {
+      val head = deque.first()
+      if (nowMs - head.timestamp <= timeToLiveMillis) break
+      deque.removeFirst()
     }
   }
 
@@ -60,7 +52,7 @@ class ResolvedPlayableCache(
       deque.removeAll { it.key == entryKey }
       deque.addLast(Entry(entryKey, playableCopy, nowMs))
       while (deque.size > limit) deque.removeFirst()
+      evictExpired(nowMs)
     }
-    cleanup(nowMs)
   }
 }

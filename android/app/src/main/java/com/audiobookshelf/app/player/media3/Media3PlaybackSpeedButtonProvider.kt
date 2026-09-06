@@ -8,10 +8,6 @@ import androidx.media3.session.SessionCommand
 import com.audiobookshelf.app.R
 import kotlin.math.abs
 
-/**
- * Manages playback speed cycling and creates command buttons for speed control in notifications.
- * Supports predefined speed steps with corresponding icons and labels.
- */
 class Media3PlaybackSpeedButtonProvider(
   private val cyclePlaybackSpeedCommand: SessionCommand,
   private val displaySpeedKey: String

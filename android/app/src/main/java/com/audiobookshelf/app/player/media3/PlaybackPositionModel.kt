@@ -6,9 +6,9 @@ import com.audiobookshelf.app.data.PlaybackSession
 
 data class SeekTarget(val trackIndex: Int, val positionInTrackMs: Long)
 
+data class WriteBack(val positionMs: Long, val trackIndex: Int)
+
 /**
- * Owns the track-relative vs book-absolute conversion for a session/player pair.
- *
  * `player.currentPosition` is relative to the current queue item, so it is only correct
  * for a single-track session. Anything user-facing or persisted — progress sync, sleep
  * timer, chapter lookup, widget, server state — needs the book-absolute position, and
@@ -26,9 +26,13 @@ class PlaybackPositionModel(
 
     val mediaId = player?.currentMediaItem?.mediaId
     if (!mediaId.isNullOrEmpty()) {
-      tracks.forEachIndexed { index, track ->
-        if (mediaId == "${session.id}_${track.stableId}") {
-          return index
+      val prefix = "${session.id}_"
+      if (mediaId.startsWith(prefix)) {
+        val stableId = mediaId.substring(prefix.length)
+        tracks.forEachIndexed { index, track ->
+          if (stableId == track.stableId) {
+            return index
+          }
         }
       }
     }
@@ -66,11 +70,15 @@ class PlaybackPositionModel(
 
   fun nextChapter(): BookChapter? = session.getNextChapterForTime(bookAbsoluteMs())
 
-  fun writeBackToSession(): Long? {
+  /** Returns null rather than overwriting progress when the player's queue belongs elsewhere. */
+  fun writeBackToSession(): WriteBack? {
     val player = player ?: return null
+    if (player.mediaItemCount == 0) return null
+    val currentMediaId = player.currentMediaItem?.mediaId ?: return null
+    if (!currentMediaId.startsWith("${session.id}_")) return null
     val index = trackIndex()
     val absolutePosMs = session.getTrackStartOffsetMs(index) + player.currentPosition
     session.currentTime = absolutePosMs / 1000.0
-    return absolutePosMs
+    return WriteBack(absolutePosMs, index)
   }
 }

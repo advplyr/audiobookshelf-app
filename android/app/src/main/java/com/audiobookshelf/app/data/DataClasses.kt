@@ -199,7 +199,8 @@ class Book(
 
   @JsonIgnore
   override fun checkHasTracks():Boolean {
-    return (tracks?.size ?: numTracks ?: 0) > 0
+    // Search results may provide audioFiles without tracks or numTracks.
+    return (tracks?.size ?: numTracks ?: audioFiles?.size ?: 0) > 0
   }
 }
 

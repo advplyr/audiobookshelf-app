@@ -4,18 +4,13 @@ import com.audiobookshelf.app.media.SyncResult
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.withTimeout
 
-/**
- * Gate that lets the service wait for the latest in-flight "final" progress sync
- * (pause/ended/close) to complete before cleanup runs. Each critical sync gets its own
- * barrier so a later close can wait on its own server sync instead of inheriting an
- * earlier pause barrier.
- */
+/** Each final sync needs its own barrier so cleanup never waits on an earlier pause sync. */
 class FinalSyncBarrier {
   private var barrier: CompletableDeferred<SyncResult?>? = null
 
   @Synchronized
   fun armIfCritical(reason: String): CompletableDeferred<SyncResult?>? {
-    if (reason != "pause" && reason != "ended" && reason != "close") return null
+    if (reason !in SyncReason.CRITICAL) return null
     return CompletableDeferred<SyncResult?>().also { barrier = it }
   }
 

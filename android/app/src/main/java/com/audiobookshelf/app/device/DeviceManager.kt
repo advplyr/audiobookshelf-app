@@ -195,15 +195,17 @@ object DeviceManager {
    */
   fun initializeWidgetUpdater(context: Context) {
     Log.d(tag, "Initializing widget updater")
+    // This process-wide emitter must not retain a Service or Activity.
+    val appContext = context.applicationContext
     widgetUpdater =
       (object : WidgetEventEmitter {
         override fun onPlayerChanged(snapshot: WidgetPlaybackSnapshot) {
-          val appWidgetManager = AppWidgetManager.getInstance(context)
-          val componentName = ComponentName(context, MediaPlayerWidget::class.java)
+          val appWidgetManager = AppWidgetManager.getInstance(appContext)
+          val componentName = ComponentName(appContext, MediaPlayerWidget::class.java)
           val ids = appWidgetManager.getAppWidgetIds(componentName)
           for (widgetId in ids) {
             updateAppWidget(
-              context,
+              appContext,
               appWidgetManager,
               widgetId,
               snapshot
@@ -212,16 +214,16 @@ object DeviceManager {
         }
 
         override fun onPlayerClosed() {
-          val appWidgetManager = AppWidgetManager.getInstance(context)
-          val componentName = ComponentName(context, MediaPlayerWidget::class.java)
+          val appWidgetManager = AppWidgetManager.getInstance(appContext)
+          val componentName = ComponentName(appContext, MediaPlayerWidget::class.java)
           val ids = appWidgetManager.getAppWidgetIds(componentName)
           val lastSession = deviceData.lastPlaybackSession
           for (widgetId in ids) {
             updateAppWidget(
-              context,
+              appContext,
               appWidgetManager,
               widgetId,
-              lastSession?.toWidgetSnapshot(context, isPlaying = false, isClosed = true)
+              lastSession?.toWidgetSnapshot(appContext, isPlaying = false, isClosed = true)
             )
           }
         }

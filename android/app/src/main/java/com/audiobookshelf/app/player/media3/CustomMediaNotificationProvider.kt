@@ -19,10 +19,6 @@ import java.text.DecimalFormatSymbols
 import java.util.Locale
 
 @UnstableApi
-/**
- * Custom Media3 notification provider extending DefaultMediaNotificationProvider.
- * Adds custom command buttons and handles speed control, sleep timer, and chapter navigation.
- */
 class CustomMediaNotificationProvider(
   context: Context,
   channelId: String,
@@ -122,9 +118,6 @@ class CustomMediaNotificationProvider(
     return compactViewActionIndices
   }
 
-  /**
-   * Builds a seek command button, using player command when available or falling back to session command.
-   */
   private fun buildSeekButton(
     icon: Int,
     label: String,
@@ -190,11 +183,10 @@ class CustomMediaNotificationProvider(
   }
 
   companion object {
-    fun formatSpeedLabel(speed: Float): String {
-      val decimalFormat = DecimalFormat("0.##", DecimalFormatSymbols(Locale.US))
-      val formattedSpeed = decimalFormat.format(speed.toDouble())
-      return "${formattedSpeed}x"
-    }
+    // DecimalFormat is safe here because player callbacks run on the main thread.
+    private val speedFormat by lazy { DecimalFormat("0.##", DecimalFormatSymbols(Locale.US)) }
+
+    fun formatSpeedLabel(speed: Float): String = "${speedFormat.format(speed.toDouble())}x"
 
     fun keyOf(btn: CommandButton): String? {
       btn.sessionCommand?.let { return it.customAction }

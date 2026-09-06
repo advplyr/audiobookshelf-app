@@ -45,16 +45,15 @@ class SleepTimerCoordinator(
 
   fun isStarted(): Boolean = hostAdapter != null
 
+  private val adapter: SleepTimerHostAdapter
+    get() = hostAdapter ?: error("SleepTimerHostAdapter must be set before using SleepTimerCoordinator")
+
   @Synchronized
   fun start(adapter: SleepTimerHostAdapter) {
     if (hostAdapter != null) return
     hostAdapter = adapter
     ensureShakeController()
     ensureSleepTimerManager()
-  }
-
-  fun stop() {
-    release()
   }
 
   @Synchronized
@@ -110,48 +109,23 @@ class SleepTimerCoordinator(
   }
 
   override val context: Context
-    get() = hostAdapter?.context
-      ?: throw IllegalStateException("SleepTimerHostAdapter must be set before using SleepTimerCoordinator")
+    get() = adapter.context
 
-  override fun currentTimeMs(): Long =
-    hostAdapter?.currentTimeMs()
-      ?: throw IllegalStateException("SleepTimerHostAdapter must be set before using SleepTimerCoordinator")
+  override fun currentTimeMs(): Long = adapter.currentTimeMs()
 
-  override fun durationMs(): Long =
-    hostAdapter?.durationMs()
-      ?: throw IllegalStateException("SleepTimerHostAdapter must be set before using SleepTimerCoordinator")
+  override fun durationMs(): Long = adapter.durationMs()
 
-  override fun isPlaying(): Boolean =
-    hostAdapter?.isPlaying()
-      ?: throw IllegalStateException("SleepTimerHostAdapter must be set before using SleepTimerCoordinator")
+  override fun isPlaying(): Boolean = adapter.isPlaying()
 
-  override fun playbackSpeed(): Float =
-    hostAdapter?.playbackSpeed()
-      ?: throw IllegalStateException("SleepTimerHostAdapter must be set before using SleepTimerCoordinator")
+  override fun playbackSpeed(): Float = adapter.playbackSpeed()
 
-  override fun setVolume(volume: Float) {
-    val adapter = hostAdapter
-      ?: throw IllegalStateException("SleepTimerHostAdapter must be set before using SleepTimerCoordinator")
-    adapter.setVolume(volume)
-  }
+  override fun setVolume(volume: Float) = adapter.setVolume(volume)
 
-  override fun pause() {
-    val adapter = hostAdapter
-      ?: throw IllegalStateException("SleepTimerHostAdapter must be set before using SleepTimerCoordinator")
-    adapter.pause()
-  }
+  override fun pause() = adapter.pause()
 
-  override fun play() {
-    val adapter = hostAdapter
-      ?: throw IllegalStateException("SleepTimerHostAdapter must be set before using SleepTimerCoordinator")
-    adapter.play()
-  }
+  override fun play() = adapter.play()
 
-  override fun seekBackward(amountMs: Long) {
-    val adapter = hostAdapter
-      ?: throw IllegalStateException("SleepTimerHostAdapter must be set before using SleepTimerCoordinator")
-    adapter.seekBackward(amountMs)
-  }
+  override fun seekBackward(amountMs: Long) = adapter.seekBackward(amountMs)
 
   override fun endTimeOfChapterOrTrack(): Long? = hostAdapter?.endTimeOfChapterOrTrack()
 

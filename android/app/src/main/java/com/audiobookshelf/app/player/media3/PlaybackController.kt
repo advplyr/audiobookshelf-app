@@ -7,7 +7,6 @@ import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import androidx.core.content.ContextCompat
-import androidx.media3.common.C
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
@@ -32,14 +31,10 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 
-/**
- * Controls Media3 playback via MediaController, handling session connections and command execution.
- * Manages playback state, metadata, and provides callbacks for UI updates and error handling.
- */
 @UnstableApi
 class PlaybackController(private val context: Context) {
 
-  /** Callbacks for playback state changes. All callbacks invoked on main thread. */
+  /** All callbacks are invoked on the main thread. */
   interface Listener {
     fun onPlaybackSession(session: PlaybackSession)
     fun onPlayingUpdate(isPlaying: Boolean)
@@ -118,8 +113,7 @@ class PlaybackController(private val context: Context) {
       applicationContext,
       ComponentName(applicationContext, Media3PlaybackService::class.java)
     )
-    // Add connection hint to identify this as the app's UI controller
-    // This allows the session to differentiate the app UI from other controllers (notification, wear, etc)
+    // The app UI always receives seek commands; external controllers follow the user's setting.
     val connectionHints = Bundle().apply {
       putBoolean(PlaybackConstants.KEY_IS_APP_UI_CONTROLLER, true)
     }
@@ -154,38 +148,26 @@ class PlaybackController(private val context: Context) {
     }, ContextCompat.getMainExecutor(context))
   }
 
-  fun disconnect() {
+  private fun disconnect() {
     stopProgressUpdates()
     mediaControllerFuture?.cancel(true)
-    mediaController?.let { disconnectControllerSync(it) }
+    mediaController?.let { disconnectControllerSync(it, playbackEnded = false) }
     mediaController = null
     mediaControllerFuture = null
     isConnectionInProgress.set(false)
   }
 
-  fun stopAndDisconnect() {
-    try {
-      mediaController?.let {
-        try {
-          it.pause()
-        } catch (exception: Exception) {
-          Log.w(TAG, "Failed to pause controller in stopAndDisconnect", exception)
-        }
-        try {
-          it.stop()
-        } catch (exception: Exception) {
-          Log.w(TAG, "Failed to stop controller in stopAndDisconnect", exception)
-        }
-      }
-    } catch (exception: Exception) {
-      Log.e(TAG, "Exception in stopAndDisconnect", exception)
-    }
+  /** Releases the UI's controller without stopping playback. */
+  fun releaseController() {
     disconnect()
   }
 
-  private fun handleControllerDisconnected(mediaController: MediaController) {
+  /** Losing the UI's controller is not the end of playback; only a real close reports one. */
+  private fun handleControllerDisconnected(
+    mediaController: MediaController,
+    playbackEnded: Boolean
+  ) {
     if (hasEmittedCloseEvent) return
-    hasEmittedCloseEvent = true
     stopProgressUpdates()
     mediaController.removeListener(controllerListener)
     mediaController.release()
@@ -195,14 +177,17 @@ class PlaybackController(private val context: Context) {
     isPreparingPlayback = false
     lastNotifiedIsPlaying = null
     forceNextPlayingStateUpdate = false
-    activePlaybackSession = null
-    listener?.onPlaybackClosed()
+    if (playbackEnded) {
+      hasEmittedCloseEvent = true
+      activePlaybackSession = null
+      listener?.onPlaybackClosed()
+    }
   }
 
-  private fun disconnectControllerSync(mediaController: MediaController) {
+  private fun disconnectControllerSync(mediaController: MediaController, playbackEnded: Boolean) {
     if (!isDisconnectionInProgress.compareAndSet(false, true)) return
     try {
-      runOnMainSync { handleControllerDisconnected(mediaController) }
+      runOnMainSync { handleControllerDisconnected(mediaController, playbackEnded) }
     } finally {
       isDisconnectionInProgress.set(false)
     }
@@ -213,7 +198,7 @@ class PlaybackController(private val context: Context) {
     override fun onEvents(player: Player, events: Player.Events) {
       val mediaController = player as? MediaController
       if (mediaController != null && !mediaController.isConnected) {
-        disconnectControllerSync(mediaController)
+        disconnectControllerSync(mediaController, playbackEnded = true)
         return
       }
       maybeEmitMediaPlayerFromExtras()
@@ -253,7 +238,6 @@ class PlaybackController(private val context: Context) {
       when (playbackState) {
         Player.STATE_BUFFERING,
         Player.STATE_READY -> {
-          // Preparation finished; allow idle handling to resume for future transitions.
           isPreparingPlayback = false
         }
 
@@ -269,9 +253,6 @@ class PlaybackController(private val context: Context) {
       notifyPlayingState(effectiveIsPlaying(controller))
     }
 
-    /**
-     * Updates internal tracking variables based on the current controller state.
-     */
     private fun updateStateSnapshot(controller: MediaController) {
       maybeEmitMediaPlayerFromExtras()
       lastKnownPositionMs = controller.currentPosition
@@ -279,9 +260,6 @@ class PlaybackController(private val context: Context) {
       emitMetadata(controller)
     }
 
-    /**
-     * Handles logic specifically for when the player goes IDLE.
-     */
     private fun handleIdleState(controller: Player) {
       // A cast handoff also passes through IDLE with playWhenReady still set while the queue
       // moves to the receiver, so this guard is what stops it being treated as a close.
@@ -316,13 +294,9 @@ class PlaybackController(private val context: Context) {
       }
 
       if (isNetworkError) {
-        if (BuildConfig.DEBUG) {
-          Log.d(TAG, "Network error - Media3 LoadErrorHandlingPolicy will retry automatically")
-        }
+        debugLog(TAG) { "Network error - Media3 LoadErrorHandlingPolicy will retry automatically" }
       } else {
-        if (BuildConfig.DEBUG) {
-          Log.d(TAG, "Fatal error: ${error.errorCodeName}")
-        }
+        debugLog(TAG) { "Fatal error: ${error.errorCodeName}" }
         listener?.onPlaybackFailed(error.message ?: "Playback error")
       }
     }
@@ -333,15 +307,8 @@ class PlaybackController(private val context: Context) {
 
   }
 
-  /**
-   * Adopt a playback session the service started without this controller (e.g. Android Auto,
-   * podcast auto-advance), so the app UI can display and control it. The service runs in the
-   * same process and publishes every assigned session via
-   * [DeviceManager.setLastPlaybackSession] before loading its queue; the queue's media ids are
-   * prefixed with the session id, which guards against attaching a stale persisted session.
-   * No-op while the active session still owns the loaded queue; re-attaches when the service
-   * has swapped to a different session.
-   */
+  // Sessions started outside the app UI are published through DeviceManager. Match the session
+  // id against the loaded queue so a stale persisted session cannot be attached.
   private fun maybeAttachToServiceSession(mediaController: MediaController) {
     // preparePlayback sets the new session before the service reloads the queue; don't let the
     // still-loaded old queue re-attach us to the outgoing session
@@ -359,7 +326,6 @@ class PlaybackController(private val context: Context) {
       return
     }
     activePlaybackSession = session
-    Log.d(TAG, "Attached to service playback session ${session.id} (${session.displayTitle})")
     listener?.onPlaybackSession(session)
     emitMetadata(mediaController)
     notifyPlayingState(effectiveIsPlaying(mediaController))
@@ -387,12 +353,6 @@ class PlaybackController(private val context: Context) {
     playWhenReady: Boolean,
     playbackRate: Float?
   ) {
-    if (BuildConfig.DEBUG) {
-      Log.d(
-        TAG,
-        "preparePlayback: session=${playbackSession.id} title=${playbackSession.displayTitle}"
-      )
-    }
     isPreparingPlayback = true
     activePlaybackSession = playbackSession
     listener?.onPlaybackSession(playbackSession)
@@ -404,8 +364,7 @@ class PlaybackController(private val context: Context) {
     connect {
       val controller = mediaController ?: return@connect
 
-      // Sync previous session progress asynchronously when switching books.
-      // Initial playback (no media) prepares immediately without blocking.
+      // A replacement session must wait for the outgoing session's final progress sync.
       if (controller.mediaItemCount > 0 && controller.currentMediaItem != null) {
         sendCommand(forceSyncProgressCommand, Bundle.EMPTY) {
           executeWithController { ctrl ->
@@ -429,22 +388,14 @@ class PlaybackController(private val context: Context) {
       playbackSession.toMedia3MediaItems(context, preferServerUrisForCast = targetIsCast)
     if (mediaItems.isEmpty()) return
 
-    val trackIndex = playbackSession.getCurrentTrackIndex().coerceIn(0, mediaItems.lastIndex)
-    val trackStartOffsetMs = playbackSession.getTrackStartOffsetMs(trackIndex)
-    val positionInTrack = (playbackSession.currentTimeMs - trackStartOffsetMs).coerceAtLeast(0L)
+    val (trackIndex, positionInTrack) = PlaybackPositionModel(playbackSession, null)
+      .seekTargetForSessionTime(mediaItems.lastIndex)
 
     controller.setMediaItems(mediaItems, trackIndex, positionInTrack)
     controller.prepare()
     controller.playWhenReady = playWhenReady
     playbackRate?.let { controller.setPlaybackSpeed(it) }
     emitMetadata(controller)
-
-    if (BuildConfig.DEBUG) {
-      Log.d(
-        TAG,
-        "Prepared playback for ${playbackSession.displayTitle} items=${mediaItems.size} startIndex=$trackIndex pos=$positionInTrack"
-      )
-    }
   }
 
 
@@ -616,12 +567,6 @@ class PlaybackController(private val context: Context) {
     listener?.onPlayingUpdate(isPlaying)
   }
 
-  fun forceSyncProgress(onCommandComplete: (() -> Unit)? = null) {
-    sendCommand(forceSyncProgressCommand, Bundle.EMPTY) {
-      onCommandComplete?.invoke()
-    }
-  }
-
 
   fun currentPosition(): Long {
     val mediaController = mediaController
@@ -658,17 +603,6 @@ class PlaybackController(private val context: Context) {
         ?: 0
     }
   }
-
-  fun duration(): Long {
-    val sessionDuration = activePlaybackSession?.totalDurationMs ?: 0L
-    val controllerDuration = mediaController?.duration ?: C.TIME_UNSET
-    return when {
-      sessionDuration > 0 -> sessionDuration
-      controllerDuration != C.TIME_UNSET -> controllerDuration
-      else -> 0L
-    }
-  }
-
 
   private fun effectiveIsPlaying(player: Player): Boolean {
     if (player.isPlaying) return true

@@ -30,6 +30,7 @@ import com.audiobookshelf.app.data.Podcast
 import com.audiobookshelf.app.device.DeviceManager
 import com.audiobookshelf.app.media.MediaManager
 import com.audiobookshelf.app.media.getUriToAbsIconDrawable
+import com.audiobookshelf.app.player.ANDROID_AUTO_PKG_NAME
 import com.google.common.collect.ImmutableList
 import java.io.ByteArrayOutputStream
 import java.io.File
@@ -39,13 +40,6 @@ private const val FILE_PROVIDER_AUTHORITY = "${BuildConfig.APPLICATION_ID}.filep
 private const val URI_GRANT_FLAGS =
   Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION
 
-private inline fun debugLog(crossinline lazyMessage: () -> String) {
-  if (BuildConfig.DEBUG) Log.d(TAG, lazyMessage())
-}
-
-/**
- * Handles building MediaItems for the Media3 browse tree.
- */
 @UnstableApi
 class Media3BrowseItemBuilder(
   private val context: Context,
@@ -65,8 +59,7 @@ class Media3BrowseItemBuilder(
 
   private fun gridStyleExtras(mediaId: String): Bundle {
     val extras = Bundle()
-    // Explicitly target nodes that should be grids (covers/shelves)
-    // Avoid targeting the root categories (AUTHORS, SERIES_LIST) so they remain lists
+    // Root categories remain lists; only cover shelves opt into a grid presentation.
     val isGrid = mediaId.contains("__BOOKS") ||
       mediaId.contains("__DISCOVERY") ||
       mediaId.contains("__AUTHOR__") ||
@@ -127,9 +120,9 @@ class Media3BrowseItemBuilder(
   fun libraryToMediaItem(library: Library, parentId: String): MediaItem {
     val mediaId = "${parentId}_${library.id}"
     val iconName = library.icon.takeIf { it.isNotBlank() } ?: when (library.mediaType) {
-      "book" -> "book-open-page-variant"
+      "book" -> "books-1"
       "podcast" -> "podcast"
-      else -> "library"
+      else -> "library-folder"
     }
     return buildMediaItem(
       mediaId,
@@ -141,21 +134,21 @@ class Media3BrowseItemBuilder(
     )
   }
 
-  fun getRootChildren(): List<MediaItem> {
-    if (!mediaManager.isAutoDataLoaded) return emptyList()
-    return buildList {
+  fun getRootChildren(): List<MediaItem> = buildList {
+    if (mediaManager.isAutoDataLoaded) {
       add(createBrowsableCategory(CONTINUE_LISTENING_ID, "Continue Listening", "music"))
       if (mediaManager.serverLibraries.isNotEmpty()) {
         add(createBrowsableCategory(RECENTLY_ROOT, "Recent", "clock"))
         add(createBrowsableCategory(LIBRARIES_ROOT, "Libraries", "library-folder"))
       }
-      add(createBrowsableCategory(DOWNLOADS_ID, "Downloads", "downloads"))
     }
+    add(createBrowsableCategory(DOWNLOADS_ID, "Downloads", "downloads"))
   }
 
   fun buildDownloadsItems(): List<MediaItem> {
-    val localBooks = DeviceManager.dbManager.getLocalLibraryItems("book")
-    val localPodcasts = DeviceManager.dbManager.getLocalLibraryItems("podcast")
+    val localItemsByType = DeviceManager.dbManager.getLocalLibraryItems().groupBy { it.mediaType }
+    val localBooks = localItemsByType["book"].orEmpty()
+    val localPodcasts = localItemsByType["podcast"].orEmpty()
 
     // Load all local media progress once and index by id rather than doing a disk read per item.
     val progressById = DeviceManager.dbManager.getAllLocalMediaProgress().associateBy { it.id }
@@ -163,17 +156,12 @@ class Media3BrowseItemBuilder(
     val bookItems = localBooks.mapNotNull { libraryItem ->
       if (!libraryItem.hasTracks(context, null)) return@mapNotNull null
       val progress = progressById[libraryItem.id]
-      libraryItem.getMediaItem(progress, context).withDownloadArtwork(libraryItem, context)
+      libraryItem.getMediaItem(progress, context)
     }
 
     val podcastItems = localPodcasts.map { libraryItem ->
       val progress = progressById[libraryItem.id]
-      libraryItem.getMediaItem(progress, context).withDownloadArtwork(libraryItem, context)
-    }
-    // Books without tracks are dropped, so a shortfall here explains a missing download.
-    debugLog {
-      "buildDownloadsItems: books ${bookItems.size}/${localBooks.size} " +
-        "podcasts ${podcastItems.size}/${localPodcasts.size}"
+      libraryItem.getMediaItem(progress, context)
     }
     return bookItems + podcastItems
   }
@@ -232,7 +220,7 @@ class Media3BrowseItemBuilder(
         mediaId = "${prefix}__${letter}",
         title = letter.toString(),
         subtitle = "${grouped[letter]?.size ?: 0} libraries",
-        artworkUri = getUriToAbsIconDrawable(context, "library"),
+        artworkUri = getUriToAbsIconDrawable(context, "library-folder"),
         isBrowsable = true, mimeType = null
       )
     }
@@ -320,7 +308,7 @@ class Media3BrowseItemBuilder(
           mediaId = "__LIBRARY__${libraryId}__AUTHORS__${subPrefix}",
           title = subPrefix,
           subtitle = "$count authors",
-          artworkUri = getUriToAbsIconDrawable(context, "person"),
+          artworkUri = getUriToAbsIconDrawable(context, "authors"),
           isBrowsable = true,
           mimeType = null
         )
@@ -344,7 +332,7 @@ class Media3BrowseItemBuilder(
           "__LIBRARY__${libraryId}__SERIES__${series.id}",
           series.title,
           "${series.audiobookCount} books",
-          getUriToAbsIconDrawable(context, "bookshelf"),
+          getUriToAbsIconDrawable(context, "columns"),
           true,
           null
         )
@@ -354,7 +342,7 @@ class Media3BrowseItemBuilder(
           mediaId = "__LIBRARY__${libraryId}__SERIES_LIST__${subPrefix}",
           title = subPrefix,
           subtitle = "$count series",
-          artworkUri = getUriToAbsIconDrawable(context, "bookshelf"),
+          artworkUri = getUriToAbsIconDrawable(context, "columns"),
           isBrowsable = true,
           mimeType = null
         )
@@ -362,10 +350,6 @@ class Media3BrowseItemBuilder(
     )
   }
 
-  /**
-   * Replicates the legacy recursive alphabetical grouping logic for large lists.
-   * If items > threshold, creates sub-folders based on the next character of the prefix.
-   */
   private fun <T> recursiveAlphabeticalGroup(
     items: List<T>,
     prefix: String,
@@ -375,17 +359,14 @@ class Media3BrowseItemBuilder(
   ): List<MediaItem> {
     val groupingThreshold = deviceSettings.androidAutoBrowseLimitForGrouping
 
-    // Filter items that match the current prefix
     val filtered = if (prefix.isEmpty()) items else items.filter {
       titleSelector(it)?.startsWith(prefix, ignoreCase = true) == true
     }
 
-    // If list is small enough or we can't sub-group further, return the items
     if (filtered.size <= groupingThreshold || filtered.size <= 1) {
       return filtered.map(itemMapper)
     }
 
-    // Otherwise, group by the NEXT character
     val nextCharIndex = prefix.length
     val grouped = filtered.groupBy {
       val title = titleSelector(it) ?: ""
@@ -393,7 +374,7 @@ class Media3BrowseItemBuilder(
       else title.uppercase()
     }
 
-    // If grouping didn't actually reduce the list size (e.g. all items have same prefix), just return items
+    // Stop recursing when every title shares the same prefix.
     if (grouped.size <= 1) {
       return filtered.map(itemMapper)
     }
@@ -411,7 +392,7 @@ class Media3BrowseItemBuilder(
         "__LIBRARY__${libraryId}__COLLECTION__${collection.id}",
         collection.name,
         "${collection.audiobookCount} books",
-        getUriToAbsIconDrawable(context, "list-box"),
+        getUriToAbsIconDrawable(context, "columns"),
         true,
         null
       )
@@ -532,9 +513,6 @@ class Media3BrowseItemBuilder(
   suspend fun buildPodcastEpisodes(podcastId: String): List<MediaItem> =
     browseDataLoader.loadPodcastEpisodes(podcastId, context)
 
-  /**
-   * Handles recent children with section support.
-   */
   suspend fun handleRecentChildren(parentId: String): ImmutableList<MediaItem> {
     val trimmed = parentId.removePrefix(RECENTLY_ROOT).trimStart('_')
     val tokens = trimmed.split("__").filter { it.isNotEmpty() }
@@ -595,9 +573,19 @@ class Media3BrowseItemBuilder(
   }
 }
 
+/** Adds downloaded artwork after pagination to limit decoding and Binder payload size. */
+internal fun applyDownloadArtwork(items: List<MediaItem>, context: Context): List<MediaItem> {
+  if (items.isEmpty()) return items
+  val localItemsById = DeviceManager.dbManager.getLocalLibraryItems().associateBy { it.id }
+  return items.map { mediaItem ->
+    val localItem = localItemsById[mediaItem.mediaId] ?: return@map mediaItem
+    mediaItem.withDownloadArtwork(localItem, context)
+  }
+}
+
 internal fun MediaItem.withDownloadArtwork(item: LocalLibraryItem, context: Context): MediaItem {
   val coverUri = resolveLocalDownloadCover(item, context) ?: return this
-  val artworkData = coverUriToArtworkData(coverUri, context, size = 256, quality = 90) ?: return this
+  val artworkData = coverUriToArtworkData(coverUri, context, maxSize = 384, quality = 80) ?: return this
   val updatedMetadata = mediaMetadata.buildUpon()
     .setArtworkData(artworkData, MediaMetadata.PICTURE_TYPE_FRONT_COVER)
     .build()
@@ -606,20 +594,17 @@ internal fun MediaItem.withDownloadArtwork(item: LocalLibraryItem, context: Cont
     .build()
 }
 
-/**
- * Decodes a cover [coverUri] into scaled JPEG bytes, granting gearhead read permission first so
- * Android Auto's split-screen widget can use them. Returns null if the cover can't be read.
- */
+/** Gearhead needs explicit read permission before Android Auto can display [coverUri]. */
 internal fun coverUriToArtworkData(
   coverUri: Uri,
   context: Context,
-  size: Int,
+  maxSize: Int,
   quality: Int
 ): ByteArray? {
   return try {
     runCatching {
       context.grantUriPermission(
-        "com.google.android.projection.gearhead",
+        ANDROID_AUTO_PKG_NAME,
         coverUri,
         Intent.FLAG_GRANT_READ_URI_PERMISSION
       )
@@ -631,7 +616,17 @@ internal fun coverUriToArtworkData(
       ImageDecoder.decodeBitmap(ImageDecoder.createSource(context.contentResolver, coverUri))
     }
     ByteArrayOutputStream().use { out ->
-      bitmap.scale(size, size).compress(Bitmap.CompressFormat.JPEG, quality, out)
+      val longestEdge = maxOf(bitmap.width, bitmap.height)
+      val scaled = if (longestEdge > maxSize && longestEdge > 0) {
+        val ratio = maxSize.toFloat() / longestEdge
+        bitmap.scale(
+          (bitmap.width * ratio).toInt().coerceAtLeast(1),
+          (bitmap.height * ratio).toInt().coerceAtLeast(1)
+        )
+      } else {
+        bitmap
+      }
+      scaled.compress(Bitmap.CompressFormat.JPEG, quality, out)
       out.toByteArray()
     }
   } catch (e: Exception) {
@@ -649,7 +644,7 @@ private fun resolveLocalDownloadCover(item: LocalLibraryItem, context: Context):
   }
   val uri = FileProvider.getUriForFile(context, FILE_PROVIDER_AUTHORITY, file)
   try {
-    context.grantUriPermission("com.google.android.projection.gearhead", uri, URI_GRANT_FLAGS)
+    context.grantUriPermission(ANDROID_AUTO_PKG_NAME, uri, URI_GRANT_FLAGS)
   } catch (e: Exception) {
     Log.w(TAG, "Failed to grant URI permission for download cover: ${e.message}")
   }

@@ -182,11 +182,7 @@ class PlaybackSession(
     if (coverPath == null)
             return Uri.parse("android.resource://${BuildConfig.APPLICATION_ID}/" + R.drawable.icon)
 
-    // As of v2.17.0 token is not needed with cover image requests
-    if (checkIsServerVersionGte("2.17.0")) {
-      return Uri.parse("$serverAddress/api/items/$libraryItemId/cover")
-    }
-    return Uri.parse("$serverAddress/api/items/$libraryItemId/cover?token=${DeviceManager.token}")
+    return buildServerCoverUrl(serverAddress, libraryItemId) { checkIsServerVersionGte(it) }
   }
 
   @JsonIgnore
@@ -290,12 +286,7 @@ class PlaybackSession(
                     MediaMetadata.MEDIA_TYPE_AUDIOBOOK_CHAPTER
             )
 
-    // As of v2.17.0 token is not needed with cover image requests
-    val coverUri = if (checkIsServerVersionGte("2.17.0")) {
-      Uri.parse("$serverAddress/api/items/$libraryItemId/cover")
-    } else {
-      Uri.parse("$serverAddress/api/items/$libraryItemId/cover?token=${DeviceManager.token}")
-    }
+    val coverUri = buildServerCoverUrl(serverAddress, libraryItemId) { checkIsServerVersionGte(it) }
 
     // Cast always uses server cover uri
     coverPath?.let {

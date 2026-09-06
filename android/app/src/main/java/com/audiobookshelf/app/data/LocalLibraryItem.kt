@@ -246,7 +246,8 @@ class LocalLibraryItem(
       .setTitle(this.title)
       .setArtist(this.authorName)
       .setArtworkUri(getCoverUri(context))
-      .setIsPlayable(true)
+      // Podcast containers are browsable; individual episodes are playable.
+      .setIsPlayable(!isPodcast)
       .setIsBrowsable(isPodcast)
       .setExtras(extras)
       .build()

@@ -4,11 +4,9 @@ import android.content.Context
 import com.audiobookshelf.app.data.PlaybackSession
 import com.audiobookshelf.app.device.DeviceManager
 import com.audiobookshelf.app.player.WidgetPlaybackSnapshot
+import com.audiobookshelf.app.player.toWidgetSnapshot
 
-/**
- * Builds and pushes home-screen widget snapshots, holding the last one pushed so unchanged
- * ticks don't wake the widget updater.
- */
+/** Caches the last snapshot so unchanged progress ticks do not wake the widget updater. */
 class WidgetPresenter(private val context: Context) {
   private var lastSnapshot: WidgetPlaybackSnapshot? = null
 
@@ -24,17 +22,12 @@ class WidgetPresenter(private val context: Context) {
       updater.onPlayerClosed()
       return
     }
-    val snapshot = session?.let {
-      WidgetPlaybackSnapshot(
-        title = it.displayTitle,
-        author = it.displayAuthor,
-        coverUri = it.getCoverUri(context),
-        positionMs = positionMs,
-        durationMs = it.totalDurationMs,
-        isPlaying = isPlaying,
-        isClosed = false
-      )
-    } ?: return
+    val snapshot = session?.toWidgetSnapshot(
+      context,
+      isPlaying = isPlaying,
+      isClosed = false,
+      positionOverrideMs = positionMs
+    ) ?: return
 
     if (snapshot.hasMeaningfulChangesFrom(lastSnapshot)) {
       lastSnapshot = snapshot

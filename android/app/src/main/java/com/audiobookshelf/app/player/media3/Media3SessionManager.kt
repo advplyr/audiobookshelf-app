@@ -8,11 +8,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
-/**
- * Manages playback session lifecycle for Media3PlaybackService.
- * Coordinates session assignment, metrics tracking, and deferred close operations.
- * Threading: All public methods must be called on main thread or within serviceScope.
- */
+/** All public methods must run on the main thread or in [serviceScope]. */
 class Media3SessionManager(
   private val serviceScope: CoroutineScope,
   private val mediaManager: MediaManager,
@@ -27,11 +23,7 @@ class Media3SessionManager(
 
   private var closePlaybackSignal: CompletableDeferred<Unit>? = null
 
-  /**
-   * Set once closePlayback owns the session's terminal sync. onDestroy runs its own final sync
-   * for the process-death case, and on swipe-away both paths fire — the close teardown is async,
-   * so onDestroy can still see a live session and write a second Stop to history.
-   */
+  /** onDestroy can overlap asynchronous close teardown, so only one path may own the final sync. */
   @Volatile
   var terminalSyncClaimed: Boolean = false
     private set
@@ -49,7 +41,6 @@ class Media3SessionManager(
       return
     }
 
-    // Ensure flags return to a ready state after a closePlayback call
     host.isPlayerInitialized = true
     terminalSyncClaimed = false
 
@@ -60,7 +51,7 @@ class Media3SessionManager(
 
     session.mediaPlayer = host.currentMediaPlayerId()
 
-    // Only reset metrics for NEW sessions, not player switches
+    // A player switch continues the same listening session and must not split its metrics.
     if (isNewSession) {
       host.playbackMetrics.begin(session.mediaPlayer, session.mediaItemId)
     }
@@ -74,15 +65,28 @@ class Media3SessionManager(
     if (previous != null && previous.id != session.id) {
       host.updateCurrentPosition(previous)
       if (syncPreviousSession) {
-        host.maybeSyncProgress("switch", true, previous) { _ -> }
+        // Resetting here advances the generation and drops the outgoing callback's failure state.
+        host.maybeSyncProgress(SyncReason.SWITCH, true, previous) { _ ->
+          // Starting earlier would invalidate this callback's generation.
+          if (currentPlaybackSession?.id == session.id) {
+            host.startProgressSyncIfPlaying(session)
+          }
+        }
       }
     }
     assignPlaybackSession(session)
   }
 
+  fun claimTerminalSync(): Boolean {
+    if (terminalSyncClaimed) return false
+    terminalSyncClaimed = true
+    return true
+  }
+
   fun closePlayback(calledOnError: Boolean = false, afterStop: (() -> Unit)? = null) {
     val session = currentPlaybackSession
     if (session != null) {
+      val terminalSyncAlreadyClaimed = terminalSyncClaimed
       val signal = CompletableDeferred<Unit>()
       closePlaybackSignal = signal
       terminalSyncClaimed = true
@@ -112,11 +116,11 @@ class Media3SessionManager(
         Unit
       }
 
-      if (calledOnError) {
+      if (calledOnError || terminalSyncAlreadyClaimed) {
         tearDown()
       } else {
         host.updateCurrentPosition(session)
-        host.maybeSyncProgress("close", true, session) { _ -> tearDown() }
+        host.maybeSyncProgress(SyncReason.CLOSE, true, session) { _ -> tearDown() }
       }
     } else {
       closePlaybackSignal?.complete(Unit)

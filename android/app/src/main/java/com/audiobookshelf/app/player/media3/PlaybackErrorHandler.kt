@@ -7,8 +7,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
 /**
- * Recovers from playback errors by retrying the item as a transcode.
- *
  * A direct-play stream can fail for reasons the server can work around (unsupported codec,
  * a container the device rejects), so the first failure re-requests the item with
  * forceTranscode. Only one retry per session, tracked by id: without that guard a transcode

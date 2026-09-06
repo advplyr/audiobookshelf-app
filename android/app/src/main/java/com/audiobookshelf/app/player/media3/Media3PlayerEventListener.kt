@@ -7,10 +7,6 @@ import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
 import com.audiobookshelf.app.media.MediaEventManager
 
-/**
- * Media3 Player.Listener implementation that handles playback events and coordinates with the service.
- * Manages play/pause state and progress synchronization.
- */
 class Media3PlayerEventListener(
   private val host: PlaybackEventSink,
   private val playerEventPipeline: Media3EventPipeline
@@ -44,8 +40,7 @@ class Media3PlayerEventListener(
   override fun onIsPlayingChanged(callbackIsPlaying: Boolean) {
     val isEffectivelyPlaying = host.isEffectivelyPlaying()
 
-    // Early exit if state hasn't changed - prevents redundant widget/sync operations.
-    // We query the player's current state rather than trusting the callback parameter
+    // Query the player rather than trusting the callback parameter
     // because Media3 may fire this callback during transitions where playWhenReady=true
     // but playbackState=BUFFERING, which we consider "effectively playing".
     if (isEffectivelyPlaying == lastIsPlayingState) return
@@ -85,7 +80,8 @@ class Media3PlayerEventListener(
       Player.STATE_ENDED -> {
         host.playbackMetrics.logSummary()
         host.currentSession()?.let { currentSession ->
-          host.maybeSyncProgress("finished", true, currentSession) {
+          if (!host.claimTerminalSync()) return
+          host.maybeSyncProgress(SyncReason.FINISHED, true, currentSession) {
             host.handlePlaybackEnded(currentSession)
           }
         }

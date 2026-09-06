@@ -12,10 +12,6 @@ import com.audiobookshelf.app.data.BookChapter
 import com.audiobookshelf.app.data.PlaybackSession
 import com.audiobookshelf.app.player.PlaybackConstants
 
-/**
- * Handles custom Media3 session commands including sleep timer, chapter navigation, and playback speed control.
- * Processes command execution and provides callbacks for various playback operations.
- */
 @UnstableApi
 class SessionController(
   val availableSessionCommands: SessionCommands,
@@ -155,13 +151,12 @@ class SessionController(
   fun closePlayback(afterStop: (() -> Unit)?): Unit = host.closePlayback(onPlaybackStopped = afterStop)
 
   /**
-   * Pauses playback (if playing) and forces a progress sync for the current session.
-   * Asynchronous: [onComplete] fires once the sync has finished, so callers can sequence
+   * [onComplete] fires after the forced sync, allowing callers to sequence
    * a new session behind it without blocking the session callback thread.
    */
   fun forceSyncProgress(onComplete: () -> Unit) {
     host.playerOrNull()?.takeIf { it.isPlaying }?.pause()
-    host.maybeSyncProgress("switch", true) { onComplete() }
+    host.maybeSyncProgress(SyncReason.SWITCH, true) { onComplete() }
   }
 
   fun buildPlayerCommands(
@@ -203,8 +198,22 @@ class SessionController(
   companion object {
     private const val CHAPTER_START_THRESHOLD_MS = 3_000L
 
-    // Bundle keys
     private const val KEY_CHAPTER_START_MS = "chapter_start_ms"
+
+    /** Grants app-only actions without exposing them to external controllers. */
+    fun buildSessionCommands(
+      isAppUiController: Boolean,
+      base: SessionCommands = SessionCommands.Builder().build()
+    ): SessionCommands {
+      val actions = if (isAppUiController) {
+        PlaybackConstants.ALL_SESSION_ACTIONS
+      } else {
+        PlaybackConstants.MEDIA_CONTROL_SESSION_ACTIONS
+      }
+      val builder = base.buildUpon()
+      actions.forEach { builder.add(PlaybackConstants.sessionCommand(it)) }
+      return builder.build()
+    }
 
     fun buildBasePlayerCommands(player: Player?, allowSeeking: Boolean): Player.Commands {
       val availablePlayerCommands = player?.availableCommands

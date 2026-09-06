@@ -4,8 +4,6 @@ import androidx.media3.common.Player
 import com.audiobookshelf.app.data.PlaybackSession
 
 /**
- * Keeps the now-playing metadata's artist line showing the current chapter.
- *
  * Media3 exposes no metadata-invalidate call, so the only way to refresh what the
  * notification and Android Auto read is to replace the current queue item. That is
  * expensive and visibly flickers, hence the (track, chapter) cache and the string compare.

@@ -6,12 +6,14 @@ import androidx.annotation.OptIn
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.util.UnstableApi
-import com.audiobookshelf.app.BuildConfig
 import com.audiobookshelf.app.R
 import com.audiobookshelf.app.data.LibraryItemWrapper
+import com.audiobookshelf.app.data.LocalLibraryItem
+import com.audiobookshelf.app.data.isNewerThanLocalProgress
 import com.audiobookshelf.app.data.PlayItemRequestPayload
 import com.audiobookshelf.app.data.PlaybackSession
 import com.audiobookshelf.app.data.PodcastEpisode
+import com.audiobookshelf.app.device.DeviceManager
 import com.audiobookshelf.app.media.MediaManager
 import com.audiobookshelf.app.media.getUriToAbsIconDrawable
 import com.audiobookshelf.app.player.PLAYER_MEDIA3
@@ -23,11 +25,6 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import kotlin.coroutines.resume
 
-/**
- * Manages the browsable media tree for Android Auto and other Media3 clients.
- * Builds hierarchical browse structure from root -> libraries -> categories -> items.
- * Uses pull-based architecture: queries MediaManager on demand rather than pre-loading.
- */
 @OptIn(UnstableApi::class)
 class Media3BrowseTree(
   private val context: Context,
@@ -37,10 +34,6 @@ class Media3BrowseTree(
   private val dataLoader = Media3BrowseDataLoader(mediaManager)
   private val itemBuilder = Media3BrowseItemBuilder(context, mediaManager, dataLoader)
 
-  private inline fun debugLog(crossinline lazyMessage: () -> String) {
-    if (BuildConfig.DEBUG) Log.d(TAG, lazyMessage())
-  }
-
   data class ResolvedPlayable(
     val session: PlaybackSession,
     val mediaItems: List<MediaItem>,
@@ -48,13 +41,6 @@ class Media3BrowseTree(
     val startPositionMs: Long
   )
 
-  /**
-   * Resolves a media ID to a playable item by finding the target, requesting a session, and converting to MediaItems.
-   * @param mediaId The media identifier to resolve
-   * @param playRequestPayload Optional play request playRequestPayload for custom parameters
-   * @param preferServerUrisForCast Whether to prefer server URIs when casting
-   * @return ResolvedPlayable containing session, media items, start position, or null if resolution fails
-   */
   suspend fun resolvePlayableItem(
     mediaId: String,
     playRequestPayload: PlayItemRequestPayload? = null,
@@ -83,10 +69,6 @@ class Media3BrowseTree(
     )
     val trackStartOffsetMs = playbackSession.getTrackStartOffsetMs(startIndex)
     val startPositionMs = (resumePositionMs - trackStartOffsetMs).coerceAtLeast(0L)
-    debugLog {
-      "resolved $mediaId: tracks=${mediaItems.size} resumeMs=$resumePositionMs " +
-        "startIndex=$startIndex startPositionMs=$startPositionMs"
-    }
     ResolvedPlayable(
       session = playbackSession,
       mediaItems = mediaItems,
@@ -95,20 +77,42 @@ class Media3BrowseTree(
     )
   }
 
-  /**
-   * Prefer server-side progress if available; otherwise fall back to the session's currentTime.
-   */
+  /** Chooses between cached server progress and possibly newer offline progress. */
   private fun resolveResumePositionMs(
     mediaTargetPair: MediaTarget,
     session: PlaybackSession
   ): Long {
-    val userMediaProgress = mediaManager.serverUserMediaProgress.find {
+    val serverProgress = mediaManager.serverUserMediaProgress.find {
       it.libraryItemId == mediaTargetPair.libraryItem.id && it.episodeId == mediaTargetPair.episode?.id
     }
-    val userProgressMs = userMediaProgress?.currentTime?.times(1000)?.toLong() ?: 0L
+    val serverProgressMs = serverProgress?.currentTime?.times(1000)?.toLong() ?: 0L
     val sessionCurrentTimeMs = session.currentTimeMs
-    val resumeCandidateMs = if (userProgressMs > 0) userProgressMs else sessionCurrentTimeMs
+
+    // Fresh local sessions have no useful timestamp; the persisted progress does.
+    val localLastUpdate = localProgressLastUpdate(mediaTargetPair, session)
+    val serverIsNewer = serverProgress?.isNewerThanLocalProgress(localLastUpdate) == true
+
+    // A newer local zero may represent a completed or reset item.
+    val resumeCandidateMs = when {
+      serverProgress == null -> sessionCurrentTimeMs
+      localLastUpdate == 0L -> serverProgressMs
+      serverIsNewer -> serverProgressMs
+      else -> sessionCurrentTimeMs
+    }
     return resumeCandidateMs.coerceIn(0L, session.totalDurationMs)
+  }
+
+  private fun localProgressLastUpdate(
+    mediaTargetPair: MediaTarget,
+    session: PlaybackSession
+  ): Long {
+    val localItemId = (mediaTargetPair.libraryItem as? LocalLibraryItem)?.id
+      ?: session.localLibraryItem?.id
+      ?: return 0L
+    val localEpisodeId = session.localEpisodeId ?: mediaTargetPair.episode?.id
+    val progressId =
+      if (localEpisodeId.isNullOrEmpty()) localItemId else "$localItemId-$localEpisodeId"
+    return DeviceManager.dbManager.getLocalMediaProgress(progressId)?.lastUpdate ?: 0L
   }
 
   private fun resolveTrackIndexForPosition(session: PlaybackSession, positionMs: Long): Int {
@@ -133,7 +137,7 @@ class Media3BrowseTree(
 
     // Browse surfaces like the Auto recent shelves display items that are never registered
     // in the in-memory cache, so resolve them with a server fetch instead of failing the tap.
-    debugLog { "findMediaTarget: '$mediaId' not in memory cache, fetching from server" }
+    debugLog(TAG) { "findMediaTarget: '$mediaId' not in memory cache, fetching from server" }
     val fetchedItem = suspendCancellableCoroutine<LibraryItemWrapper?> { itemContinuation ->
       mediaManager.getByIdOrFetch(mediaId) { result ->
         if (itemContinuation.isActive) itemContinuation.resume(result)
@@ -142,9 +146,6 @@ class Media3BrowseTree(
     return fetchedItem?.let { MediaTarget(it) }
   }
 
-  /**
-   * Requests a playback session using the callback-based API wrapped inside a suspend helper.
-   */
   private suspend fun requestPlaybackSession(
     mediaTargetPair: MediaTarget,
     playRequestPayload: PlayItemRequestPayload?
@@ -174,27 +175,25 @@ class Media3BrowseTree(
     )
   }
 
-  /**
-   * Retrieves a single MediaItem by media ID, handling browsable categories and library items.
-   */
-  suspend fun getItem(mediaId: String): MediaItem? {
+  // Media3 invokes browse callbacks on main; database and artwork work belongs on IO.
+  suspend fun getItem(mediaId: String): MediaItem? = withContext(Dispatchers.IO) {
     when {
-      mediaId == ROOT_ID -> return getRootItem()
-      mediaId == DOWNLOADS_ID -> return itemBuilder.createBrowsableCategory(DOWNLOADS_ID, "Downloads", "downloads")
-      mediaId == CONTINUE_LISTENING_ID -> return itemBuilder.createBrowsableCategory(CONTINUE_LISTENING_ID, "Continue Listening", "music")
-      mediaId == LIBRARIES_ROOT -> return itemBuilder.createBrowsableCategory(LIBRARIES_ROOT, "Libraries", "library-folder")
-      mediaId == RECENTLY_ROOT -> return itemBuilder.createBrowsableCategory(RECENTLY_ROOT, "Recent", "clock")
+      mediaId == ROOT_ID -> return@withContext getRootItem()
+      mediaId == DOWNLOADS_ID -> return@withContext itemBuilder.createBrowsableCategory(DOWNLOADS_ID, "Downloads", "downloads")
+      mediaId == CONTINUE_LISTENING_ID -> return@withContext itemBuilder.createBrowsableCategory(CONTINUE_LISTENING_ID, "Continue Listening", "music")
+      mediaId == LIBRARIES_ROOT -> return@withContext itemBuilder.createBrowsableCategory(LIBRARIES_ROOT, "Libraries", "library-folder")
+      mediaId == RECENTLY_ROOT -> return@withContext itemBuilder.createBrowsableCategory(RECENTLY_ROOT, "Recent", "clock")
 
       mediaId.startsWith(LIBRARIES_ROOT) && mediaId != LIBRARIES_ROOT -> {
         val libraryId = mediaId.removePrefix(LIBRARIES_ROOT).trimStart('_')
         val library = mediaManager.getLibrary(libraryId)
-        return library?.let { itemBuilder.libraryToMediaItem(it, LIBRARIES_ROOT) }
+        return@withContext library?.let { itemBuilder.libraryToMediaItem(it, LIBRARIES_ROOT) }
       }
 
       mediaId.startsWith(RECENTLY_ROOT) && mediaId != RECENTLY_ROOT -> {
         val libraryId = mediaId.removePrefix(RECENTLY_ROOT).trimStart('_')
         val library = mediaManager.getLibrary(libraryId)
-        return library?.let { itemBuilder.libraryToMediaItem(it, RECENTLY_ROOT) }
+        return@withContext library?.let { itemBuilder.libraryToMediaItem(it, RECENTLY_ROOT) }
       }
 
       mediaId.startsWith("__LIBRARY__") -> {
@@ -203,36 +202,36 @@ class Media3BrowseTree(
           val libraryId = mediaIdSegments[2]
           val browseType = mediaIdSegments[3]
           when (browseType) {
-            "AUTHORS" -> return itemBuilder.createBrowsableCategory(mediaId, "Authors", "authors")
-            "SERIES_LIST" -> return itemBuilder.createBrowsableCategory(mediaId, "Series", "books-2")
-            "COLLECTIONS" -> return itemBuilder.createBrowsableCategory(mediaId, "Collections", "books-1")
-            "DISCOVERY" -> return itemBuilder.createBrowsableCategory(mediaId, "Discovery", "rocket")
-            "AUTHOR" -> return mediaIdSegments.getOrNull(4)?.let { authorId ->
+            "AUTHORS" -> return@withContext itemBuilder.createBrowsableCategory(mediaId, "Authors", "authors")
+            "SERIES_LIST" -> return@withContext itemBuilder.createBrowsableCategory(mediaId, "Series", "books-2")
+            "COLLECTIONS" -> return@withContext itemBuilder.createBrowsableCategory(mediaId, "Collections", "books-1")
+            "DISCOVERY" -> return@withContext itemBuilder.createBrowsableCategory(mediaId, "Discovery", "rocket")
+            "AUTHOR" -> return@withContext mediaIdSegments.getOrNull(4)?.let { authorId ->
               dataLoader.loadAuthorsWithBooks(libraryId).find { it.id == authorId }
                 ?.let { author ->
                   itemBuilder.buildMediaItem(
                     mediaId, author.name, "${author.bookCount} books",
-                    getUriToAbsIconDrawable(context, "person"), true, null
+                    getUriToAbsIconDrawable(context, "authors"), true, null
                   )
                 }
             }
 
-            "SERIES" -> return mediaIdSegments.getOrNull(4)?.let { seriesId ->
+            "SERIES" -> return@withContext mediaIdSegments.getOrNull(4)?.let { seriesId ->
               dataLoader.loadLibrarySeriesWithAudio(libraryId).find { it.id == seriesId }
                 ?.let { seriesItem ->
                   itemBuilder.buildMediaItem(
                     mediaId, seriesItem.title, "${seriesItem.audiobookCount} books",
-                    getUriToAbsIconDrawable(context, "bookshelf"), true, null
+                    getUriToAbsIconDrawable(context, "columns"), true, null
                   )
                 }
             }
 
-            "COLLECTION" -> return mediaIdSegments.getOrNull(4)?.let { collectionId ->
+            "COLLECTION" -> return@withContext mediaIdSegments.getOrNull(4)?.let { collectionId ->
               dataLoader.loadLibraryCollectionsWithAudio(libraryId)
                 .find { it.id == collectionId }?.let { collection ->
                   itemBuilder.buildMediaItem(
                     mediaId, collection.name, "${collection.audiobookCount} books",
-                    getUriToAbsIconDrawable(context, "list-box"), true, null
+                    getUriToAbsIconDrawable(context, "columns"), true, null
                   )
                 }
             }
@@ -248,7 +247,7 @@ class Media3BrowseTree(
 
     if (mediaTargetPair == null) {
       Log.w(TAG, "getItem: Unable to resolve playable mediaId='$mediaId'")
-      return null
+      return@withContext null
     }
 
     val (libraryItem, episode) = mediaTargetPair
@@ -256,14 +255,11 @@ class Media3BrowseTree(
       it.libraryItemId == libraryItem.id && it.episodeId == episode?.id
     }
 
-    return episode?.getMediaItem(libraryItem, userMediaProgress, context)
+    return@withContext episode?.getMediaItem(libraryItem, userMediaProgress, context)
       ?: libraryItem.getMediaItem(userMediaProgress, context)
   }
 
-  /**
-   * Builds the children for a given parent ID in the browse tree hierarchy.
-   */
-  suspend fun getChildren(parentId: String): ImmutableList<MediaItem> {
+  suspend fun getChildren(parentId: String): ImmutableList<MediaItem> = withContext(Dispatchers.IO) {
     val mediaItems = when {
       parentId == ROOT_ID -> itemBuilder.getRootChildren()
       parentId == DOWNLOADS_ID -> itemBuilder.buildDownloadsItems()
@@ -272,23 +268,28 @@ class Media3BrowseTree(
       parentId == RECENTLY_ROOT -> itemBuilder.buildLibraryList(RECENTLY_ROOT)
       parentId.startsWith("__PODCAST__") ->
         itemBuilder.buildPodcastEpisodes(parentId.substringAfter("__PODCAST__"))
+      parentId.startsWith("local_") -> itemBuilder.buildPodcastEpisodes(parentId)
       parentId.startsWith(LIBRARIES_ROOT) -> {
         val libraryId = parentId.removePrefix(LIBRARIES_ROOT).trimStart('_')
-        if (libraryId.isBlank()) return ImmutableList.of()
+        if (libraryId.isBlank()) return@withContext ImmutableList.of()
         itemBuilder.buildLibraryChildren(libraryId)
       }
       parentId.startsWith("__LIBRARY__") -> itemBuilder.buildLibrarySubChildren(parentId)
       parentId.startsWith(RECENTLY_ROOT) -> {
-        return itemBuilder.handleRecentChildren(parentId)
+        return@withContext itemBuilder.handleRecentChildren(parentId)
       }
       else -> {
         Log.w(TAG, "getChildren: Unhandled parentId: $parentId")
         emptyList()
       }
     }
-    debugLog { "getChildren: parentId=$parentId items=${mediaItems.size}" }
-    return ImmutableList.copyOf(mediaItems)
+    return@withContext ImmutableList.copyOf(mediaItems)
   }
+
+  /** Artwork decoding must stay off the main thread; Media3 invokes browse callbacks on main. */
+  suspend fun withPagedArtwork(parentId: String, items: List<MediaItem>): List<MediaItem> =
+    if (parentId == DOWNLOADS_ID) withContext(Dispatchers.IO) { applyDownloadArtwork(items, context) }
+    else items
 
   fun getRootItem(): MediaItem {
     val metadata = MediaMetadata.Builder()

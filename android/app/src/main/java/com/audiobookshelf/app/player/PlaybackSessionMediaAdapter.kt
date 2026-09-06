@@ -63,7 +63,7 @@ private fun PlaybackSession.localCoverArtworkData(ctx: Context): ByteArray? {
   if (!isLocal) return null
   val coverUri = getCoverUri(ctx)
   if (coverUri.scheme != "content") return null
-  return coverUriToArtworkData(coverUri, ctx, size = 512, quality = 85)
+  return coverUriToArtworkData(coverUri, ctx, maxSize = 512, quality = 85)
 }
 
 fun PlaybackSession.toMedia3MediaItems(
