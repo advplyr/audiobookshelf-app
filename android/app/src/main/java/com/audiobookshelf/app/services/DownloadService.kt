@@ -28,7 +28,7 @@ class DownloadService : Service() {
       ACTION_CANCEL -> DownloadServiceHost.cancelAll(this)
       else -> {
         startForegroundWithType(DownloadServiceHost.notificationStrings(this).preparing)
-        DownloadServiceHost.ensure(this)
+        DownloadServiceHost.startWork(this)
       }
     }
     return START_STICKY

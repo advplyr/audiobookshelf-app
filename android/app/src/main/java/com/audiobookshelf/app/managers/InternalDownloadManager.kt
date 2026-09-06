@@ -1,9 +1,11 @@
 package com.audiobookshelf.app.managers
 
-import android.util.Log
+import com.audiobookshelf.app.plugins.AbsLogger
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicReference
 import java.util.concurrent.TimeUnit
 import okhttp3.Call
 import okhttp3.Callback
@@ -19,16 +21,49 @@ class InternalDownloadManager(
         private val hasAvailableSpace: () -> Boolean
 ) {
   private val tag = "InternalDownloadManager"
+
+  interface DownloadHandle {
+    fun cancel()
+  }
+
+  private class ActiveDownloadHandle : DownloadHandle {
+    private val cancelled = AtomicBoolean(false)
+    private val activeCall = AtomicReference<Call?>()
+
+    fun setCall(call: Call) {
+      activeCall.set(call)
+      if (cancelled.get()) call.cancel()
+    }
+
+    override fun cancel() {
+      cancelled.set(true)
+      activeCall.get()?.cancel()
+    }
+  }
   /**
    * Starts or resumes a download.
    *
    * @param url download URL
    * @param token access token sent in the Authorization header
-   * @return active call, used to cancel a stalled transfer
+   * @return logical handle used to cancel the active request, including a restarted request
    */
-  fun download(url: String, token: String): Call {
+  fun download(url: String, token: String): DownloadHandle {
     destinationFile.parentFile?.mkdirs()
-    val existingBytes = destinationFile.takeIf { it.exists() }?.length() ?: 0L
+    val handle = ActiveDownloadHandle()
+    startRequest(url, token, handle, allowRestart = true)
+    return handle
+  }
+
+  private fun startRequest(
+          url: String,
+          token: String,
+          handle: ActiveDownloadHandle,
+          allowRestart: Boolean
+  ) {
+    var existingBytes = destinationFile.takeIf { it.exists() }?.length() ?: 0L
+    AbsLogger.info(
+            tag,
+            "Starting ${if (existingBytes > 0L) "resumed" else "new"} download for ${destinationFile.name} at byte $existingBytes")
     val request =
             Request.Builder()
                     .url(url)
@@ -37,20 +72,39 @@ class InternalDownloadManager(
                     .apply { if (existingBytes > 0L) header("Range", "bytes=$existingBytes-") }
                     .build()
     val call = client.newCall(request)
+    handle.setCall(call)
     call.enqueue(
             object : Callback {
               override fun onFailure(call: Call, e: IOException) {
-                Log.e(tag, "Download URL failed", e)
+                AbsLogger.error(tag, "Download request failed for ${destinationFile.name}: ${e.message}")
                 progressCallback.onComplete(true)
               }
 
               override fun onResponse(call: Call, response: Response) {
                 response.use {
                   try {
-                    if (response.code == 416 && expectedSize > 0L && existingBytes == expectedSize
-                    ) {
-                      progressCallback.onProgress(existingBytes, 100L)
-                      progressCallback.onComplete(false)
+                    if (response.code == 401) {
+                      AbsLogger.error(tag, "Download unauthorized (401) for ${destinationFile.name}")
+                      progressCallback.onAuthError()
+                      return
+                    }
+                    if (response.code == 416) {
+                      val serverSize =
+                              response.header("Content-Range")
+                                      ?.removePrefix("bytes */")
+                                      ?.toLongOrNull()
+                      if (serverSize != null) progressCallback.onSizeResolved(serverSize)
+                      if (serverSize != null && existingBytes == serverSize) {
+                        progressCallback.onProgress(existingBytes, 100L)
+                        AbsLogger.info(tag, "Download completed for ${destinationFile.name} ($existingBytes bytes)")
+                        progressCallback.onComplete(false)
+                      } else if (allowRestart && destinationFile.delete()) {
+                        AbsLogger.info(tag, "Restarting stale range from byte zero for ${destinationFile.name}")
+                        startRequest(url, token, handle, allowRestart = false)
+                      } else {
+                        AbsLogger.error(tag, "Could not recover invalid range for ${destinationFile.name} at byte $existingBytes")
+                        progressCallback.onComplete(true)
+                      }
                       return
                     }
                     val append =
@@ -58,24 +112,27 @@ class InternalDownloadManager(
                                     response.code == 206 &&
                                     hasExpectedRange(response, existingBytes)
                     if (existingBytes > 0L && !append && response.code != 200) {
-                      Log.e(
+                      AbsLogger.error(
                               tag,
-                              "Invalid resume response ${response.code} for offset $existingBytes"
+                              "Invalid resume response ${response.code} for ${destinationFile.name} at byte $existingBytes"
                       )
                       progressCallback.onComplete(true)
                       return
                     }
                     if (!response.isSuccessful || response.body == null) {
-                      Log.e(tag, "Download HTTP failure ${response.code}")
+                      AbsLogger.error(tag, "Download HTTP failure ${response.code} for ${destinationFile.name}")
                       progressCallback.onComplete(true)
                       return
                     }
 
                     val startingBytes = if (append) existingBytes else 0L
                     val responseLength = response.body!!.contentLength()
+                    val serverSize =
+                            if (append) contentRangeTotal(response)
+                            else responseLength.takeIf { it >= 0L }
+                    if (serverSize != null) progressCallback.onSizeResolved(serverSize)
                     val totalLength =
-                            if (expectedSize > 0L) expectedSize
-                            else if (responseLength >= 0L) startingBytes + responseLength else 0L
+                            serverSize ?: if (expectedSize > 0L) expectedSize else 0L
 
                     FileOutputStream(destinationFile, append).use { output ->
                       response.body!!.byteStream().use { input ->
@@ -95,24 +152,28 @@ class InternalDownloadManager(
                       }
                     }
 
-                    if (expectedSize > 0L && destinationFile.length() != expectedSize) {
-                      Log.e(
+                    val downloadedSize = destinationFile.length()
+                    if (serverSize != null && downloadedSize != serverSize) {
+                      AbsLogger.error(
                               tag,
-                              "Downloaded size ${destinationFile.length()} did not match $expectedSize"
+                              "Downloaded size for ${destinationFile.name} was $downloadedSize, expected server size $serverSize"
                       )
                       progressCallback.onComplete(true)
                     } else {
+                      AbsLogger.info(
+                              tag,
+                              "Download completed for ${destinationFile.name} ($downloadedSize bytes)"
+                      )
                       progressCallback.onComplete(false)
                     }
                   } catch (e: IOException) {
-                    Log.e(tag, "Could not write staging file", e)
+                    AbsLogger.error(tag, "Could not write staging file ${destinationFile.name}: ${e.message}")
                     progressCallback.onComplete(true)
                   }
                 }
               }
             }
     )
-    return call
   }
 
   private fun hasExpectedRange(response: Response, offset: Long): Boolean {
@@ -122,9 +183,16 @@ class InternalDownloadManager(
             match.groupValues[2].toLongOrNull()?.let { it >= offset } == true
   }
 
+  private fun contentRangeTotal(response: Response): Long? =
+          CONTENT_RANGE.matchEntire(response.header("Content-Range") ?: "")
+                  ?.groupValues
+                  ?.get(3)
+                  ?.takeUnless { it == "*" }
+                  ?.toLongOrNull()
+
   private companion object {
     const val CHUNK_SIZE = 512 * 1024 // 512 KB
-    val CONTENT_RANGE = Regex("bytes (\\d+)-(\\d+)/(?:\\d+|\\*)")
+    val CONTENT_RANGE = Regex("bytes (\\d+)-(\\d+)/(\\d+|\\*)")
     val client =
             OkHttpClient.Builder()
                     .connectTimeout(30, TimeUnit.SECONDS)

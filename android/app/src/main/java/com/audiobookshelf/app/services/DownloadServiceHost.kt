@@ -5,12 +5,21 @@ import androidx.core.content.ContextCompat
 import com.audiobookshelf.app.device.FolderScanner
 import com.audiobookshelf.app.managers.DbManager
 import com.audiobookshelf.app.managers.DownloadItemManager
+import com.audiobookshelf.app.managers.IncompleteDownloadCleanup
 import com.audiobookshelf.app.models.DownloadItem
+import com.audiobookshelf.app.plugins.AbsLogger
 import com.getcapacitor.JSObject
 import java.util.Collections
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 
 /** Shared process owner used by the foreground service and the Capacitor bridge. */
 object DownloadServiceHost {
+  enum class ExistingDownloadResult { NOT_FOUND, ACTIVE, RETRIED, SERVICE_START_FAILED }
+
   data class NotificationStrings(
           val preparing: String,
           val downloadingFile: String,
@@ -21,9 +30,11 @@ object DownloadServiceHost {
 
   private var manager: DownloadItemManager? = null
   private var bridgeEmitter: DownloadItemManager.DownloadEventEmitter = NoopEmitter
-  private var service: DownloadService? = null
+  @Volatile private var service: DownloadService? = null
   @Volatile private var bridgeReady = false
   private val deferredCompletions = Collections.synchronizedList(mutableListOf<JSObject>())
+  private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+  private var restoreJob: Job? = null
 
   @Synchronized
   fun ensure(context: Context): DownloadItemManager {
@@ -31,7 +42,11 @@ object DownloadServiceHost {
       val appContext = context.applicationContext
       DbManager.initialize(appContext)
       manager = DownloadItemManager(FolderScanner(appContext), appContext, ForwardingEmitter)
-      manager!!.restoreQueue()
+      restoreJob = scope.launch {
+        IncompleteDownloadCleanup.cleanupExpired(appContext)
+        manager!!.restoreQueue()
+        onRestoreComplete(appContext)
+      }
     }
     return manager!!
   }
@@ -41,14 +56,12 @@ object DownloadServiceHost {
   fun attachBridge(context: Context, emitter: DownloadItemManager.DownloadEventEmitter) {
     bridgeReady = false
     bridgeEmitter = emitter
-    val queue = ensure(context)
-    queue.setEventEmitter(ForwardingEmitter)
+    ensure(context).setEventEmitter(ForwardingEmitter)
     bridgeReady = true
     val completions = synchronized(deferredCompletions) {
       deferredCompletions.toList().also { deferredCompletions.clear() }
     }
     completions.forEach(bridgeEmitter::onDownloadItemComplete)
-    if (queue.hasWork()) startService(context)
   }
 
   @Synchronized
@@ -57,14 +70,44 @@ object DownloadServiceHost {
     bridgeEmitter = NoopEmitter
   }
 
-  @Synchronized
-  fun enqueue(context: Context, item: DownloadItem) {
-    ensure(context).addDownloadItem(item)
-    startService(context)
+  fun enqueue(context: Context, item: DownloadItem, callback: (String?) -> Unit) {
+    val queue = ensure(context)
+    scope.launch {
+      restoreJob?.join()
+      queue.addDownloadItem(item)
+      if (startService(context)) callback(null)
+      else callback("Unable to start the Android download service")
+    }
   }
 
-  @Synchronized
-  fun cancelAll(context: Context) { ensure(context).cancelAll() }
+  fun retryExisting(
+          context: Context,
+          downloadItemId: String,
+          callback: (ExistingDownloadResult) -> Unit
+  ) {
+    val queue = ensure(context)
+    scope.launch {
+      restoreJob?.join()
+      val existing = queue.downloadItemQueue.find { it.id == downloadItemId }
+      if (existing == null) {
+        callback(ExistingDownloadResult.NOT_FOUND)
+      } else if (!queue.retryDownloadItem(downloadItemId)) {
+        callback(ExistingDownloadResult.ACTIVE)
+      } else if (startService(context)) {
+        callback(ExistingDownloadResult.RETRIED)
+      } else {
+        callback(ExistingDownloadResult.SERVICE_START_FAILED)
+      }
+    }
+  }
+
+  fun cancelAll(context: Context) {
+    val queue = ensure(context)
+    scope.launch {
+      restoreJob?.join()
+      queue.cancelAll()
+    }
+  }
 
   fun setNotificationStrings(
           context: Context,
@@ -96,10 +139,9 @@ object DownloadServiceHost {
             preferences.getString(KEY_CANCEL, DEFAULT_CANCEL) ?: DEFAULT_CANCEL)
   }
 
-  @Synchronized
   fun attachService(downloadService: DownloadService) {
-    service = downloadService
-    service?.onQueueChanged(ensure(downloadService).hasWork())
+    synchronized(this) { service = downloadService }
+    startWork(downloadService)
   }
 
   @Synchronized
@@ -107,8 +149,31 @@ object DownloadServiceHost {
     if (service === downloadService) service = null
   }
 
-  private fun startService(context: Context) {
-    ContextCompat.startForegroundService(context, DownloadService.intent(context))
+  fun startWork(context: Context) {
+    val queue = ensure(context)
+    scope.launch {
+      restoreJob?.join()
+      queue.resumeWork()
+    }
+  }
+
+  private fun onRestoreComplete(context: Context) {
+    val attachedService = synchronized(this) { service }
+    if (attachedService != null) {
+      manager?.resumeWork()
+    } else if (bridgeReady && manager?.hasWork() == true) {
+      startService(context)
+    }
+  }
+
+  private fun startService(context: Context): Boolean {
+    return try {
+      ContextCompat.startForegroundService(context, DownloadService.intent(context))
+      true
+    } catch (e: RuntimeException) {
+      AbsLogger.error(TAG, "Could not start download foreground service: ${e.message}")
+      false
+    }
   }
 
   private object ForwardingEmitter : DownloadItemManager.DownloadEventEmitter {
@@ -144,4 +209,5 @@ object DownloadServiceHost {
   private const val DEFAULT_WAITING_FOR_STORAGE = "Waiting for available storage"
   private const val DEFAULT_DOWNLOADS = "Downloads"
   private const val DEFAULT_CANCEL = "Cancel"
+  private const val TAG = "DownloadServiceHost"
 }
