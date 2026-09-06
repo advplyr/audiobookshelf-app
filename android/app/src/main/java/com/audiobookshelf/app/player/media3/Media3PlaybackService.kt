@@ -854,11 +854,7 @@ class Media3PlaybackService : MediaLibraryService(), PlaybackEventSink, Playback
     val session = currentPlaybackSession
     val hasMultipleTracks = (session?.audioTracks?.size ?: 0) > 1
     media3NotificationManager.setTrackNavigationEnabled(hasMultipleTracks && !isCastActive)
-    runCatching {
-      media3NotificationManager.refreshMediaButtonPreferences(
-        mediaSession
-      )
-    }
+    media3NotificationManager.refreshMediaButtonPreferences(mediaSession)
   }
 
   override fun notifyWidgetState(

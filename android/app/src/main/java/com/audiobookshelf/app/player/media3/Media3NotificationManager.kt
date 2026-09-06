@@ -142,9 +142,7 @@ class Media3NotificationManager(
   fun updatePlaybackSpeedButton(speed: Float) {
     if (!this::playbackSpeedButtonProvider.isInitialized) return
     playbackSpeedButtonProvider.alignTo(speed)
-    val speedButton = playbackSpeedButtonProvider.createButton(speed)
-    playbackSpeedCommandButton = speedButton
-    refreshMediaButtonPreferences(null)
+    playbackSpeedCommandButton = playbackSpeedButtonProvider.createButton(speed)
   }
 
   fun refreshMediaButtonPreferences(mediaSession: MediaSession?) {
