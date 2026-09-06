@@ -60,10 +60,6 @@ class PlaybackController(private val context: Context) {
   private var forceNextPlayingStateUpdate = false
   private var isPreparingPlayback = false
   private var lastEmittedMetadata: PlaybackMetadata? = null
-  @Volatile
-  private var lastKnownPositionMs: Long = 0L
-  @Volatile
-  private var lastKnownMediaItemIndex: Int = 0
 
   private val setSleepTimerCommand =
     PlaybackConstants.sessionCommand(PlaybackConstants.SleepTimer.ACTION_SET)
@@ -84,12 +80,7 @@ class PlaybackController(private val context: Context) {
 
   private val progressUpdater = object : Runnable {
     override fun run() {
-      mediaController?.let { mediaController ->
-        if (isOnMainThread) {
-          lastKnownPositionMs = mediaController.currentPosition
-        }
-        emitMetadata(mediaController)
-      }
+      mediaController?.let { emitMetadata(it) }
       if (isProgressUpdaterScheduled) {
         mainHandler.postDelayed(this, PROGRESS_UPDATE_INTERVAL_MS)
       }
@@ -207,7 +198,6 @@ class PlaybackController(private val context: Context) {
       }
       maybeEmitMediaPlayerFromExtras()
       notifyPlayingState(effectiveIsPlaying(player))
-      lastKnownMediaItemIndex = player.currentMediaItemIndex
       this@PlaybackController.mediaController?.let {
         emitMetadata(it)
         // Covers playback started outside the app (e.g. Android Auto) while connected
@@ -259,7 +249,6 @@ class PlaybackController(private val context: Context) {
 
     private fun updateStateSnapshot(controller: MediaController) {
       maybeEmitMediaPlayerFromExtras()
-      lastKnownMediaItemIndex = controller.currentMediaItemIndex
       emitMetadata(controller)
     }
 
@@ -555,8 +544,6 @@ class PlaybackController(private val context: Context) {
 
     val durationMs = computeAbsoluteDuration(mediaController)
     val currentMs = computeAbsolutePosition(mediaController)
-    lastKnownPositionMs = currentMs
-    lastKnownMediaItemIndex = mediaController.currentMediaItemIndex
     val metadata =
       PlaybackMetadata(
         durationMs / 1000.0,
@@ -597,24 +584,18 @@ class PlaybackController(private val context: Context) {
 
 
   fun currentPosition(): Long {
-    val mediaController = mediaController
-    return if (mediaController != null && isOnMainThread) {
-      val absolutePositionMs = computeAbsolutePosition(mediaController)
-      lastKnownPositionMs = absolutePositionMs
-      absolutePositionMs
-    } else {
-      lastKnownPositionMs
-    }
+    val mediaController = mediaController ?: return 0L
+    return computeAbsolutePosition(mediaController)
   }
 
   fun bufferedPosition(): Long {
-    val mediaController = mediaController
-    if (mediaController != null) {
-      val trackStartOffsetMs =
-        activePlaybackSession?.getTrackStartOffsetMs(mediaController.currentMediaItemIndex) ?: 0L
-      return (mediaController.bufferedPosition + trackStartOffsetMs).coerceAtLeast(0L)
-    }
-    return currentPosition()
+    val mediaController = mediaController ?: return 0L
+    val session = activePlaybackSession ?: return mediaController.bufferedPosition
+    return PlaybackPositionModel.bookAbsoluteMsFor(
+      session,
+      currentMediaItemIndex(),
+      mediaController.bufferedPosition
+    )
   }
 
   fun isPlaying(): Boolean = mediaController?.isPlaying ?: false
@@ -623,13 +604,9 @@ class PlaybackController(private val context: Context) {
 
   fun currentMediaItemIndex(): Int {
     val mediaController = mediaController
-    return if (mediaController != null && isOnMainThread) {
-      mediaController.currentMediaItemIndex.also { lastKnownMediaItemIndex = it }
-    } else {
-      lastKnownMediaItemIndex.takeIf { it >= 0 }
-        ?: activePlaybackSession?.getCurrentTrackIndex()
-        ?: 0
-    }
+      ?: return activePlaybackSession?.getCurrentTrackIndex() ?: 0
+    return positionModel(mediaController)?.trackIndex()
+      ?: mediaController.currentMediaItemIndex
   }
 
   private fun effectiveIsPlaying(player: Player): Boolean {
@@ -641,7 +618,6 @@ class PlaybackController(private val context: Context) {
     val mediaController = mediaController
     if (mediaController != null) {
       onControllerReady(mediaController)
-      lastKnownPositionMs = computeAbsolutePosition(mediaController)
       return
     }
     connect {
@@ -658,11 +634,12 @@ class PlaybackController(private val context: Context) {
     }
   }
 
-  private fun computeAbsolutePosition(mediaController: MediaController): Long {
-    val trackStartOffsetMs =
-      activePlaybackSession?.getTrackStartOffsetMs(mediaController.currentMediaItemIndex) ?: 0L
-    return (mediaController.currentPosition + trackStartOffsetMs).coerceAtLeast(0L)
-  }
+  private fun positionModel(mediaController: MediaController): PlaybackPositionModel? =
+    activePlaybackSession?.let { PlaybackPositionModel(it, mediaController) }
+
+  private fun computeAbsolutePosition(mediaController: MediaController): Long =
+    positionModel(mediaController)?.bookAbsoluteMsOrNull()
+      ?: mediaController.currentPosition.coerceAtLeast(0L)
 
   private fun computeAbsoluteDuration(mediaController: MediaController): Long {
     val sessionDuration = activePlaybackSession?.totalDurationMs ?: 0L

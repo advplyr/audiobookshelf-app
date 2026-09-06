@@ -63,12 +63,13 @@ class Media3BrowseTree(
       preferServerUrisForCast = preferServerUrisForCast
     )
     val resumePositionMs = resolveResumePositionMs(mediaTarget, playbackSession)
-    val startIndex = resolveTrackIndexForPosition(playbackSession, resumePositionMs).coerceIn(
-      0,
+    val seekTarget = PlaybackPositionModel.seekTargetForPosition(
+      playbackSession,
+      resumePositionMs,
       mediaItems.lastIndex
     )
-    val trackStartOffsetMs = playbackSession.getTrackStartOffsetMs(startIndex)
-    val startPositionMs = (resumePositionMs - trackStartOffsetMs).coerceAtLeast(0L)
+    val startIndex = seekTarget.trackIndex
+    val startPositionMs = seekTarget.positionInTrackMs
     ResolvedPlayable(
       session = playbackSession,
       mediaItems = mediaItems,
@@ -113,15 +114,6 @@ class Media3BrowseTree(
     val progressId =
       if (localEpisodeId.isNullOrEmpty()) localItemId else "$localItemId-$localEpisodeId"
     return DeviceManager.dbManager.getLocalMediaProgress(progressId)?.lastUpdate ?: 0L
-  }
-
-  private fun resolveTrackIndexForPosition(session: PlaybackSession, positionMs: Long): Int {
-    val audioTracks = session.audioTracks
-    if (audioTracks.isEmpty()) return 0
-    val currentTrack =
-      audioTracks.firstOrNull { positionMs in it.startOffsetMs until it.endOffsetMs }
-        ?: audioTracks.last()
-    return audioTracks.indexOf(currentTrack)
   }
 
   private data class MediaTarget(

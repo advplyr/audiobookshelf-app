@@ -149,10 +149,11 @@ class Media3PlayerEventListener(
     ) {
       lastPauseTimestampMs = 0L
       host.currentSession()?.let { currentSession ->
-        val newTrackIndex = newPosition.mediaItemIndex
-        val newPositionInTrackMs = newPosition.positionMs
-        val newTrackStartOffsetMs = currentSession.getTrackStartOffsetMs(newTrackIndex)
-        val newAbsolutePositionMs = newTrackStartOffsetMs + newPositionInTrackMs
+        val newAbsolutePositionMs = PlaybackPositionModel.bookAbsoluteMsFor(
+          currentSession,
+          newPosition.mediaItemIndex,
+          newPosition.positionMs
+        )
 
         currentSession.currentTime = newAbsolutePositionMs / 1000.0
         // Refresh the chapter metadata now so it isn't stale until the next position tick.

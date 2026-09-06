@@ -391,12 +391,6 @@ class Media3PlayerBackend(
 
   /* ======== Widget ======== */
 
-  private fun currentAbsolutePositionMs(session: PlaybackSession): Long {
-    val trackIndex = playbackController.currentMediaItemIndex()
-    val offsetMs = session.getTrackStartOffsetMs(trackIndex)
-    return playbackController.currentPosition() + offsetMs
-  }
-
   private fun notifyWidgetState(isClosed: Boolean = false) {
     val updater = DeviceManager.widgetUpdater ?: return
     if (isClosed) {
@@ -409,7 +403,7 @@ class Media3PlayerBackend(
       context = context,
       isPlaying = playbackController.isPlaying(),
       isClosed = false,
-      positionOverrideMs = currentAbsolutePositionMs(session)
+      positionOverrideMs = playbackController.currentPosition()
     )
     if (snapshot.hasMeaningfulChangesFrom(lastWidgetSnapshot)) {
       lastWidgetSnapshot = snapshot

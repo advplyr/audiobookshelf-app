@@ -56,19 +56,49 @@ class PlaybackPositionModel(
   fun bookAbsoluteMs(): Long = bookAbsoluteMsOrNull() ?: session.currentTimeMs
 
   fun seekTargetForSessionTime(maxIndex: Int = session.audioTracks.lastIndex): SeekTarget =
-    seekTargetFor(session.currentTimeMs, session.getCurrentTrackIndex(), maxIndex)
-
-  private fun seekTargetFor(bookAbsoluteMs: Long, rawIndex: Int, maxIndex: Int): SeekTarget {
-    if (maxIndex < 0) return SeekTarget(0, bookAbsoluteMs.coerceAtLeast(0L))
-    val index = rawIndex.coerceIn(0, maxIndex)
-    val positionInTrack =
-      (bookAbsoluteMs - session.getTrackStartOffsetMs(index)).coerceAtLeast(0L)
-    return SeekTarget(index, positionInTrack)
-  }
+    seekTargetFor(session, session.currentTimeMs, session.getCurrentTrackIndex(), maxIndex)
 
   fun currentChapter(): BookChapter? = session.getChapterForTime(bookAbsoluteMs())
 
   fun nextChapter(): BookChapter? = session.getNextChapterForTime(bookAbsoluteMs())
+
+  companion object {
+    // Conversions that need only the session, for callers resolving a position before a player
+    // exists (Android Auto resume, queue building).
+
+    fun trackIndexForPosition(session: PlaybackSession, bookAbsoluteMs: Long): Int {
+      val tracks = session.audioTracks
+      if (tracks.isEmpty()) return 0
+      val index = tracks.indexOfFirst {
+        bookAbsoluteMs in it.startOffsetMs until it.endOffsetMs
+      }
+      return if (index >= 0) index else tracks.lastIndex
+    }
+
+    fun bookAbsoluteMsFor(session: PlaybackSession, trackIndex: Int, positionInTrackMs: Long): Long =
+      (session.getTrackStartOffsetMs(trackIndex) + positionInTrackMs).coerceAtLeast(0L)
+
+    fun seekTargetFor(
+      session: PlaybackSession,
+      bookAbsoluteMs: Long,
+      rawIndex: Int,
+      maxIndex: Int
+    ): SeekTarget {
+      if (maxIndex < 0) return SeekTarget(0, bookAbsoluteMs.coerceAtLeast(0L))
+      val index = rawIndex.coerceIn(0, maxIndex)
+      val positionInTrack =
+        (bookAbsoluteMs - session.getTrackStartOffsetMs(index)).coerceAtLeast(0L)
+      return SeekTarget(index, positionInTrack)
+    }
+
+    /** Resolves the track for [bookAbsoluteMs] and converts it in one step. */
+    fun seekTargetForPosition(
+      session: PlaybackSession,
+      bookAbsoluteMs: Long,
+      maxIndex: Int
+    ): SeekTarget =
+      seekTargetFor(session, bookAbsoluteMs, trackIndexForPosition(session, bookAbsoluteMs), maxIndex)
+  }
 
   /** Returns null rather than overwriting progress when the player's queue belongs elsewhere. */
   fun writeBackToSession(): WriteBack? {

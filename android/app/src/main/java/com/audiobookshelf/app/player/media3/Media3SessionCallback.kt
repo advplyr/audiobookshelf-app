@@ -235,8 +235,11 @@ class Media3SessionCallback(
       var adjustedStartPositionMs = resolvedPlayable.startPositionMs
       val resolvedSession = resolvedPlayable.session
       val totalDurationMs = resolvedSession.totalDurationMs
-      val absoluteStartMs =
-        resolvedSession.getTrackStartOffsetMs(adjustedStartIndex) + adjustedStartPositionMs
+      val absoluteStartMs = PlaybackPositionModel.bookAbsoluteMsFor(
+        resolvedSession,
+        adjustedStartIndex,
+        adjustedStartPositionMs
+      )
       if (totalDurationMs > 0 && (totalDurationMs - absoluteStartMs) < FINISHED_BOOK_THRESHOLD_MS) {
         adjustedStartIndex = 0
         adjustedStartPositionMs = 0L
