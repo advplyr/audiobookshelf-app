@@ -405,17 +405,26 @@ class DownloadItemManager(
 
   private fun refreshTokenThenResume(serverConnectionConfigId: String) {
     if (!refreshingServerIds.add(serverConnectionConfigId)) return
-    apiHandler.refreshAuthTokens(serverConnectionConfigId) { newAccessToken ->
+    apiHandler.refreshAuthTokens(serverConnectionConfigId) { result ->
       synchronized(this@DownloadItemManager) {
         refreshingServerIds.remove(serverConnectionConfigId)
-        if (newAccessToken.isNullOrEmpty()) {
-          failParkedAuthParts(serverConnectionConfigId)
-        } else {
-          AbsLogger.info(
-                  tag,
-                  "Token refresh succeeded; resuming downloads for $serverConnectionConfigId"
-          )
-          checkUpdateDownloadQueue()
+        when (result) {
+          is ApiHandler.RefreshResult.Success -> {
+            AbsLogger.info(
+                    tag,
+                    "Token refresh succeeded; resuming downloads for $serverConnectionConfigId"
+            )
+            checkUpdateDownloadQueue()
+          }
+          ApiHandler.RefreshResult.Rejected -> failParkedAuthParts(serverConnectionConfigId)
+          // Parked parts are still queued, so MAX_AUTH_RETRIES bounds the reattempts.
+          ApiHandler.RefreshResult.Transient -> {
+            AbsLogger.info(
+                    tag,
+                    "Token refresh could not be completed; retrying downloads for $serverConnectionConfigId"
+            )
+            checkUpdateDownloadQueue()
+          }
         }
       }
     }
