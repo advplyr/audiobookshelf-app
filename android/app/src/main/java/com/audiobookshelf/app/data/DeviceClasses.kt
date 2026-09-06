@@ -2,6 +2,7 @@ package com.audiobookshelf.app.data
 
 import android.content.Context
 import android.net.Uri
+import android.provider.DocumentsContract
 import android.support.v4.media.MediaDescriptionCompat
 import android.util.Log
 import com.fasterxml.jackson.annotation.JsonIgnore
@@ -72,6 +73,13 @@ data class LocalFile(
         var mimeType: String?,
         var size: Long
 ) {
+  /**
+   * Full check: does the file exist and can this app actually open it?
+   *
+   * Costs a ContentResolver round-trip per file, so callers holding many files should prefer
+   * [exists] with a folder listing, or [existsOnDisk] when access to the folder is already known
+   * to be intact.
+   */
   @JsonIgnore
   fun exists(ctx: Context): Boolean {
     if (contentUrl.startsWith("content:")) {
@@ -84,6 +92,36 @@ data class LocalFile(
     }
     return File(absolutePath).exists()
   }
+
+  /**
+   * Same check as [exists], but backed by the document ids of the parent folder, so a whole
+   * folder costs one query instead of a round-trip per file. Falls back to the per-file check
+   * when the folder cannot be listed (permission lost, non-tree uri).
+   */
+  @JsonIgnore
+  fun exists(ctx: Context, siblingDocumentIds: () -> Set<String>?): Boolean {
+    if (contentUrl.startsWith("content:")) {
+      val documentIds = siblingDocumentIds()
+      if (documentIds != null) {
+        val documentId =
+                try {
+                  DocumentsContract.getDocumentId(Uri.parse(contentUrl))
+                } catch (e: Exception) {
+                  null
+                }
+        if (documentId != null) return documentIds.contains(documentId)
+      }
+    }
+    return exists(ctx)
+  }
+
+  /**
+   * Is the file still on disk? Costs a stat, so it is orders of magnitude cheaper than the SAF
+   * checks above, but it only answers presence: under scoped storage a path can be visible while
+   * the file is not openable. Only use it when access to the containing folder has been
+   * established separately.
+   */
+  @JsonIgnore fun existsOnDisk(): Boolean = absolutePath.isNotEmpty() && File(absolutePath).exists()
 
   @JsonIgnore
   fun isAudioFile(): Boolean {

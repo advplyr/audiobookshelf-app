@@ -1,6 +1,7 @@
 package com.audiobookshelf.app.services
 
 import android.content.Context
+import android.util.Log
 import androidx.core.content.ContextCompat
 import com.audiobookshelf.app.device.FolderScanner
 import com.audiobookshelf.app.managers.DbManager
@@ -8,6 +9,11 @@ import com.audiobookshelf.app.managers.DownloadItemManager
 import com.audiobookshelf.app.models.DownloadItem
 import com.getcapacitor.JSObject
 import java.util.Collections
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 
 /** Shared process owner used by the foreground service and the Capacitor bridge. */
 object DownloadServiceHost {
@@ -19,10 +25,14 @@ object DownloadServiceHost {
           val cancel: String
   )
 
+  private const val tag = "DownloadServiceHost"
+  private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
   private var manager: DownloadItemManager? = null
   private var bridgeEmitter: DownloadItemManager.DownloadEventEmitter = NoopEmitter
   private var service: DownloadService? = null
   @Volatile private var bridgeReady = false
+  @Volatile private var restoreJob: Job? = null
   private val deferredCompletions = Collections.synchronizedList(mutableListOf<JSObject>())
 
   @Synchronized
@@ -30,8 +40,14 @@ object DownloadServiceHost {
     if (manager == null) {
       val appContext = context.applicationContext
       DbManager.initialize(appContext)
-      manager = DownloadItemManager(FolderScanner(appContext), appContext, ForwardingEmitter)
-      manager!!.restoreQueue()
+      val created = DownloadItemManager(FolderScanner(appContext), appContext, ForwardingEmitter)
+      manager = created
+      // Restoring deserializes the download db and probes shared storage. That is far too slow
+      // for the main thread, which is where the Capacitor plugin load calls this from.
+      restoreJob = scope.launch {
+        created.restoreQueue()
+        if (created.hasWork()) startService(appContext)
+      }
     }
     return manager!!
   }
@@ -42,13 +58,17 @@ object DownloadServiceHost {
     bridgeReady = false
     bridgeEmitter = emitter
     val queue = ensure(context)
-    queue.setEventEmitter(ForwardingEmitter)
-    bridgeReady = true
-    val completions = synchronized(deferredCompletions) {
-      deferredCompletions.toList().also { deferredCompletions.clear() }
+    val appContext = context.applicationContext
+    scope.launch {
+      restoreJob?.join()
+      queue.setEventEmitter(ForwardingEmitter)
+      bridgeReady = true
+      val completions = synchronized(deferredCompletions) {
+        deferredCompletions.toList().also { deferredCompletions.clear() }
+      }
+      completions.forEach(bridgeEmitter::onDownloadItemComplete)
+      if (queue.hasWork()) startService(appContext)
     }
-    completions.forEach(bridgeEmitter::onDownloadItemComplete)
-    if (queue.hasWork()) startService(context)
   }
 
   @Synchronized
@@ -99,7 +119,11 @@ object DownloadServiceHost {
   @Synchronized
   fun attachService(downloadService: DownloadService) {
     service = downloadService
-    service?.onQueueChanged(ensure(downloadService).hasWork())
+    val queue = ensure(downloadService)
+    scope.launch {
+      restoreJob?.join()
+      downloadService.onQueueChanged(queue.hasWork())
+    }
   }
 
   @Synchronized
@@ -108,7 +132,13 @@ object DownloadServiceHost {
   }
 
   private fun startService(context: Context) {
-    ContextCompat.startForegroundService(context, DownloadService.intent(context))
+    // The queue can be restored while the app sits in the background, where starting a
+    // foreground service is not permitted. The in-process watcher keeps the queue moving.
+    try {
+      ContextCompat.startForegroundService(context, DownloadService.intent(context))
+    } catch (e: Exception) {
+      Log.w(tag, "Could not start the download foreground service", e)
+    }
   }
 
   private object ForwardingEmitter : DownloadItemManager.DownloadEventEmitter {

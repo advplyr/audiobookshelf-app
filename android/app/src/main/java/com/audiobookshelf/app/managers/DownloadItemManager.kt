@@ -58,10 +58,6 @@ class DownloadItemManager(
     fun onComplete(failed: Boolean)
   }
 
-  init {
-    IncompleteDownloadCleanup.cleanupExpired(context)
-  }
-
   @Synchronized
   fun setEventEmitter(eventEmitter: DownloadEventEmitter) {
     clientEventEmitter = eventEmitter
@@ -69,10 +65,16 @@ class DownloadItemManager(
     notifyQueueChanged()
   }
 
+  /**
+   * Restores the persisted queue. Deserializes the download db and probes shared storage for
+   * files that are already in place, so this must not be called from the main thread.
+   */
   @Synchronized
   fun restoreQueue() {
     if (downloadItemQueue.isNotEmpty()) return
-    DeviceManager.dbManager.getDownloadItems().forEach { item ->
+    val persistedItems = DeviceManager.dbManager.getDownloadItems()
+    val expiredIds = IncompleteDownloadCleanup.cleanupExpired(context, persistedItems)
+    persistedItems.filterNot { expiredIds.contains(it.id) }.forEach { item ->
       if (item.isDownloadFinished) {
         downloadItemQueue.add(item)
         checkDownloadItemFinished(item)

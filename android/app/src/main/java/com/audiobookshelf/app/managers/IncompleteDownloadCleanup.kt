@@ -36,12 +36,18 @@ object IncompleteDownloadCleanup {
 
   /** Removes failures retained longer than 24 hours when scheduled work did not run. */
   fun cleanupExpired(context: Context) {
+    cleanupExpired(context, DeviceManager.dbManager.getDownloadItems())
+  }
+
+  /**
+   * Same, for callers that already hold the persisted items. Returns the ids that were deleted so
+   * the caller can drop them from its own copy of the list.
+   */
+  fun cleanupExpired(context: Context, items: List<DownloadItem>): Set<String> {
     val now = System.currentTimeMillis()
-    DeviceManager.dbManager.getDownloadItems()
-            .filter { item -> isEligible(item, now) }
-            .forEach { item ->
-              deleteItem(context, item)
-            }
+    val expired = items.filter { item -> isEligible(item, now) }
+    expired.forEach { item -> deleteItem(context, item) }
+    return expired.map { it.id }.toSet()
   }
 
   private fun isEligible(item: DownloadItem, now: Long): Boolean {
