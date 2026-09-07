@@ -188,13 +188,19 @@ class Media3ProgressSyncer(
     }
 
     if (!force && timeSinceLastSyncMillis < 1000L) {
-      Log.v(TAG, "sync: Skip; diffSinceLastSync=${timeSinceLastSyncMillis}ms (<1s) force=$force")
+      Log.v(TAG, "sync: Skip; diffSinceLastSync=${timeSinceLastSyncMillis}ms (<1s)")
       onComplete(null)
       return
     }
 
+    // A 404'd session can no longer reach the server, but the position still has to land in the
+    // local row - every other sync path persists before returning and this one must too.
     if (!currentIsLocal && serverSessionClosed) {
       debugLog(TAG) { "sync: Skip server sync because session is closed for $currentSessionId" }
+      currentPlaybackSession?.let {
+        it.syncData(MediaProgressSyncData(0L, currentPlaybackDuration, currentTime))
+        DeviceManager.dbManager.savePlaybackSession(it)
+      }
       onComplete(SyncResult(false, null, "server_session_closed"))
       return
     }
@@ -306,7 +312,7 @@ class Media3ProgressSyncer(
             stateHost.alertSyncSuccess()
             lastSyncTime = System.currentTimeMillis()
           }
-          // Destroy blocks the main looper on a latch, so row cleanup cannot depend on a main-thread post.
+          // Switch and destroy can make state stale before this callback; the row still needs cleanup.
           DeviceManager.dbManager.removePlaybackSession(sessionIdForSync)
           AbsLogger.info(
             PERSISTENT_LOG_TAG,

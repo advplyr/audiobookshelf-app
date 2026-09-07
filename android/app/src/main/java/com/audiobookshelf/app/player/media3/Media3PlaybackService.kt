@@ -32,7 +32,6 @@ class Media3PlaybackService : MediaLibraryService(), PlaybackEventSink, Playback
     // Shutdown timeouts
     private const val TASK_REMOVAL_CLOSE_TIMEOUT_MS = 5_000L
     private const val FINAL_SYNC_TIMEOUT_MS = 500L
-    private const val DESTROY_FINAL_SYNC_TIMEOUT_SEC = 1L
   }
 
   // Service lifecycle
@@ -182,7 +181,7 @@ class Media3PlaybackService : MediaLibraryService(), PlaybackEventSink, Playback
         this::media3SessionManager.isInitialized && media3SessionManager.terminalSyncClaimed
       if (session != null && !alreadyClosing && this::progressSync.isInitialized && isPlayerInitialized) {
         media3SessionManager.claimTerminalSync()
-        progressSync.syncOnDestroy(session, DESTROY_FINAL_SYNC_TIMEOUT_SEC) {
+        progressSync.syncOnDestroy(session) {
           updateCurrentPosition(session)
         }
       }

@@ -5,8 +5,6 @@ import com.audiobookshelf.app.data.PlaybackSession
 import com.audiobookshelf.app.device.DeviceManager
 import com.audiobookshelf.app.media.SyncResult
 import com.audiobookshelf.app.server.ApiHandler
-import java.util.concurrent.CountDownLatch
-import java.util.concurrent.TimeUnit
 
 private const val TAG = "M3ProgressSyncCoordinator"
 
@@ -76,20 +74,19 @@ class Media3ProgressSyncCoordinator(
   }
 
   /**
-   * Blocking final sync for service teardown. onDestroy cannot suspend and the process may die
-   * immediately after, so this waits off the main thread rather than posting a callback.
+   * Final sync for service teardown. syncNow persists the refreshed position to the local row
+   * synchronously before it attempts the network, so the progress is already durable when this
+   * returns and onDestroy must not block the main thread waiting for the server round-trip.
    */
-  fun syncOnDestroy(session: PlaybackSession, timeoutSec: Long, beforeSync: () -> Unit) {
+  fun syncOnDestroy(session: PlaybackSession, beforeSync: () -> Unit) {
     val syncer = syncer ?: return
     beforeSync()
-    val latch = CountDownLatch(1)
     syncer.syncNow(
       SyncReason.STOP,
       session.clone(),
       shouldSyncServer = true,
       callbackOnMainThread = false
-    ) { latch.countDown() }
-    latch.await(timeoutSec, TimeUnit.SECONDS)
+    ) {}
 
     if (!session.isLocal && session.id.isNotEmpty()) {
       closeSessionOnServer(session.id)
