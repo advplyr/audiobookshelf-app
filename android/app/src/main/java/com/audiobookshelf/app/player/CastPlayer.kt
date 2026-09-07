@@ -815,12 +815,21 @@ class CastPlayer(var castContext: CastContext) : BasePlayer() {
    return AudioAttributes.DEFAULT
   }
 
+  /**
+   * The volume of the media stream, which is what the sleep timer fades - not the volume of the
+   * receiver. The device volume stays where the user put it, and on a cast group the balance
+   * between its members is left alone, because the receiver applies this to the group's output.
+   */
   override fun setVolume(audioVolume: Float) {
-
+    try {
+      remoteMediaClient?.setStreamVolume(audioVolume.toDouble().coerceIn(0.0, 1.0))
+    } catch (e: Exception) {
+      Log.e(tag, "Failed to set the cast stream volume", e)
+    }
   }
 
   override fun getVolume(): Float {
-    return 0F
+    return remoteMediaClient?.mediaStatus?.streamVolume?.toFloat() ?: 1F
   }
 
   override fun clearVideoSurface() {
