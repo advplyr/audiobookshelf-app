@@ -849,26 +849,24 @@ class ApiHandler(var ctx:Context) {
               DeviceManager.dbManager.saveLocalMediaProgress(localMediaProgress)
               numLocalMediaProgressUpdated++
             } else if (localMediaProgress.lastUpdate > mediaProgress.lastUpdate) {
-              // Local progress is more recent than the server's - e.g. the user listened, or marked
-              // the item finished, while offline. Push the local values up so the server (the source
-              // of truth that other devices read, and that would otherwise overwrite this local
-              // progress on the next sync) is not left behind.
+              // Local progress is more recent than the server's. currentTime/progress from actual
+              // playback is already covered: AbsDatabase.syncLocalSessionsWithServer calls this
+              // function first, then replays saved local PlaybackSessions to the server via
+              // sendSyncLocalSessions, which is what advances server currentTime/progress. Pushing
+              // those fields here too would sync the same activity twice through two paths.
               //
-              // Local lastUpdate is only advanced to "now" when something actually happened locally
-              // (playback save, mark finished, ebook progress); updateFromServerMediaProgress copies
-              // the server timestamp. So a newer local timestamp reliably means real local activity,
-              // and the position values are correct even if the device clock is skewed.
+              // isFinished (and ebookLocation) have no PlaybackSession behind them - toggling
+              // finished, or moving an ebook location, doesn't record a session. updateLocalMediaProgressFinished
+              // / updateLocalEbookProgress already try to push those to the server immediately when
+              // they happen, but that push is lost if the device was offline at the time, and nothing
+              // else retries it. This is the gap this branch closes on reconnect, mirroring exactly
+              // what those immediate pushes send.
               val pushLogs = mutableListOf<String>()
-              if (mediaProgress.progress != localMediaProgress.progress) {
-                pushLogs.add("progress ${mediaProgress.progress} -> ${localMediaProgress.progress}")
-              }
-              if (mediaProgress.currentTime != localMediaProgress.currentTime) {
-                pushLogs.add("currentTime ${mediaProgress.currentTime} -> ${localMediaProgress.currentTime}")
-              }
               if (mediaProgress.isFinished != localMediaProgress.isFinished) {
                 pushLogs.add("isFinished ${mediaProgress.isFinished} -> ${localMediaProgress.isFinished}")
               }
-              if (localMediaProgress.ebookLocation != null && localMediaProgress.ebookLocation != mediaProgress.ebookLocation) {
+              val ebookLocationChanged = localMediaProgress.ebookLocation != null && localMediaProgress.ebookLocation != mediaProgress.ebookLocation
+              if (ebookLocationChanged) {
                 pushLogs.add("ebookLocation ${mediaProgress.ebookLocation} -> ${localMediaProgress.ebookLocation}")
               }
 
@@ -879,12 +877,13 @@ class ApiHandler(var ctx:Context) {
 
                 val endpoint = if (localMediaProgress.episodeId.isNullOrEmpty()) "/api/me/progress/${localMediaProgress.libraryItemId}" else "/api/me/progress/${localMediaProgress.libraryItemId}/${localMediaProgress.episodeId}"
                 val updatePayload = JSObject()
-                updatePayload.put("currentTime", localMediaProgress.currentTime)
-                updatePayload.put("progress", localMediaProgress.progress)
-                updatePayload.put("isFinished", localMediaProgress.isFinished)
-                updatePayload.put("duration", localMediaProgress.duration)
-                localMediaProgress.ebookLocation?.let { updatePayload.put("ebookLocation", it) }
-                localMediaProgress.ebookProgress?.let { updatePayload.put("ebookProgress", it) }
+                if (mediaProgress.isFinished != localMediaProgress.isFinished) {
+                  updatePayload.put("isFinished", localMediaProgress.isFinished)
+                }
+                if (ebookLocationChanged) {
+                  updatePayload.put("ebookLocation", localMediaProgress.ebookLocation)
+                  updatePayload.put("ebookProgress", localMediaProgress.ebookProgress)
+                }
                 updatePayload.put("lastUpdate", localMediaProgress.lastUpdate)
                 patchRequest(endpoint, updatePayload) {
                   AbsLogger.info("ApiHandler", "syncLocalMediaProgressForUser: Successfully pushed local progress to server for item \"${mediaProgress.mediaItemId}\"")
