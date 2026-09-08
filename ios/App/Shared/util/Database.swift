@@ -312,13 +312,13 @@ class Database {
     private func cleanExpiredLogs() throws {
         let realm = try Realm()
         let numberOfHoursToKeep = 48
-        let keepLogCutoff = Date().addingTimeInterval(TimeInterval(-1 * numberOfHoursToKeep * 3600))
-        
+        let keepLogCutoffMs = Int(Date().addingTimeInterval(TimeInterval(-1 * numberOfHoursToKeep * 3600)).timeIntervalSince1970 * 1000)
+
         let allLogs = getAllLogs()
         var logsRemoved = 0
         try? realm.write {
             allLogs.forEach { log in
-                if log.timestamp < Int(keepLogCutoff.timeIntervalSince1970) {
+                if log.timestamp < keepLogCutoffMs {
                     realm.delete(log)
                     logsRemoved += 1
                 }
