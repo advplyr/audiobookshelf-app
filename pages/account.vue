@@ -10,7 +10,7 @@
 
     <ui-btn color="primary flex items-center justify-between gap-2 ml-auto text-base mt-8" @click="logout">{{ $strings.ButtonSwitchServerUser }}<span class="material-symbols" style="font-size: 1.1rem">logout</span></ui-btn>
 
-    <div class="flex justify-center items-center my-4 left-0 right-0 bottom-0 absolute">
+    <div class="flex justify-center items-center my-4 left-0 right-0 bottom-0 absolute p-4">
       <p class="text-sm text-fg">{{ $strings.MessageReportBugsAndContribute }} <a class="underline" href="https://github.com/advplyr/audiobookshelf-app" target="_blank">GitHub</a></p>
       <a href="https://github.com/advplyr/audiobookshelf-app" target="_blank" class="text-fg hover:scale-150 hover:rotate-6 transform duration-500 ml-2">
         <svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" width="24" height="24" viewBox="0 0 24 24">

@@ -223,6 +223,7 @@ class PlaybackSession(
                     .putString(MediaMetadataCompat.METADATA_KEY_ALBUM_ARTIST, displayAuthor)
                     .putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_DESCRIPTION, displayAuthor)
                     .putString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID, id)
+                      .putLong(MediaMetadataCompat.METADATA_KEY_DURATION, totalDurationMs)
                     .putString(
                             MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON_URI,
                             coverUri.toString()

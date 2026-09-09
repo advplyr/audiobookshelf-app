@@ -443,6 +443,7 @@ class AbsAudioPlayer : Plugin() {
 
   override fun handleOnDestroy() {
     super.handleOnDestroy()
+    castManager?.detach()
     if (::playerBackend.isInitialized) {
       playerBackend.onDestroy()
     }

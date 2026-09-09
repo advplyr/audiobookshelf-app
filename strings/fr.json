@@ -1,6 +1,7 @@
 {
   "ButtonAdd": "Ajouter",
   "ButtonAddNewServer": "Ajouter un serveur",
+  "ButtonAllow": "Autoriser",
   "ButtonAuthors": "Auteurs",
   "ButtonBack": "Retour",
   "ButtonCancel": "Annuler",
@@ -228,7 +229,7 @@
   "LabelPubDate": "Date de publication",
   "LabelPublishYear": "Année de publication",
   "LabelPublishedDate": "Publié le {0}",
-  "LabelRSSFeedCustomOwnerEmail": "Courriel personnalisée du propriétaire",
+  "LabelRSSFeedCustomOwnerEmail": "Courriel personnalisé du propriétaire",
   "LabelRSSFeedCustomOwnerName": "Nom propriétaire personnalisé",
   "LabelRSSFeedOpen": "Flux RSS ouvert",
   "LabelRSSFeedPreventIndexing": "Empêcher l’indexation",
@@ -312,6 +313,7 @@
   "MessageDownloadCompleteProcessing": "Téléchargement terminé. Analyse…",
   "MessageDownloading": "Téléchargement…",
   "MessageDownloadingEpisode": "Téléchargement de l’épisode",
+  "MessageDownloadingFile": "Téléchargement {0}",
   "MessageEpisodesQueuedForDownload": "{0} épisode(s) mis en file pour téléchargement",
   "MessageFailedToRefreshToken": "Échec de l'actualisation du jeton, reconnexion requise",
   "MessageFeedURLWillBe": "l’URL du flux sera {0}",
@@ -347,6 +349,7 @@
   "MessageOldServerConnectionWarning": "La configuration de connexion du serveur utilise un ancien identifiant utilisateur. Veuillez supprimer et ajouter cette connexion serveur.",
   "MessageOldServerConnectionWarningHelp": "Vous avez initialement créé la connexion à ce serveur avant la migration de la base de données dans 2.3.0, publié en juin 2023. Une mise à jour future du serveur supprimera la possibilité de signer avec cette ancienne connexion. Veuillez supprimer la connexion existante du serveur et se connecter à nouveau (en utilisant la même adresse de serveur et les mêmes identifiants). Si vous avez des médias téléchargés sur cet appareil, les médias devront être téléchargés à nouveau pour synchroniser avec le serveur.",
   "MessagePodcastSearchField": "Saisir un terme de recherche ou l'URL d'un flux RSS",
+  "MessagePreparingDownloads": "Préparation des téléchargements",
   "MessageProgressSyncFailed": "La dernière tentative de rapporter vos progrès d'écoute sur le serveur a échoué. Les demandes de synchronisation continueront d'être tentées toutes les 15 secondes à 1 minute pendant que les médias sont lus.",
   "MessageReportBugsAndContribute": "Signalez des anomalies, demandez des fonctionnalités et contribuez sur",
   "MessageSeriesAlreadyDownloaded": "Vous avez déjà téléchargé tous les livres de cette série.",
@@ -357,6 +360,10 @@
   "MessageSocketConnectedOverUnmeteredCellular": "Socket connecté via données cellulaire",
   "MessageSocketConnectedOverUnmeteredWifi": "Socket connecté via Wi-Fi",
   "MessageSocketNotConnected": "Socket non connecté",
+  "MessageStorageAccessDenied": "Accès refusé",
+  "MessageStoragePermissionDenied": "Permission refusée",
+  "MessageStorageWriteAccessRequired": "Vous n’avez pas le droit d’accès et d’écriture à ce dossier. Voulez-vous donner accès ?",
+  "MessageWaitingForAvailableStorage": "En attente de stockage disponible",
   "NoteRSSFeedPodcastAppsHttps": "Attention : la majorité des application de podcast nécessite une adresse de flux HTTPS",
   "NoteRSSFeedPodcastAppsPubDate": "Attention : un ou plusieurs de vos épisodes ne possèdent pas de date de publication. Certaines applications de podcast le requièrent.",
   "ToastBookmarkCreateFailed": "Échec de la création de marque-page",
@@ -371,6 +378,6 @@
   "ToastRSSFeedCloseFailed": "Échec de la fermeture du flux RSS",
   "ToastRSSFeedCloseSuccess": "Flux RSS fermé",
   "ToastStreamingNotAllowedOnCellular": "La diffusion sur les données mobile n’est pas autorisée",
-  "UnitMinutesShort": "{0}min",
-  "UnitSecondsShort": "{0}sec"
+  "UnitMinutesShort": "{0} min",
+  "UnitSecondsShort": "{0} s"
 }

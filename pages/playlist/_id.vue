@@ -162,13 +162,20 @@ export default {
       if (this.playlist.id === playlist.id) {
         this.$router.replace('/bookshelf/playlists')
       }
+    },
+    libraryChanged() {
+      // Playlist contents are shown in the context of the selected library, so leave this page
+      // when the library changes rather than showing stale items
+      this.$router.replace('/bookshelf/playlists')
     }
   },
   mounted() {
+    this.$eventBus.$on('library-changed', this.libraryChanged)
     this.$socket.$on('playlist_updated', this.playlistUpdated)
     this.$socket.$on('playlist_removed', this.playlistRemoved)
   },
   beforeDestroy() {
+    this.$eventBus.$off('library-changed', this.libraryChanged)
     this.$socket.$off('playlist_updated', this.playlistUpdated)
     this.$socket.$off('playlist_removed', this.playlistRemoved)
   }

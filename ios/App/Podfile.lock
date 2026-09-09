@@ -21,7 +21,7 @@ PODS:
     - Capacitor
   - CapacitorPreferences (7.0.1):
     - Capacitor
-  - CapacitorStatusBar (7.0.1):
+  - CapacitorStatusBar (7.0.6):
     - Capacitor
   - CordovaPlugins (6.2.1):
     - CapacitorCordova
@@ -100,7 +100,7 @@ SPEC CHECKSUMS:
   CapacitorHaptics: 1f1e17041f435d8ead9ff2a34edd592c6aa6a8d6
   CapacitorNetwork: 15cb4385f0913a8ceb5e9a4d7af1ec554bdb8de8
   CapacitorPreferences: 6c98117d4d7508034a4af9db64d6b26fc75d7b94
-  CapacitorStatusBar: 6e7af040d8fc4dd655999819625cae9c2d74c36f
+  CapacitorStatusBar: 416e9e53fd6397e668d4a181cd2131617d949bd6
   CordovaPlugins: 2ecbba09775516c41764dbf78ade612427311b7e
   Realm: b1b3bc68162fa242132eb7eefbf91d7c40f36a85
   RealmSwift: 456cfd82a4f23dff8e3456980999331ab69bbf3e
