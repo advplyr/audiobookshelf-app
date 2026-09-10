@@ -8,6 +8,7 @@ import com.audiobookshelf.app.data.*
 import com.audiobookshelf.app.device.DeviceManager
 import com.audiobookshelf.app.media.MediaEventManager
 import com.audiobookshelf.app.server.ApiHandler
+import com.audiobookshelf.app.server.MtlsManager
 import com.audiobookshelf.app.managers.SecureStorage
 import com.fasterxml.jackson.core.json.JsonReadFeature
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
@@ -175,6 +176,12 @@ class AbsDatabase : Plugin() {
         }
 
         if (shouldSave) DeviceManager.dbManager.saveDeviceData(DeviceManager.deviceData)
+      }
+
+      // If a client certificate was selected via AbsCertificate before this connection config
+      // existed (e.g. on the "add new server" form), apply and persist it now.
+      if (MtlsManager.adoptPendingAlias(serverConnectionConfig!!)) {
+        DeviceManager.dbManager.saveDeviceData(DeviceManager.deviceData)
       }
 
       DeviceManager.serverConnectionConfig = serverConnectionConfig

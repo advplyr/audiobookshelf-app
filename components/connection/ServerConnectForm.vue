@@ -39,6 +39,11 @@
           </div>
           <h2 class="text-lg leading-7 mb-2">{{ $strings.LabelServerAddress }}</h2>
           <ui-text-input v-model="serverConfig.address" :disabled="processing || !networkConnected || !!serverConfig.id" placeholder="http://55.55.55.55:13378" type="url" class="w-full h-10" />
+          <div v-if="$platform === 'android'" class="flex items-center mt-3 text-xs text-fg-muted" @click="selectClientCertificate">
+            <span class="material-symbols mr-1" style="font-size: 1rem">{{ clientCertAlias ? 'verified_user' : 'admin_panel_settings' }}</span>
+            <p class="grow">{{ clientCertAlias ? `Client certificate selected` : `Client certificate (optional)` }}</p>
+            <ui-btn v-if="clientCertAlias" class="text-xs" :padding-x="2" :padding-y="1" type="button" @click.stop="clearClientCertificate">{{ $strings.ButtonRemove }}</ui-btn>
+          </div>
           <div class="flex justify-end items-center mt-6">
             <ui-btn :disabled="processing || !networkConnected" type="submit" :padding-x="3" class="h-10">{{ networkConnected ? $strings.ButtonSubmit : $strings.MessageNoNetworkConnection }}</ui-btn>
           </div>
@@ -53,6 +58,11 @@
             <p class="text-fg-muted">{{ serverConfig.address }}</p>
             <div class="flex-grow" />
             <span v-if="!serverConfig.id" class="material-symbols" style="font-size: 1.1rem" @click="editServerAddress">edit</span>
+          </div>
+          <div v-if="$platform === 'android'" class="flex items-center mt-2 text-xs text-fg-muted" @click="selectClientCertificate">
+            <span class="material-symbols mr-1" style="font-size: 1rem">{{ clientCertAlias ? 'verified_user' : 'admin_panel_settings' }}</span>
+            <p class="grow">{{ clientCertAlias ? `Client certificate selected` : `Client certificate (optional)` }}</p>
+            <ui-btn v-if="clientCertAlias" class="text-xs" :padding-x="2" :padding-y="1" type="button" @click.stop="clearClientCertificate">{{ $strings.ButtonRemove }}</ui-btn>
           </div>
           <div class="w-full h-px bg-fg/10 my-2" />
           <form v-if="isLocalAuthEnabled" @submit.prevent="submitAuth" class="pt-3">
@@ -75,6 +85,9 @@
         <span class="material-symbols mr-2 text-error" style="font-size: 1.1rem">warning</span>
         <p class="text-error">{{ error }}</p>
       </div>
+      <div v-if="needsClientCertificate" class="my-1 py-2 w-full">
+        <ui-btn class="w-full" :disabled="processing" @click="selectClientCertificateAndRetry">Select Client Certificate</ui-btn>
+      </div>
     </div>
 
     <div :class="processing ? 'opacity-100' : 'opacity-0 pointer-events-none'" class="fixed w-full h-full top-0 left-0 bg-black/75 flex items-center justify-center z-30 transition-opacity duration-500">
@@ -95,6 +108,7 @@
 import { Browser } from '@capacitor/browser'
 import { CapacitorHttp } from '@capacitor/core'
 import { Dialog } from '@capacitor/dialog'
+import { AbsCertificate } from '@/plugins/capacitor'
 
 // TODO: when backend ready. See validateLoginFormResponse()
 //const requiredServerVersion = '2.5.0'
@@ -113,6 +127,11 @@ export default {
       },
       password: null,
       error: null,
+      needsClientCertificate: false,
+      clientCertAlias: null,
+      // Set when connectToServer's ping fails needing a certificate, so selectClientCertificateAndRetry
+      // knows to retry the reconnect flow instead of the add/edit-server submit() flow
+      retryConnectConfig: null,
       showForm: false,
       showAddCustomHeaders: false,
       authMethods: [],
@@ -454,16 +473,20 @@ export default {
         ...config
       }
       this.showForm = true
+      await this.preloadClientCertificateAlias(config.clientCertAlias)
       var success = await this.pingServerAddress(config.address)
       this.processing = false
       console.log(`[ServerConnectForm] pingServer result ${success}`)
       if (!success) {
+        // Kept even though the list view is shown next, so the error/cert-select prompt below it stays visible
+        this.retryConnectConfig = this.needsClientCertificate ? config : null
         this.showForm = false
         this.showAuth = false
         console.log(`[ServerConnectForm] showForm ${this.showForm}`)
         return
       }
 
+      this.retryConnectConfig = null
       this.error = null
       const payload = await this.authenticateToken()
 
@@ -510,6 +533,7 @@ export default {
         ...serverConfig
       }
 
+      await this.preloadClientCertificateAlias(serverConfig.clientCertAlias)
       if (await this.submit(true)) {
         this.showForm = true
       }
@@ -620,14 +644,20 @@ export default {
     pingServerAddress(address, customHeaders) {
       return this.getRequest(`${address}/ping`, customHeaders)
         .then((response) => {
+          this.needsClientCertificate = false
           return response.data.success
         })
         .catch((error) => {
           console.error('Server ping failed', error)
-          const errorMsg = error.message || error
-          this.error = 'Failed to ping server'
-          if (typeof errorMsg === 'string') {
-            this.error += ` (${errorMsg})`
+          this.needsClientCertificate = this.$platform === 'android' && this.isCertificateError(error)
+          if (this.needsClientCertificate) {
+            this.error = `This server requires a client certificate to connect. Select one installed on this device to continue.`
+          } else {
+            const errorMsg = error.message || error
+            this.error = 'Failed to ping server'
+            if (typeof errorMsg === 'string') {
+              this.error += ` (${errorMsg})`
+            }
           }
 
           return false
@@ -660,6 +690,10 @@ export default {
     },
     async submit(preventAutoLogin = false) {
       if (!this.networkConnected || !this.serverConfig.address) return false
+
+      // Any pending reconnect retry (from a different server) is no longer relevant once the user
+      // is actively submitting a (possibly different) address here.
+      this.retryConnectConfig = null
 
       const initialAddress = this.serverConfig.address
       // Did the user specify a protocol?
@@ -764,14 +798,77 @@ export default {
     handleLoginFormError(error) {
       console.error('[ServerConnectForm] Received invalid status', error)
 
+      this.needsClientCertificate = this.$platform === 'android' && this.isCertificateError(error)
+
       if (error.code === 404) {
         this.error = `This does not seem to be an Audiobookshelf server. (Error: 404 querying /status)`
+      } else if (this.needsClientCertificate) {
+        this.error = `This server requires a client certificate to connect. Select one installed on this device to continue.`
       } else if (typeof error.code === 'number') {
         // Error with HTTP Code
         this.error = `Failed to retrieve status of server: ${error.code}`
       } else {
         // error is usually a meaningful error like "Server timed out"
         this.error = `Failed to contact server. (${error})`
+      }
+    },
+    /**
+     * A server (or reverse proxy in front of it) that wants a client certificate can reject the
+     * request in two different ways: some fail the TLS handshake itself, which Android surfaces
+     * as a low-level SSL exception with no HTTP status code; others (notably Cloudflare Access
+     * mTLS policies) complete the handshake and instead reject at the HTTP layer with a 403 - the
+     * /status endpoint is otherwise always open, so a 403 here is a strong signal either way. Both
+     * are necessarily best-effort matches, not a definitive signal.
+     */
+    isCertificateError(error) {
+      if (error?.code === 403) return true
+      const message = `${error?.message || error}`.toLowerCase()
+      return /certificate|handshake|sslexception|sslpeer|tlsv1|bad_certificate/.test(message)
+    },
+    async selectClientCertificate() {
+      await this.$hapticsImpact()
+      try {
+        const result = await AbsCertificate.selectClientCertificate()
+        this.clientCertAlias = result?.alias || this.clientCertAlias
+      } catch (error) {
+        console.error('[ServerConnectForm] Failed to select client certificate', error)
+      }
+    },
+    async clearClientCertificate() {
+      await this.$hapticsImpact()
+      try {
+        await AbsCertificate.clearClientCertificate()
+        this.clientCertAlias = null
+      } catch (error) {
+        console.error('[ServerConnectForm] Failed to clear client certificate', error)
+      }
+    },
+    /**
+     * Tells native which certificate alias (if any) is already saved for the server connection
+     * config about to be pinged, before the ping fires - otherwise native has no way to know this
+     * until after a successful connection, so a cert-requiring server saved from a previous app
+     * session would needlessly fail once and fall back to the reactive re-select prompt.
+     */
+    async preloadClientCertificateAlias(alias) {
+      if (this.$platform !== 'android') return
+      try {
+        await AbsCertificate.setActiveCertificateAlias({ alias: alias || null })
+      } catch (error) {
+        console.error('[ServerConnectForm] Failed to preload client certificate alias', error)
+      }
+    },
+    async selectClientCertificateAndRetry() {
+      const retryConfig = this.retryConnectConfig
+      await this.selectClientCertificate()
+      if (this.clientCertAlias) {
+        this.needsClientCertificate = false
+        this.error = null
+        if (retryConfig) {
+          this.retryConnectConfig = null
+          await this.connectToServer(retryConfig)
+        } else {
+          await this.submit()
+        }
       }
     },
     /**
@@ -972,6 +1069,15 @@ export default {
   mounted() {
     this.$eventBus.$on('url-open', this.appUrlOpen)
     this.init()
+    if (this.$platform === 'android') {
+      AbsCertificate.getClientCertificateAlias()
+        .then((res) => {
+          this.clientCertAlias = res?.alias || null
+        })
+        .catch((error) => {
+          console.error('[ServerConnectForm] Failed to get client certificate alias', error)
+        })
+    }
   },
   beforeDestroy() {
     this.$eventBus.$off('url-open', this.appUrlOpen)
