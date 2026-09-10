@@ -47,7 +47,7 @@ jobs:
       - name: Build iOS simulator app
         working-directory: ios/App
         run: |
-          xcodebuild \
+          xcodebuild -quiet \
             -workspace App.xcworkspace \
             -scheme App \
             -configuration Debug \
@@ -57,6 +57,8 @@ jobs:
             ASSETCATALOG_COMPILER_APPICON_NAME=IconsDebug \
             CODE_SIGNING_ALLOWED=NO \
             build
+
+          echo "iOS simulator build succeeded."
 
       - name: Upload iOS simulator app
         uses: actions/upload-artifact@v4
