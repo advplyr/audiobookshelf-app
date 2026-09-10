@@ -24,6 +24,7 @@
 export default {
   props: {
     collectionId: String,
+    queueBooks: Array,
     book: {
       type: Object,
       default: () => {}
@@ -98,14 +99,17 @@ export default {
         return
       }
 
+      const queueSource = { sourceType: 'collection', sourceId: this.collectionId, books: this.queueBooks }
       this.$store.commit('setPlayerIsStartingPlayback', this.libraryItemId)
       if (this.localLibraryItem) {
         this.$eventBus.$emit('play-item', {
+          queueSource,
           libraryItemId: this.localLibraryItem.id,
           serverLibraryItemId: this.libraryItemId
         })
       } else {
         this.$eventBus.$emit('play-item', {
+          queueSource,
           libraryItemId: this.libraryItemId
         })
       }

@@ -11,7 +11,7 @@
       <p v-if="totalDuration" class="text-sm text-fg">{{ totalDurationPretty }}</p>
     </div>
     <template v-for="book in booksCopy">
-      <tables-collection-book-table-row :key="book.id" :book="book" :collection-id="collectionId" class="item collection-book-item" @edit="editBook" />
+      <tables-collection-book-table-row :key="book.id" :book="book" :queue-books="books" :collection-id="collectionId" class="item collection-book-item" @edit="editBook" />
     </template>
   </div>
 </template>

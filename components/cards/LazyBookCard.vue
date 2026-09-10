@@ -106,6 +106,7 @@ import { Capacitor } from '@capacitor/core'
 export default {
   props: {
     index: Number,
+    queueSource: Object,
     width: {
       type: Number,
       default: 120
@@ -410,8 +411,7 @@ export default {
       return this._libraryItem.rssFeed || null
     },
     showPlayButton() {
-      return false
-      // return !this.isMissing && !this.isInvalid && !this.isStreaming && (this.numTracks || this.recentEpisode)
+      return !!this.queueSource && !this.collapsedSeries && !this.isPodcast && !this.isMissing && !this.isInvalid && !!this.numTracks
     }
   },
   methods: {
@@ -453,7 +453,16 @@ export default {
       // Server books may have a local library item
       this.localLibraryItem = localLibraryItem
     },
-    async play() {},
+    async play() {
+      if (this.playerIsStartingPlayback || !this.queueSource) return
+      const eventBus = this.$eventBus || this.$nuxt.$eventBus
+      if (this.streamIsPlaying) {
+        eventBus.$emit('pause-item')
+        return
+      }
+      this.store.commit('setPlayerIsStartingPlayback', this.libraryItemId)
+      eventBus.$emit('play-item', { libraryItemId: this.libraryItemId, queueSource: this.queueSource })
+    },
     async playEpisode() {
       if (this.playerIsStartingPlayback) return
 

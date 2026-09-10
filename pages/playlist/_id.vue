@@ -32,7 +32,7 @@
 </template>
 
 <script>
-import { AbsAudioPlayer } from '@/plugins/capacitor'
+import { queueItemPayload } from '@/utils/playbackQueue'
 
 export default {
   async asyncData({ store, params, app, redirect, route }) {
@@ -148,26 +148,12 @@ export default {
       })
       if (nextIndex >= 0) {
         const nextItem = this.playableItems[nextIndex]
-        this.$store.commit('setPlaylistQueue', {
-          playlistId: this.playlist.id,
-          items: this.playableItems,
-          currentIndex: nextIndex
-        })
-        // Pass queue to native layer so it can advance independently of the WebView
-        AbsAudioPlayer.setPlaylistQueue({
-          items: this.playableItems.map((item) => ({
-            libraryItemId: item.localLibraryItem ? item.localLibraryItem.id : item.libraryItemId,
-            episodeId: item.localLibraryItem ? (item.localEpisode?.id || null) : (item.episodeId || null)
-          })),
-          currentIndex: nextIndex
-        })
         this.mediaIdStartingPlayback = nextItem.episodeId || nextItem.libraryItemId
         this.$store.commit('setPlayerIsStartingPlayback', this.mediaIdStartingPlayback)
-        if (nextItem.localLibraryItem) {
-          this.$eventBus.$emit('play-item', { libraryItemId: nextItem.localLibraryItem.id, episodeId: nextItem.localEpisode?.id, serverLibraryItemId: nextItem.libraryItemId, serverEpisodeId: nextItem.episodeId })
-        } else {
-          this.$eventBus.$emit('play-item', { libraryItemId: nextItem.libraryItemId, episodeId: nextItem.episodeId })
-        }
+        this.$eventBus.$emit('play-item', {
+          ...queueItemPayload(nextItem),
+          queueSource: { sourceType: 'playlist', sourceId: this.playlist.id, items: this.playableItems }
+        })
       }
     },
     playlistUpdated(playlist) {

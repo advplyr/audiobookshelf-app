@@ -12,6 +12,7 @@
 import { AbsAudioPlayer, AbsLogger } from '@/plugins/capacitor'
 import { Dialog } from '@capacitor/dialog'
 import CellularPermissionHelpers from '@/mixins/cellularPermissionHelpers'
+import { nativeQueueItems, resolvePlaybackQueue } from '@/utils/playbackQueue'
 
 export default {
   data() {
@@ -19,6 +20,7 @@ export default {
       isReady: false,
       settingsLoaded: false,
       audioPlayerReady: false,
+      preparingPlayback: false,
       stream: null,
       download: null,
       showPlaybackSpeedModal: false,
@@ -51,6 +53,14 @@ export default {
     },
     currentPlaybackSession() {
       return this.$store.state.currentPlaybackSession
+    }
+  },
+  watch: {
+    currentPlaybackSession() {
+      // Sessions arrive on native advancement, including after background playback.
+      this.onPlaybackEnded()
+      this.serverLibraryItemId = this.currentPlaybackSession?.libraryItemId || null
+      this.serverEpisodeId = this.currentPlaybackSession?.episodeId || null
     }
   },
   methods: {
@@ -172,7 +182,9 @@ export default {
         this.playServerLibraryItemAndCast(this.serverLibraryItemId, this.serverEpisodeId)
       }
     },
-    playServerLibraryItemAndCast(libraryItemId, episodeId) {
+    async playServerLibraryItemAndCast(libraryItemId, episodeId) {
+      this.$store.commit('clearPlaybackQueue')
+      if (this.$platform === 'android') await AbsAudioPlayer.clearPlaylistQueue()
       var playbackRate = 1
       if (this.$refs.audioPlayer) {
         playbackRate = this.$refs.audioPlayer.currentPlaybackRate || 1
@@ -192,45 +204,45 @@ export default {
           this.$toast.error('Failed to play')
         })
     },
-    onPlaybackEnded() {
-      // Native layer (PlayerNotificationService.advancePlaylistQueue) handles the actual
-      // playback advancement even when the screen is off or the app is backgrounded.
-      // This handler only keeps the Vuex state in sync for UI purposes.
-      const playlistQueue = this.$store.state.playlistQueue
-      if (!playlistQueue) return
-
-      const { items, currentIndex } = playlistQueue
-      const nextIndex = currentIndex + 1
-      if (nextIndex >= items.length) {
-        this.$store.commit('clearPlaylistQueue')
-        AbsAudioPlayer.clearPlaylistQueue()
-        return
+    async onPlaybackEnded() {
+      const queue = this.$store.state.playbackQueue
+      if (!queue || this.$platform !== 'android') return
+      try {
+        const native = await AbsAudioPlayer.getPlaylistQueue()
+        // A newer play request must not be overwritten by an old bridge response.
+        if (this.$store.state.playbackQueue !== queue) return
+        if (!native.items.length) this.$store.commit('clearPlaybackQueue')
+        else if (native.items.length === queue.items.length && nativeQueueItems(queue.items).every((item, index) => item.libraryItemId === native.items[index].libraryItemId && item.episodeId === (native.items[index].episodeId || null))) {
+          this.$store.commit('setPlaybackQueue', { ...queue, currentIndex: native.currentIndex })
+        }
+      } catch (error) {
+        console.error('Failed to read playback queue', error)
       }
-
-      // Advance Vuex index so the UI reflects the currently playing episode
-      this.$store.commit('setPlaylistQueue', { ...playlistQueue, currentIndex: nextIndex })
     },
     async playLibraryItem(payload) {
+      if (this.preparingPlayback) return
+      this.preparingPlayback = true
+      try {
+        // Explicit source context is required, even if the item also occurs in an old queue.
+        this.$store.commit('clearPlaybackQueue')
+        if (this.$platform === 'android') await AbsAudioPlayer.clearPlaylistQueue()
+        const resolved = await resolvePlaybackQueue(this, payload)
+        await this.startLibraryItem(resolved.payload, resolved.queue)
+      } catch (error) {
+        this.$store.commit('clearPlaybackQueue')
+        if (this.$platform === 'android') await AbsAudioPlayer.clearPlaylistQueue().catch((clearError) => console.error('Failed to clear playback queue', clearError))
+        this.$store.commit('setPlayerDoneStartingPlayback')
+        this.$toast.error(error.message || 'Failed to prepare playback queue')
+      } finally {
+        this.preparingPlayback = false
+      }
+    },
+    async startLibraryItem(payload, queue) {
       await AbsLogger.info({ tag: 'AudioPlayerContainer', message: `playLibraryItem: Received play request for library item ${payload.libraryItemId} ${payload.episodeId ? `episode ${payload.episodeId}` : ''}` })
       const libraryItemId = payload.libraryItemId
       const episodeId = payload.episodeId
       const startTime = payload.startTime
       const startWhenReady = !payload.paused
-
-      if (!payload.fromPlaylistQueue) {
-        const playlistQueue = this.$store.state.playlistQueue
-        if (playlistQueue) {
-          const serverLibraryItemId = payload.serverLibraryItemId || (!libraryItemId?.startsWith('local') ? libraryItemId : null)
-          const serverEpisodeId = payload.serverEpisodeId || (!episodeId?.startsWith('local') ? episodeId : null)
-          const matchIndex = playlistQueue.items.findIndex((i) => i.libraryItemId === serverLibraryItemId && i.episodeId === serverEpisodeId)
-          if (matchIndex >= 0) {
-            this.$store.commit('setPlaylistQueue', { ...playlistQueue, currentIndex: matchIndex })
-          } else {
-            this.$store.commit('clearPlaylistQueue')
-            AbsAudioPlayer.clearPlaylistQueue()
-          }
-        }
-      }
 
       const isLocal = libraryItemId.startsWith('local')
       if (!isLocal) {
@@ -257,6 +269,11 @@ export default {
         }
       }
 
+      if (queue) {
+        await AbsAudioPlayer.setPlaylistQueue({ items: nativeQueueItems(queue.items), currentIndex: queue.currentIndex })
+        this.$store.commit('setPlaybackQueue', queue)
+      }
+
       // if already playing this item then jump to start time
       if (this.$store.getters['getIsMediaStreaming'](libraryItemId, episodeId)) {
         console.log('Already streaming item', startTime)
@@ -281,9 +298,11 @@ export default {
       console.log('Called playLibraryItem', libraryItemId)
       const preparePayload = { libraryItemId, episodeId, playWhenReady: startWhenReady, playbackRate }
       if (startTime !== undefined && startTime !== null) preparePayload.startTime = startTime
-      AbsAudioPlayer.prepareLibraryItem(preparePayload)
+      return AbsAudioPlayer.prepareLibraryItem(preparePayload)
         .then((data) => {
           if (data.error) {
+            this.$store.commit('clearPlaybackQueue')
+            if (this.$platform === 'android') AbsAudioPlayer.clearPlaylistQueue()
             const errorMsg = data.error || 'Failed to play'
             this.$toast.error(errorMsg)
           } else {
@@ -301,6 +320,8 @@ export default {
           }
         })
         .catch((error) => {
+          this.$store.commit('clearPlaybackQueue')
+          if (this.$platform === 'android') AbsAudioPlayer.clearPlaylistQueue()
           console.error('Failed', error)
           this.$toast.error('Failed to play')
         })
@@ -436,6 +457,7 @@ export default {
      * if local item is open then fetch the server media progress and update if more recent
      */
     async deviceFocused(hasFocus) {
+      if (hasFocus) await this.onPlaybackEnded()
       if (!this.currentPlaybackSession || !hasFocus) return
       // dont update timestamps if player is playing
       if (this.$refs.audioPlayer?.isPlaying) return

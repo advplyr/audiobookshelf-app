@@ -50,7 +50,10 @@ export default {
         bookCoverAspectRatio: this.bookCoverAspectRatio,
         isAltViewEnabled: this.altViewEnabled
       }
-      if (this.entityName === 'series-books') props.showSequence = true
+      if (this.entityName === 'series-books') {
+        props.showSequence = true
+        if (this.$platform === 'android') props.queueSource = { sourceType: 'series', sourceId: this.seriesId, libraryId: this.$store.state.globals.series.libraryId }
+      }
       if (this.entityName === 'books') {
         props.filterBy = this.filterBy
         props.orderBy = this.orderBy
@@ -81,12 +84,12 @@ export default {
         instance.setEntity(entity)
 
         if (this.isBookEntity && !entity.isLocal) {
-          var localLibraryItem = this.localLibraryItems.find(lli => lli.libraryItemId == entity.id)
+          var localLibraryItem = this.localLibraryItems.find((lli) => lli.libraryItemId == entity.id)
           if (localLibraryItem) {
             instance.setLocalLibraryItem(localLibraryItem)
           }
         }
       }
-    },
+    }
   }
 }

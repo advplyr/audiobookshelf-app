@@ -469,8 +469,18 @@ class AbsAudioPlayer : Plugin() {
       playerNotificationService.playlistQueue = queue
       playerNotificationService.playlistQueueIndex = currentIndex
       Log.d(tag, "setPlaylistQueue: ${queue.size} items, currentIndex=$currentIndex")
+      call.resolve()
     }
-    call.resolve()
+  }
+
+  @PluginMethod
+  fun getPlaylistQueue(call: PluginCall) {
+    Handler(Looper.getMainLooper()).post {
+      val result = JSObject()
+      result.put("items", JSArray(jacksonMapper.writeValueAsString(playerNotificationService.playlistQueue)))
+      result.put("currentIndex", playerNotificationService.playlistQueueIndex)
+      call.resolve(result)
+    }
   }
 
   @PluginMethod
@@ -479,8 +489,8 @@ class AbsAudioPlayer : Plugin() {
       playerNotificationService.playlistQueue = emptyList()
       playerNotificationService.playlistQueueIndex = -1
       Log.d(tag, "clearPlaylistQueue: cleared")
+      call.resolve()
     }
-    call.resolve()
   }
 
   @PluginMethod

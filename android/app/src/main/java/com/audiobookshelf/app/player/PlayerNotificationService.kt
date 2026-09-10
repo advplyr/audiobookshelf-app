@@ -483,6 +483,14 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
           playWhenReady: Boolean,
           playbackRate: Float?
   ) {
+    // Native playback entry points (for example Android Auto) can bypass the JS queue setup.
+    val queuedItem = playlistQueue.getOrNull(playlistQueueIndex)
+    val sessionItemId = playbackSession.localLibraryItem?.id ?: playbackSession.libraryItemId
+    val sessionEpisodeId = if (playbackSession.isLocal) playbackSession.localEpisodeId else playbackSession.episodeId
+    if (queuedItem != null && (queuedItem.libraryItemId != sessionItemId || queuedItem.episodeId != sessionEpisodeId)) {
+      playlistQueue = emptyList()
+      playlistQueueIndex = -1
+    }
     if (!isStarted) {
       Log.i(tag, "preparePlayer: foreground service not started - Starting service --")
       Intent(ctx, PlayerNotificationService::class.java).also { intent ->
@@ -754,6 +762,8 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
       val localItem = DeviceManager.dbManager.getLocalLibraryItem(nextItem.libraryItemId)
       if (localItem == null) {
         Log.e(tag, "advancePlaylistQueue: Local library item not found ${nextItem.libraryItemId}")
+        playlistQueue = emptyList()
+        playlistQueueIndex = -1
         if (wakeLock.isHeld) wakeLock.release()
         return
       }
@@ -766,6 +776,14 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
           if (wakeLock.isHeld) wakeLock.release()
           return
         }
+      }
+      // Downloads can be removed after queue setup. Never fall back to streaming.
+      if (localItem.mediaType == "book" && (localItem.isInvalid || !localItem.hasTracks(null))) {
+        Log.e(tag, "advancePlaylistQueue: Downloaded audiobook has no playable files")
+        playlistQueue = emptyList()
+        playlistQueueIndex = -1
+        if (wakeLock.isHeld) wakeLock.release()
+        return
       }
       val playbackSession = localItem.getPlaybackSession(episode, getDeviceInfo())
       Log.d(tag, "advancePlaylistQueue: local session ready, calling preparePlayer")
@@ -791,6 +809,11 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
   }
 
   private fun advancePlaylistQueueServerItem(nextItem: PlaylistQueueItem, playbackRate: Float, wakeLock: PowerManager.WakeLock, wifiLock: WifiManager.WifiLock, retryCount: Int) {
+    if (playlistQueue.getOrNull(playlistQueueIndex) !== nextItem) {
+      if (wifiLock.isHeld) wifiLock.release()
+      if (wakeLock.isHeld) wakeLock.release()
+      return
+    }
     Log.d(tag, "advancePlaylistQueueServerItem: libraryItemId=${nextItem.libraryItemId}, episodeId=${nextItem.episodeId}, retry=$retryCount")
     val playItemRequestPayload = getPlayItemRequestPayload(false)
     apiHandler.playLibraryItem(nextItem.libraryItemId, nextItem.episodeId ?: "", playItemRequestPayload) { session ->
@@ -804,7 +827,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
         Log.d(tag, "advancePlaylistQueue: Got server session, calling preparePlayer for ${nextItem.libraryItemId}")
         PlayerListener.lazyIsPlaying = false
         Handler(Looper.getMainLooper()).post {
-          preparePlayer(session, true, playbackRate)
+          if (playlistQueue.getOrNull(playlistQueueIndex) === nextItem) preparePlayer(session, true, playbackRate)
           Log.d(tag, "advancePlaylistQueue: preparePlayer called successfully")
         }
         if (wifiLock.isHeld) wifiLock.release()
@@ -1174,6 +1197,8 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
   }
 
   fun closePlayback(calledOnError: Boolean? = false) {
+    playlistQueue = emptyList()
+    playlistQueueIndex = -1
     Log.d(tag, "closePlayback")
     val config = DeviceManager.serverConnectionConfig
 

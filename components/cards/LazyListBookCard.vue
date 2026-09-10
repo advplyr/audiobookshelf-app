@@ -53,6 +53,7 @@ import { Capacitor } from '@capacitor/core'
 export default {
   props: {
     index: Number,
+    queueSource: Object,
     width: {
       type: Number,
       default: 120
@@ -348,7 +349,7 @@ export default {
         }
 
         this.store.commit('setPlayerIsStartingPlayback', this.libraryItemId)
-        eventBus.$emit('play-item', { libraryItemId, serverLibraryItemId: this.libraryItemId })
+        eventBus.$emit('play-item', { libraryItemId, serverLibraryItemId: this.libraryItemId, queueSource: this.queueSource })
       }
     },
     destroy() {

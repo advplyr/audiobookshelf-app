@@ -121,6 +121,12 @@ export default {
       }
     },
     playNextItem() {
+      if (this.$platform === 'android') {
+        this.$store.commit('setPlayerIsStartingPlayback', this.collection.id)
+        this.mediaIdStartingPlayback = this.collection.id
+        this.$eventBus.$emit('play-item', { queueSource: { sourceType: 'collection', sourceId: this.collection.id, books: this.bookItems } })
+        return
+      }
       const nextBookNotRead = this.playableItems.find((pb) => {
         const prog = this.$store.getters['user/getUserMediaProgress'](pb.id)
         return !prog?.isFinished

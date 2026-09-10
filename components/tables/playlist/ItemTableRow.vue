@@ -32,8 +32,6 @@
 </template>
 
 <script>
-import { AbsAudioPlayer } from '@/plugins/capacitor'
-
 export default {
   props: {
     playlistId: String,
@@ -169,27 +167,11 @@ export default {
       if (this.streamIsPlaying) {
         this.$eventBus.$emit('pause-item')
       } else {
-        if (this.playlistPlayableItems.length) {
-          const currentIndex = this.playlistPlayableItems.findIndex((i) => i.libraryItemId === this.libraryItem.id && i.episodeId === this.episodeId)
-          if (currentIndex >= 0) {
-            this.$store.commit('setPlaylistQueue', {
-              playlistId: this.playlistId,
-              items: this.playlistPlayableItems,
-              currentIndex
-            })
-            // Sync queue to native layer so it can advance independently of the WebView
-            AbsAudioPlayer.setPlaylistQueue({
-              items: this.playlistPlayableItems.map((item) => ({
-                libraryItemId: item.localLibraryItem ? item.localLibraryItem.id : item.libraryItemId,
-                episodeId: item.localLibraryItem ? (item.localEpisode?.id || null) : (item.episodeId || null)
-              })),
-              currentIndex
-            })
-          }
-        }
+        const queueSource = { sourceType: 'playlist', sourceId: this.playlistId, items: this.playlistPlayableItems }
         if (this.localLibraryItem) {
           this.$store.commit('setPlayerIsStartingPlayback', mediaId)
           this.$eventBus.$emit('play-item', {
+            queueSource,
             libraryItemId: this.localLibraryItem.id,
             episodeId: this.localEpisode?.id,
             serverLibraryItemId: this.libraryItem.id,
@@ -198,6 +180,7 @@ export default {
         } else {
           this.$store.commit('setPlayerIsStartingPlayback', mediaId)
           this.$eventBus.$emit('play-item', {
+            queueSource,
             libraryItemId: this.libraryItem.id,
             episodeId: this.episodeId
           })
