@@ -778,7 +778,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
         }
       }
       // Downloads can be removed after queue setup. Never fall back to streaming.
-      if (localItem.mediaType == "book" && (localItem.isInvalid || !localItem.hasTracks(null))) {
+      if (localItem.mediaType == "book" && (localItem.isInvalid || !localItem.hasTracks(this, episode))) {
         Log.e(tag, "advancePlaylistQueue: Downloaded audiobook has no playable files")
         playlistQueue = emptyList()
         playlistQueueIndex = -1
