@@ -1,0 +1,66 @@
+name: Build iOS
+
+on:
+  push:
+    paths-ignore:
+      - 'android/**'
+      - '.github/workflows/build-apk.yml'
+      - '.github/workflows/deploy-apk.yml'
+      - 'readme.md'
+  pull_request:
+    paths-ignore:
+      - 'android/**'
+      - '.github/workflows/build-apk.yml'
+      - '.github/workflows/deploy-apk.yml'
+      - 'readme.md'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build iOS simulator app
+    runs-on: macos-latest
+    steps:
+      - name: Check out sources
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install JavaScript dependencies
+        run: npm ci
+
+      - name: Build shared web app
+        run: npm run generate
+
+      - name: Sync Capacitor iOS project
+        run: npx cap sync ios
+
+      - name: Install CocoaPods dependencies
+        working-directory: ios/App
+        run: pod install --deployment
+
+      - name: Build iOS simulator app
+        working-directory: ios/App
+        run: |
+          xcodebuild \
+            -workspace App.xcworkspace \
+            -scheme App \
+            -configuration Debug \
+            -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath build \
+            ASSETCATALOG_COMPILER_APPICON_NAME=IconsDebug \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+
+      - name: Upload iOS simulator app
+        uses: actions/upload-artifact@v4
+        with:
+          name: audiobookshelf-ios-simulator
+          path: ios/App/build/Build/Products/Debug-iphonesimulator/Audiobookshelf.app
+          if-no-files-found: error
