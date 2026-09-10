@@ -865,7 +865,10 @@ export default {
         this.error = null
         if (retryConfig) {
           this.retryConnectConfig = null
-          await this.connectToServer(retryConfig)
+          // retryConfig was captured before a certificate was selected, so it has no
+          // clientCertAlias yet - without this, connectToServer's preload call would push a null
+          // alias to native, wiping out the one just selected, right before the retry ping fires
+          await this.connectToServer({ ...retryConfig, clientCertAlias: this.clientCertAlias })
         } else {
           await this.submit()
         }
