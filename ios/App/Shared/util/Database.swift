@@ -314,18 +314,19 @@ class Database {
         let numberOfHoursToKeep = 48
         let keepLogCutoffMs = Int(Date().addingTimeInterval(TimeInterval(-1 * numberOfHoursToKeep * 3600)).timeIntervalSince1970 * 1000)
 
-        let allLogs = getAllLogs()
-        var logsRemoved = 0
-        try? realm.write {
-            allLogs.forEach { log in
-                if log.timestamp < keepLogCutoffMs {
-                    realm.delete(log)
-                    logsRemoved += 1
-                }
-            }
+        // Delete the managed objects of this realm. getAllLogs() returns detached copies and
+        // deleting a detached object throws an RLMException that Swift cannot catch (app abort)
+        let expiredLogs = realm.objects(LogEntry.self).filter("timestamp < %@", keepLogCutoffMs)
+        let logsRemoved = expiredLogs.count
+        guard logsRemoved > 0 else { return }
+
+        try realm.write {
+            realm.delete(expiredLogs)
         }
-        
-        if logsRemoved > 0 {
+
+        // This runs inside the initializer of Database.shared and AbsLogger stores its entry
+        // through Database.shared again, so log once the initializer has finished
+        DispatchQueue.main.async {
             AbsLogger.info(message: "cleanLogs: Removed \(logsRemoved) logs older than \(numberOfHoursToKeep) hours")
         }
     }
