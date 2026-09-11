@@ -133,6 +133,7 @@
 import { Capacitor } from '@capacitor/core'
 import { AbsAudioPlayer } from '@/plugins/capacitor'
 import { Dialog } from '@capacitor/dialog'
+import { KeepAwake } from '@capacitor-community/keep-awake'
 import { getAverageColorFromCoverUrl } from '@/utils/coverAverageColor'
 import WrappingMarquee from '@/assets/WrappingMarquee.js'
 import jumpLabelMixin from '@/mixins/jumpLabel'
@@ -209,7 +210,10 @@ export default {
     menuItems() {
       const items = []
       // TODO: Implement on iOS
-      if (this.$platform !== 'ios' && !this.isPodcast && this.mediaId) {
+      // Android TV: hide History here — it routes to a separate page which collapses
+      // the fullscreen player into the retired mini-player state. History remains
+      // accessible from book detail pages.
+      if (this.$platform !== 'ios' && !this.isPodcast && this.mediaId && !this.$store.state.isAndroidTv) {
         items.push({
           text: this.$strings.ButtonHistory,
           value: 'history',
@@ -473,6 +477,13 @@ export default {
       })
     },
     collapseFullscreen() {
+      // On Android TV, close the player entirely instead of minimizing.
+      // The mini player is difficult to navigate back to on TV. A future
+      // user setting will allow toggling between minimize and close behavior.
+      if (this.$store.state.isAndroidTv) {
+        this.closePlayback()
+        return
+      }
       this.showFullscreen = false
       if (this.titleMarquee) this.titleMarquee.reset()
 
@@ -820,6 +831,21 @@ export default {
       this.isEnded = false
       this.isLoading = false
       this.playbackSession = null
+      this.updateKeepAwake(false)
+    },
+    // Android TV only: hold a screen-wake lock during active playback so the
+    // Ambient Mode screensaver does not kick in (which kills playback on CCwGTV).
+    async updateKeepAwake(shouldKeepAwake) {
+      if (!this.$store.state.isAndroidTv) return
+      try {
+        if (shouldKeepAwake) {
+          await KeepAwake.keepAwake()
+        } else {
+          await KeepAwake.allowSleep()
+        }
+      } catch (error) {
+        console.error('[AudioPlayer] Failed to update keep awake state', error)
+      }
     },
     async loadPlayerSettings() {
       const savedPlayerSettings = await this.$localStore.getPlayerSettings()
@@ -857,6 +883,7 @@ export default {
       } else {
         this.stopPlayInterval()
       }
+      this.updateKeepAwake(this.isPlaying)
     },
     onMetadata(data) {
       console.log('onMetadata', JSON.stringify(data))
