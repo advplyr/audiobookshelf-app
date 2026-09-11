@@ -28,7 +28,7 @@ jobs:
           java-version: 21
 
       - name: install dependencies
-        run: npm ci
+        run: npm ci --omit=optional
 
       - name: build Nuxt project
         run: npm run generate
