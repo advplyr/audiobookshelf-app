@@ -9,16 +9,13 @@ permissions:
 
 jobs:
   build:
-    name: Build, attach, and upload signed IPA
+    name: Build and attach signed IPA
     runs-on: macos-latest
     environment: testflight
     env:
       BUILD_CERTIFICATE_BASE64: ${{ secrets.IOS_DISTRIBUTION_CERTIFICATE_BASE64 }}
       P12_PASSWORD: ${{ secrets.IOS_DISTRIBUTION_CERTIFICATE_PASSWORD }}
       PROVISIONING_PROFILE_BASE64: ${{ secrets.IOS_APPSTORE_PROVISIONING_PROFILE_BASE64 }}
-      APPSTORE_CONNECT_API_KEY_BASE64: ${{ secrets.APPSTORE_CONNECT_API_KEY_BASE64 }}
-      APPSTORE_CONNECT_API_KEY_ID: ${{ secrets.APPSTORE_CONNECT_API_KEY_ID }}
-      APPSTORE_CONNECT_ISSUER_ID: ${{ secrets.APPSTORE_CONNECT_ISSUER_ID }}
     steps:
       - name: Check out release tag
         uses: actions/checkout@v4
@@ -129,14 +126,3 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_TAG: ${{ github.event.release.tag_name }}
         run: gh release upload "$RELEASE_TAG" "$RUNNER_TEMP/export/Audiobookshelf.ipa" --clobber
-
-      - name: Upload IPA to TestFlight
-        run: |
-          mkdir -p "$HOME/.appstoreconnect/private_keys"
-          printf '%s' "$APPSTORE_CONNECT_API_KEY_BASE64" | base64 -D > \
-            "$HOME/.appstoreconnect/private_keys/AuthKey_$APPSTORE_CONNECT_API_KEY_ID.p8"
-          xcrun iTMSTransporter \
-            -m upload \
-            -assetFile "$RUNNER_TEMP/export/Audiobookshelf.ipa" \
-            -apiKey "$APPSTORE_CONNECT_API_KEY_ID" \
-            -apiIssuer "$APPSTORE_CONNECT_ISSUER_ID"
