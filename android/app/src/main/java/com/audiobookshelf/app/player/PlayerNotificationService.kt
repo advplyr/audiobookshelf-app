@@ -2,15 +2,19 @@ package com.audiobookshelf.app.player
 
 import android.annotation.SuppressLint
 import android.app.*
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.graphics.Bitmap
 import android.graphics.Color
 import android.graphics.ImageDecoder
 import android.hardware.Sensor
 import android.hardware.SensorManager
 import android.net.*
+import android.net.wifi.WifiManager
 import android.os.*
+import android.os.PowerManager
 import android.provider.MediaStore
 import android.provider.Settings
 import android.support.v4.media.MediaBrowserCompat
@@ -111,6 +115,12 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
   lateinit var currentPlayer: Player
   var castPlayer: CastPlayer? = null
 
+  // Defense-in-depth receiver for Bluetooth disconnect / headphone unplug.
+  // ExoPlayer's setHandleAudioBecomingNoisy(true) registers its own receiver,
+  // but on some devices (Samsung One UI, Android 12+) the foreground service
+  // re-assertion can interfere.  This explicit receiver ensures pause sticks.
+  private var audioNoisyReceiver: BroadcastReceiver? = null
+
   lateinit var sleepTimerManager: SleepTimerManager
   lateinit var mediaProgressSyncer: MediaProgressSyncer
 
@@ -125,6 +135,11 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
   private var metadataArtJob: Job? = null
 
   private var isAndroidAuto = false
+
+  // Playlist queue for native background advancement (bypasses WebView/JS layer)
+  data class PlaylistQueueItem(val libraryItemId: String, val episodeId: String?)
+  var playlistQueue: List<PlaylistQueueItem> = emptyList()
+  var playlistQueueIndex: Int = -1
 
   // The following are used for the shake detection
   private var isShakeSensorRegistered: Boolean = false
@@ -196,6 +211,12 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
       Log.e(tag, "Error unregistering network listening callback $error")
     }
 
+    // Unregister the defense-in-depth AUDIO_BECOMING_NOISY receiver
+    audioNoisyReceiver?.let {
+      try { unregisterReceiver(it) } catch (_: Exception) {}
+      audioNoisyReceiver = null
+    }
+
     Log.d(tag, "onDestroy")
     isStarted = false
     isClosed = true
@@ -214,8 +235,19 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
   // removing service when user swipe out our app
   override fun onTaskRemoved(rootIntent: Intent?) {
     super.onTaskRemoved(rootIntent)
-    Log.d(tag, "onTaskRemoved")
 
+    val isPlaying = try { currentPlayer.isPlaying } catch (e: Exception) { false }
+    val playerWantsToPlay = try { currentPlayer.playWhenReady } catch (e: Exception) { false }
+    // Only keep the service alive if the player is actively playing or if it
+    // intends to continue (playWhenReady == true with a playlist queue, i.e.
+    // between episodes).  When paused by Bluetooth disconnect or user action,
+    // playWhenReady is false and the service should be allowed to stop.
+    if (isPlaying || (playlistQueue.isNotEmpty() && playerWantsToPlay)) {
+      Log.d(tag, "onTaskRemoved: keeping service alive (playlistQueue=${playlistQueue.size}, isPlaying=$isPlaying, playWhenReady=$playerWantsToPlay)")
+      return
+    }
+
+    Log.d(tag, "onTaskRemoved: stopping service (playlistQueue=${playlistQueue.size}, isPlaying=$isPlaying, playWhenReady=$playerWantsToPlay)")
     stopSelf()
   }
 
@@ -402,6 +434,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
                     .setSeekBackIncrementMs(deviceSettings.jumpBackwardsTimeMs)
                     .setSeekForwardIncrementMs(deviceSettings.jumpForwardTimeMs)
                     .build()
+    mPlayer.setWakeMode(C.WAKE_MODE_NETWORK)
     mPlayer.setHandleAudioBecomingNoisy(true)
     mPlayer.addListener(PlayerListener(this))
     val audioAttributes: AudioAttributes =
@@ -410,6 +443,31 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
                     .setContentType(C.AUDIO_CONTENT_TYPE_SPEECH)
                     .build()
     mPlayer.setAudioAttributes(audioAttributes, true)
+
+    // Defense-in-depth: register an explicit receiver for audio route changes
+    // (Bluetooth disconnect, headphone unplug).  ExoPlayer's built-in handler
+    // should pause the player, but on some devices the foreground service
+    // lifecycle can interfere.  This receiver ensures the pause is authoritative.
+    audioNoisyReceiver?.let {
+      try { unregisterReceiver(it) } catch (_: Exception) {}
+    }
+    audioNoisyReceiver = object : BroadcastReceiver() {
+      override fun onReceive(context: Context?, intent: Intent?) {
+        if (intent?.action == AudioManager.ACTION_AUDIO_BECOMING_NOISY) {
+          Log.d(tag, "ACTION_AUDIO_BECOMING_NOISY received — ensuring player is paused")
+          try {
+            if (mPlayer.playWhenReady) {
+              mPlayer.playWhenReady = false
+              Log.d(tag, "Forced playWhenReady=false on AUDIO_BECOMING_NOISY")
+            }
+          } catch (e: Exception) {
+            Log.e(tag, "Error handling AUDIO_BECOMING_NOISY: $e")
+          }
+        }
+      }
+    }
+    val noisyFilter = IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY)
+    registerReceiver(audioNoisyReceiver, noisyFilter)
 
     // attach player to playerNotificationManager
     playerNotificationManager.setPlayer(mPlayer)
@@ -664,6 +722,97 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
             }
           }
         }
+      }
+    }
+  }
+
+  fun advancePlaylistQueue() {
+    Log.d(tag, "advancePlaylistQueue: called with queueSize=${playlistQueue.size}, currentIndex=$playlistQueueIndex")
+    if (playlistQueue.isEmpty()) {
+      Log.d(tag, "advancePlaylistQueue: queue is empty, nothing to do")
+      return
+    }
+    val nextIndex = playlistQueueIndex + 1
+    if (nextIndex >= playlistQueue.size) {
+      Log.d(tag, "advancePlaylistQueue: end of queue (nextIndex=$nextIndex >= size=${playlistQueue.size})")
+      playlistQueue = emptyList()
+      playlistQueueIndex = -1
+      return
+    }
+    playlistQueueIndex = nextIndex
+    val nextItem = playlistQueue[nextIndex]
+    Log.d(tag, "advancePlaylistQueue: advancing to index $nextIndex, libraryItemId=${nextItem.libraryItemId}, episodeId=${nextItem.episodeId}")
+    val playbackRate = initialPlaybackRate ?: 1f
+
+    // Acquire a temporary WakeLock to keep the CPU alive during playlist advancement
+    val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
+    val wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "audiobookshelf:playlistAdvance")
+    wakeLock.acquire(60_000L) // 60 second timeout
+
+    if (nextItem.libraryItemId.startsWith("local")) {
+      Log.d(tag, "advancePlaylistQueue: loading local item ${nextItem.libraryItemId}")
+      val localItem = DeviceManager.dbManager.getLocalLibraryItem(nextItem.libraryItemId)
+      if (localItem == null) {
+        Log.e(tag, "advancePlaylistQueue: Local library item not found ${nextItem.libraryItemId}")
+        if (wakeLock.isHeld) wakeLock.release()
+        return
+      }
+      var episode: PodcastEpisode? = null
+      if (!nextItem.episodeId.isNullOrEmpty()) {
+        val podcastMedia = localItem.media as? Podcast
+        episode = podcastMedia?.episodes?.find { ep -> ep.id == nextItem.episodeId }
+        if (episode == null) {
+          Log.e(tag, "advancePlaylistQueue: Local podcast episode not found ${nextItem.episodeId}")
+          if (wakeLock.isHeld) wakeLock.release()
+          return
+        }
+      }
+      val playbackSession = localItem.getPlaybackSession(episode, getDeviceInfo())
+      Log.d(tag, "advancePlaylistQueue: local session ready, calling preparePlayer")
+      PlayerListener.lazyIsPlaying = false
+      preparePlayer(playbackSession, true, playbackRate)
+      if (wakeLock.isHeld) wakeLock.release()
+    } else {
+      Log.d(tag, "advancePlaylistQueue: requesting server item ${nextItem.libraryItemId}")
+      // Acquire WiFi lock for server items to keep network alive during API call
+      val wifiManager = applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
+      @Suppress("DEPRECATION")
+      val wifiLock = wifiManager.createWifiLock(WifiManager.WIFI_MODE_FULL_HIGH_PERF, "audiobookshelf:playlistAdvance")
+      wifiLock.acquire()
+
+      // Stop progress syncer fire-and-forget (don't block on callback)
+      mediaProgressSyncer.stop {
+        Log.d(tag, "advancePlaylistQueue: mediaProgressSyncer stopped (fire-and-forget)")
+      }
+
+      // Immediately request next item from server without waiting for sync to complete
+      advancePlaylistQueueServerItem(nextItem, playbackRate, wakeLock, wifiLock, 0)
+    }
+  }
+
+  private fun advancePlaylistQueueServerItem(nextItem: PlaylistQueueItem, playbackRate: Float, wakeLock: PowerManager.WakeLock, wifiLock: WifiManager.WifiLock, retryCount: Int) {
+    Log.d(tag, "advancePlaylistQueueServerItem: libraryItemId=${nextItem.libraryItemId}, episodeId=${nextItem.episodeId}, retry=$retryCount")
+    val playItemRequestPayload = getPlayItemRequestPayload(false)
+    apiHandler.playLibraryItem(nextItem.libraryItemId, nextItem.episodeId ?: "", playItemRequestPayload) { session ->
+      if (session == null && retryCount < 3) {
+        val delay = (retryCount + 1) * 2000L
+        Log.w(tag, "advancePlaylistQueue: Server play request failed for ${nextItem.libraryItemId}, retrying in ${delay}ms (attempt ${retryCount + 1}/3)")
+        Handler(Looper.getMainLooper()).postDelayed({
+          advancePlaylistQueueServerItem(nextItem, playbackRate, wakeLock, wifiLock, retryCount + 1)
+        }, delay)
+      } else if (session != null) {
+        Log.d(tag, "advancePlaylistQueue: Got server session, calling preparePlayer for ${nextItem.libraryItemId}")
+        PlayerListener.lazyIsPlaying = false
+        Handler(Looper.getMainLooper()).post {
+          preparePlayer(session, true, playbackRate)
+          Log.d(tag, "advancePlaylistQueue: preparePlayer called successfully")
+        }
+        if (wifiLock.isHeld) wifiLock.release()
+        if (wakeLock.isHeld) wakeLock.release()
+      } else {
+        Log.e(tag, "advancePlaylistQueue: Server play request failed for ${nextItem.libraryItemId} after ${retryCount + 1} attempts, giving up")
+        if (wifiLock.isHeld) wifiLock.release()
+        if (wakeLock.isHeld) wakeLock.release()
       }
     }
   }
