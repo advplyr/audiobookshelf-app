@@ -11,7 +11,7 @@ jobs:
   build:
     name: Build and attach signed IPA
     runs-on: macos-latest
-    environment: testflight
+    environment: ios-release
     env:
       BUILD_CERTIFICATE_BASE64: ${{ secrets.IOS_DISTRIBUTION_CERTIFICATE_BASE64 }}
       P12_PASSWORD: ${{ secrets.IOS_DISTRIBUTION_CERTIFICATE_PASSWORD }}
