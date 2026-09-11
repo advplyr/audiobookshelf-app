@@ -2,6 +2,7 @@ export const state = () => ({
   isModalOpen: false,
   itemDownloads: [],
   bookshelfListView: false,
+  scaleRemainingTimeBySpeed: false,
   series: null,
   localMediaProgress: [],
   lastSearch: null,
@@ -140,6 +141,9 @@ export const mutations = {
   },
   setBookshelfListView(state, val) {
     state.bookshelfListView = val
+  },
+  setScaleRemainingTimeBySpeed(state, val) {
+    state.scaleRemainingTimeBySpeed = val
   },
   setSeries(state, val) {
     state.series = val

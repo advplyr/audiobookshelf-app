@@ -144,10 +144,29 @@ class LocalStorage {
     }
   }
 
+
+  async setScaleRemainingTimeBySpeed(useIt) {
+    try {
+      await Preferences.set({ key: 'scaleRemainingTimeBySpeed', value: useIt ? '1' : '0' })
+    } catch (error) {
+      console.error('[LocalStorage] Failed to set scale remaining time by speed', error)
+    }
+  }
+
+  async getScaleRemainingTimeBySpeed() {
+    try {
+      var obj = await Preferences.get({ key: 'scaleRemainingTimeBySpeed' }) || {}
+      return obj.value === '1'
+    } catch (error) {
+      console.error('[LocalStorage] Failed to get scale remaining time by speed', error)
+      return false
+    }
+  }
+
   /**
    * Get preference value by key
-   * 
-   * @param {string} key 
+   *
+   * @param {string} key
    * @returns {Promise<string>}
    */
   async getPreferenceByKey(key) {

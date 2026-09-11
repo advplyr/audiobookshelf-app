@@ -50,6 +50,15 @@ export default {
     userIsAdminOrUp() {
       return this.$store.getters['user/getIsAdminOrUp']
     },
+    scaleRemainingTimeBySpeed: {
+      get() {
+        return this.$store.state.globals.scaleRemainingTimeBySpeed
+      },
+      set(val) {
+        this.$localStore.setScaleRemainingTimeBySpeed(val)
+        this.$store.commit('globals/setScaleRemainingTimeBySpeed', val)
+      }
+    },
     moreMenuItems() {
       const items = []
 
@@ -78,6 +87,12 @@ export default {
             icon: 'backspace'
           })
         }
+
+        items.push({
+          text: this.$strings.LabelScaleRemainingTimeBySpeed,
+          value: 'scaleRemainingTimeBySpeed',
+          icon: this.scaleRemainingTimeBySpeed ? 'check_box' : 'check_box_outline_blank'
+        })
       }
 
       if ((!this.isPodcast && this.serverLibraryItemId) || (this.episode && this.serverEpisodeId)) {
@@ -285,6 +300,8 @@ export default {
         this.$router.push(`/media/${this.mediaId}/history?title=${this.title}`)
       } else if (action === 'discardProgress') {
         this.clearProgressClick()
+      } else if (action === 'scaleRemainingTimeBySpeed') {
+        this.scaleRemainingTimeBySpeed = !this.scaleRemainingTimeBySpeed
       } else if (action === 'deleteLocal') {
         this.deleteLocalItem()
       } else if (action === 'deleteLocalEpisode') {
@@ -506,6 +523,8 @@ export default {
         })
     }
   },
-  mounted() {}
+  async mounted() {
+    this.scaleRemainingTimeBySpeed = await this.$localStore.getScaleRemainingTimeBySpeed()
+  }
 }
 </script>
