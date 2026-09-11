@@ -1,16 +1,17 @@
 <template>
   <div>
-    <app-audio-player ref="audioPlayer" :bookmarks="bookmarks" :sleep-timer-running="isSleepTimerRunning" :sleep-time-remaining="sleepTimeRemaining" :serverLibraryItemId="serverLibraryItemId" @selectPlaybackSpeed="showPlaybackSpeedModal = true" @updateTime="(t) => (currentTime = t)" @showSleepTimer="showSleepTimer" @showBookmarks="showBookmarks" />
+    <app-audio-player ref="audioPlayer" :bookmarks="bookmarks" :sleep-timer-running="isSleepTimerRunning" :sleep-time-remaining="sleepTimeRemaining" :serverLibraryItemId="serverLibraryItemId" :bookmarks-available="!!bookmarkIdentity && canUseBookmarkIdentity" @selectPlaybackSpeed="showPlaybackSpeedModal = true" @updateTime="(t) => (currentTime = t)" @showSleepTimer="showSleepTimer" @showBookmarks="showBookmarks" />
 
     <modals-playback-speed-modal v-model="showPlaybackSpeedModal" :playback-rate.sync="playbackSpeed" @update:playbackRate="updatePlaybackSpeed" @change="changePlaybackSpeed" />
     <modals-sleep-timer-modal v-model="showSleepTimerModal" :current-time="sleepTimeRemaining" :sleep-timer-running="isSleepTimerRunning" :current-end-of-chapter-time="currentEndOfChapterTime" :is-auto="isAutoSleepTimer" @change="selectSleepTimeout" @cancel="cancelSleepTimer" @increase="increaseSleepTimer" @decrease="decreaseSleepTimer" />
-    <modals-bookmarks-modal v-model="showBookmarksModal" :bookmarks="bookmarks" :current-time="currentTime" :library-item-id="serverLibraryItemId" :playback-rate="playbackSpeed" @select="selectBookmark" />
+    <modals-bookmarks-modal v-model="showBookmarksModal" :bookmarks="bookmarks" :current-time="currentTime" :library-item-id="serverLibraryItemId" :bookmark-identity="bookmarkIdentity" :playback-rate="playbackSpeed" @select="selectBookmark" />
   </div>
 </template>
 
 <script>
 import { AbsAudioPlayer, AbsLogger } from '@/plugins/capacitor'
 import { Dialog } from '@capacitor/dialog'
+import { identityForItem, isIdentityForActiveAccount } from '@/plugins/bookmarks'
 import CellularPermissionHelpers from '@/mixins/cellularPermissionHelpers'
 
 export default {
@@ -41,10 +42,32 @@ export default {
     }
   },
   mixins: [CellularPermissionHelpers],
+  watch: {
+    currentPlaybackSession: {
+      immediate: true,
+      handler() {
+        this.loadBookmarksForCurrentItem()
+      }
+    },
+    serverLibraryItemId() {
+      this.loadBookmarksForCurrentItem()
+    }
+  },
   computed: {
     bookmarks() {
-      if (!this.serverLibraryItemId) return []
-      return this.$store.getters['user/getUserBookmarksForItem'](this.serverLibraryItemId)
+      if (!this.bookmarkIdentity || !this.canUseBookmarkIdentity) return []
+      return this.$store.getters['bookmarks/getBookmarksForIdentity'](this.bookmarkIdentity)
+    },
+    bookmarkIdentity() {
+      const session = this.currentPlaybackSession
+      const libraryItemId = this.serverLibraryItemId || session?.libraryItemId || session?.localLibraryItem?.libraryItemId
+      return identityForItem(libraryItemId, session, this.$store)
+    },
+    canUseBookmarkIdentity() {
+      const activeUser = this.$store.state.user.user
+      const activeConfig = this.$store.state.user.serverConnectionConfig
+      if (!activeUser || !activeConfig) return true
+      return isIdentityForActiveAccount(this.bookmarkIdentity, this.$store)
     },
     isIos() {
       return this.$platform === 'ios'
@@ -54,6 +77,24 @@ export default {
     }
   },
   methods: {
+    async loadBookmarksForCurrentItem() {
+      const session = this.currentPlaybackSession
+      const sessionItemId = session?.libraryItemId || session?.localLibraryItem?.libraryItemId
+      const libraryItemId = this.serverLibraryItemId || sessionItemId
+      if (!libraryItemId) return
+      if (!this.serverLibraryItemId && sessionItemId) this.serverLibraryItemId = sessionItemId
+
+      const identity = identityForItem(libraryItemId, session, this.$store)
+      if (!identity) return
+      if (!this.canUseBookmarkIdentity) return
+      const canSync = this.$store.state.networkConnected && isIdentityForActiveAccount(identity, this.$store)
+      const serverBookmarks = canSync ? this.$store.state.user.user?.bookmarks || null : null
+      try {
+        await this.$store.dispatch('bookmarks/loadForItem', { identity, serverBookmarks, sync: canSync })
+      } catch (error) {
+        console.error('[AudioPlayerContainer] Failed to load bookmarks', error)
+      }
+    },
     showBookmarks() {
       this.showBookmarksModal = true
     },
