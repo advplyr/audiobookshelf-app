@@ -784,6 +784,13 @@ export default {
       await this.loadServerLibraryItem()
     }
     this.init()
+
+    // Must key on the same id the history page is opened with (see mediaId in AudioPlayer.vue and
+    // ItemMoreMenuModal.vue) or the migration runs against a book that holds no history.
+    const historyMediaId = this.serverLibraryItemId || this.localLibraryItemId
+    if (this.$platform !== 'ios' && historyMediaId) {
+      this.$db.ensureHistoryMigrated(historyMediaId)
+    }
   },
   beforeDestroy() {
     window.removeEventListener('resize', this.windowResized)

@@ -391,6 +391,12 @@ class AbsDatabaseWeb extends WebPlugin {
       ]
     }
   }
+
+  async ensureHistoryMigrated() {
+    // Stubbed so the shared item page can call this unconditionally: history is Android-only
+    // natively, and web/iOS would otherwise throw on an unimplemented plugin method.
+    return
+  }
 }
 
 const AbsDatabase = registerPlugin('AbsDatabase', {

@@ -56,7 +56,9 @@ object MediaEventManager {
           mediaProgress: MediaProgressWrapper,
           description: String
   ) {
-    val mediaItemHistory = getMediaItemHistoryMediaItem(mediaProgress.mediaItemId)
+    // Sync events carry no identity of their own; the metadata is created by the playback events that
+    // precede them, so an item that has never been played has nothing to attach to.
+    val mediaItemHistory = DeviceManager.dbManager.getMediaItemHistoryMetadata(mediaProgress.mediaItemId)
     if (mediaItemHistory == null) {
       Log.w(
               tag,
@@ -76,10 +78,8 @@ object MediaEventManager {
                     serverSyncMessage = null,
                     timestamp = System.currentTimeMillis()
             )
-    mediaItemHistory.events.add(mediaItemEvent)
-    DeviceManager.dbManager.saveMediaItemHistory(mediaItemHistory)
-
-    clientEventEmitter?.onMediaItemHistoryUpdated(mediaItemHistory)
+    DeviceManager.dbManager.appendMediaItemEvent(mediaItemHistory, mediaItemEvent)
+    clientEventEmitter?.onMediaItemHistoryEventAdded(mediaItemHistory.id, mediaItemHistory.copyWithoutEvents(), mediaItemEvent)
   }
 
   private fun addPlaybackEvent(
@@ -87,9 +87,7 @@ object MediaEventManager {
           playbackSession: PlaybackSession,
           syncResult: SyncResult?
   ) {
-    val mediaItemHistory =
-            getMediaItemHistoryMediaItem(playbackSession.mediaItemId)
-                    ?: createMediaItemHistoryForSession(playbackSession)
+    val mediaItemHistory = buildHistoryMetadataForSession(playbackSession)
 
     val mediaItemEvent =
             MediaItemEvent(
@@ -102,18 +100,11 @@ object MediaEventManager {
                     serverSyncMessage = syncResult?.serverSyncMessage,
                     timestamp = System.currentTimeMillis()
             )
-    mediaItemHistory.events.add(mediaItemEvent)
-    DeviceManager.dbManager.saveMediaItemHistory(mediaItemHistory)
-
-    clientEventEmitter?.onMediaItemHistoryUpdated(mediaItemHistory)
+    DeviceManager.dbManager.appendMediaItemEvent(mediaItemHistory, mediaItemEvent)
+    clientEventEmitter?.onMediaItemHistoryEventAdded(mediaItemHistory.id, mediaItemHistory.copyWithoutEvents(), mediaItemEvent)
   }
 
-  private fun getMediaItemHistoryMediaItem(mediaItemId: String): MediaItemHistory? {
-    return DeviceManager.dbManager.getMediaItemHistory(mediaItemId)
-  }
-
-  private fun createMediaItemHistoryForSession(playbackSession: PlaybackSession): MediaItemHistory {
-    Log.i(tag, "Creating new media item history for media \"${playbackSession.displayTitle}\"")
+  private fun buildHistoryMetadataForSession(playbackSession: PlaybackSession): MediaItemHistory {
     val libraryItemId = playbackSession.libraryItemId ?: ""
     val episodeId: String? = playbackSession.episodeId
     return MediaItemHistory(
