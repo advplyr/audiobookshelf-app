@@ -32,7 +32,7 @@ jobs:
           cache: npm
 
       - name: Install JavaScript dependencies
-        run: npm ci
+        run: npm ci --omit=optional
 
       - name: Build shared web app
         run: npm run generate
