@@ -10,6 +10,7 @@ export const state = () => ({
     mobileOrderBy: 'addedAt',
     mobileOrderDesc: true,
     mobileFilterBy: 'all',
+    mobilePodcastLatestOnlyFavorites: false,
     playbackRate: 1,
     collapseSeries: false,
     collapseBookSeries: false,
@@ -43,6 +44,9 @@ export const getters = {
         return li.libraryItemId == libraryItemId
       })
     },
+  getIsLibraryItemFavorite: (state) => (libraryItemId) => {
+      return state.user?.favorites?.includes(libraryItemId) || false
+  },
   getUserBookmarksForItem: (state) => (libraryItemId) => {
     if (!state?.user?.bookmarks) return []
     return state.user.bookmarks.filter((bm) => bm.libraryItemId === libraryItemId)

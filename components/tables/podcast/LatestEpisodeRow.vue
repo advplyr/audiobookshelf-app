@@ -11,6 +11,7 @@
               <nuxt-link :to="`/item/${libraryItemId}`" class="text-sm text-fg underline">{{ podcast.metadata.title }}</nuxt-link>
             </div>
             <widgets-explicit-indicator v-if="podcast.metadata.explicit" />
+            <span v-if="$store.getters['user/getIsLibraryItemFavorite'](episode.libraryItemId)" class="material-symbols fill text-yellow-400 text-sm ml-1 !block" :style="{ fontSize: '.9em' }">star</span>
           </div>
           <p v-if="publishedAt" class="text-xs text-fg-muted">{{ $dateDistanceFromNow(publishedAt) }}</p>
         </div>
