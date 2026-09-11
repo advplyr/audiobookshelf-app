@@ -5,17 +5,17 @@
         <p class="text-base font-semibold truncate">{{ mediaMetadata.title }}</p>
         <div class="flex-grow" />
 
-        <button v-if="audioTracks.length && !isPodcast" class="shadow-sm text-success flex items-center justify-center rounded-full mx-2" @click.stop="play">
+        <button v-if="audioTracks.length && !isPodcast" class="shadow-sm text-success flex items-center justify-center rounded-full mx-2" @click.stop="play" @keydown.enter.prevent.stop="play">
           <span class="material-symbols fill" style="font-size: 2rem">play_arrow</span>
         </button>
-        <span class="material-symbols text-2xl" @click="showItemDialog">more_vert</span>
+        <span tabindex="0" class="material-symbols text-2xl cursor-pointer" @click="showItemDialog" @keydown.enter.prevent="showItemDialog">more_vert</span>
       </div>
 
       <p v-if="!isIos" class="px-2 text-sm mb-0.5 text-fg-muted">{{ $strings.LabelFolder }}: {{ folderName }}</p>
 
       <p class="px-2 mb-4 text-xs text-fg-muted">{{ libraryItemId ? 'Linked to item on server ' + liServerAddress : 'Not linked to server item' }}</p>
 
-      <div class="w-full max-w-full media-item-container overflow-y-auto overflow-x-hidden relative pb-4" :class="{ 'media-order-changed': orderChanged }">
+      <div id="manage-files-page" class="w-full max-w-full media-item-container overflow-y-auto overflow-x-hidden relative pb-4" :class="{ 'media-order-changed': orderChanged }">
         <div v-if="!isPodcast && audioTracksCopy.length" class="w-full py-2">
           <div class="flex justify-between items-center mb-2">
             <p class="text-base">Audio Tracks ({{ audioTracks.length }})</p>
@@ -40,7 +40,7 @@
                     <p class="text-sm">{{ $elapsedPretty(track.duration) }}</p>
                   </div>
                   <div v-if="!isIos" class="w-12 h-12 flex items-center justify-center" style="min-width: 48px">
-                    <span class="material-symbols text-2xl" @click="showTrackDialog(track)">more_vert</span>
+                    <span tabindex="0" class="material-symbols text-2xl cursor-pointer" @click="showTrackDialog(track)" @keydown.enter.prevent="showTrackDialog(track)">more_vert</span>
                   </div>
                 </div>
               </template>
@@ -66,7 +66,7 @@
                 <p class="text-sm">{{ $elapsedPretty(episode.audioTrack.duration) }}</p>
               </div>
               <div class="w-12 h-12 flex items-center justify-center" style="min-width: 48px">
-                <span class="material-symbols text-2xl" @click="showTrackDialog(episode)">more_vert</span>
+                <span tabindex="0" class="material-symbols text-2xl cursor-pointer" @click="showTrackDialog(episode)" @keydown.enter.prevent="showTrackDialog(episode)">more_vert</span>
               </div>
             </div>
           </template>

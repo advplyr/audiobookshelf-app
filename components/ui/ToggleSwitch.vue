@@ -1,6 +1,6 @@
 <template>
   <div>
-    <div class="border rounded-full border-gray-400 flex items-center cursor-pointer w-10 justify-start" :class="className" @click.stop="clickToggle">
+    <div tabindex="0" class="border rounded-full border-gray-400 flex items-center cursor-pointer w-10 justify-start" :class="className" @click.stop="clickToggle" @keydown.enter.prevent.stop="clickToggle">
       <span class="rounded-full border w-5 h-5 border-gray-100 shadow transform transition-transform duration-100" :class="switchClassName"></span>
     </div>
   </div>

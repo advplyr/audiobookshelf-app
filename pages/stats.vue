@@ -1,5 +1,5 @@
 <template>
-  <div class="w-full h-full px-0 py-4 overflow-y-auto">
+  <div id="stats-page" class="w-full h-full px-0 py-4 overflow-y-auto">
     <!-- Year in review banner shown at the top in December and January -->
     <stats-year-in-review-banner v-if="showYearInReviewBanner" />
 

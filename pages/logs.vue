@@ -8,7 +8,7 @@
       <ui-icon-btn outlined borderless icon="more_vert" @click="showDialog = true" />
     </div>
 
-    <div class="w-full h-[calc(100%-40px)] overflow-y-auto relative" ref="logContainer">
+    <div id="logs-container" class="w-full h-[calc(100%-40px)] overflow-y-auto relative" ref="logContainer">
       <div v-if="!logs.length && !isLoading" class="flex items-center justify-center h-32 p-4">
         <p class="text-gray-400">{{ $strings.MessageNoLogs }}</p>
       </div>
