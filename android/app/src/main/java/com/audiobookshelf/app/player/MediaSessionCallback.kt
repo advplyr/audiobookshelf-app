@@ -65,26 +65,32 @@ class MediaSessionCallback(var playerNotificationService:PlayerNotificationServi
   }
 
   override fun onStop() {
+    Log.d(tag, "ON STOP MEDIA SESSION COMPAT")
     playerNotificationService.pause()
   }
 
   override fun onSkipToPrevious() {
-    playerNotificationService.skipToPrevious()
+    Log.d(tag, "ON SKIP TO PREVIOUS MEDIA SESSION COMPAT")
+    playerNotificationService.jumpBackward()
   }
 
   override fun onSkipToNext() {
-    playerNotificationService.skipToNext()
+    Log.d(tag, "ON SKIP TO NEXT MEDIA SESSION COMPAT")
+    playerNotificationService.jumpForward()
   }
 
   override fun onFastForward() {
+    Log.d(tag, "ON FAST FORWARD MEDIA SESSION COMPAT")
     playerNotificationService.jumpForward()
   }
 
   override fun onRewind() {
+    Log.d(tag, "ON REWIND MEDIA SESSION COMPAT")
     playerNotificationService.jumpBackward()
   }
 
   override fun onSeekTo(pos: Long) {
+    Log.d(tag, "ON SEEK TO SESSION COMPAT")
     val currentTrackStartOffset = playerNotificationService.getCurrentTrackStartOffsetMs()
     playerNotificationService.seekPlayer(currentTrackStartOffset + pos)
   }
@@ -228,9 +234,11 @@ class MediaSessionCallback(var playerNotificationService:PlayerNotificationServi
             handleMediaButtonClickCount()
           }
           KeyEvent.KEYCODE_MEDIA_NEXT -> {
+            Log.d(tag, "handleCallMediaButton: Media Next")
             playerNotificationService.jumpForward()
           }
           KeyEvent.KEYCODE_MEDIA_PREVIOUS -> {
+            Log.d(tag, "handleCallMediaButton: Media Previous")
             playerNotificationService.jumpBackward()
           }
           KeyEvent.KEYCODE_MEDIA_STOP -> {
@@ -274,6 +282,7 @@ class MediaSessionCallback(var playerNotificationService:PlayerNotificationServi
 
   override fun onCustomAction(action: String?, extras: Bundle?) {
     super.onCustomAction(action, extras)
+    Log.d(tag, "handleCallMediaButton: CustomAction:${action}")
 
     when (action) {
       CUSTOM_ACTION_JUMP_FORWARD -> onFastForward()
