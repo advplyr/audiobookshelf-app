@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Close issues marked as fixed upon a release.
-        uses: gcampbell-msft/fixed-pending-release@dbc2297e6154e0a671790a8fa6b1f016035c56ab
+        uses: gcampbell-msft/fixed-pending-release@0.1.0
         with:
           label: 'awaiting release'
           removeLabel: true
