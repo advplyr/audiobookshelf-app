@@ -22,8 +22,32 @@ class DbManager {
     }
   }
 
+  /**
+   * Reads one entry, dropping it when it cannot be read.
+   *
+   * A file left half written - the app was killed mid write, the device ran out of storage - makes
+   * kryo throw, and an unhandled throw here takes the app down on every start. The only way out for
+   * a user would be clearing the app's storage, which takes their downloads and progress with it.
+   */
+  private inline fun <reified T> readEntry(bookName: String, key: String): T? {
+    val book = Paper.book(bookName)
+
+    return try {
+      book.read<T>(key)
+    } catch (e: Exception) {
+      Log.e(tag, "readEntry: Dropping unreadable $bookName entry $key", e)
+      book.delete(key)
+      null
+    }
+  }
+
+  /** Reads every entry of a book, dropping the ones that cannot be read. See [readEntry]. */
+  private inline fun <reified T> readBook(bookName: String): List<T> {
+    return Paper.book(bookName).allKeys.mapNotNull { readEntry<T>(bookName, it) }
+  }
+
   fun getDeviceData(): DeviceData {
-    return Paper.book("device").read("data")
+    return readEntry<DeviceData>("device", "data")
             ?: DeviceData(mutableListOf(), null, DeviceSettings.default(), null)
   }
   fun saveDeviceData(deviceData: DeviceData) {
@@ -31,16 +55,9 @@ class DbManager {
   }
 
   fun getLocalLibraryItems(mediaType: String? = null): MutableList<LocalLibraryItem> {
-    val localLibraryItems: MutableList<LocalLibraryItem> = mutableListOf()
-    Paper.book("localLibraryItems").allKeys.forEach {
-      val localLibraryItem: LocalLibraryItem? = Paper.book("localLibraryItems").read(it)
-      if (localLibraryItem != null &&
-                      (mediaType.isNullOrEmpty() || mediaType == localLibraryItem.mediaType)
-      ) {
-        localLibraryItems.add(localLibraryItem)
-      }
-    }
-    return localLibraryItems
+    return readBook<LocalLibraryItem>("localLibraryItems")
+            .filter { mediaType.isNullOrEmpty() || mediaType == it.mediaType }
+            .toMutableList()
   }
 
   fun getLocalLibraryItemsInFolder(folderId: String): List<LocalLibraryItem> {
@@ -53,7 +70,7 @@ class DbManager {
   }
 
   fun getLocalLibraryItem(localLibraryItemId: String): LocalLibraryItem? {
-    return Paper.book("localLibraryItems").read(localLibraryItemId)
+    return readEntry("localLibraryItems", localLibraryItemId)
   }
 
   fun getLocalLibraryItemWithEpisode(podcastEpisodeId: String): LibraryItemWithEpisode? {
@@ -88,15 +105,11 @@ class DbManager {
   }
 
   fun getLocalFolder(folderId: String): LocalFolder? {
-    return Paper.book("localFolders").read(folderId)
+    return readEntry("localFolders", folderId)
   }
 
   fun getAllLocalFolders(): List<LocalFolder> {
-    val localFolders: MutableList<LocalFolder> = mutableListOf()
-    Paper.book("localFolders").allKeys.forEach { localFolderId ->
-      Paper.book("localFolders").read<LocalFolder>(localFolderId)?.let { localFolders.add(it) }
-    }
-    return localFolders
+    return readBook("localFolders")
   }
 
   fun removeLocalFolder(folderId: String) {
@@ -114,11 +127,7 @@ class DbManager {
   }
 
   fun getDownloadItems(): List<DownloadItem> {
-    val downloadItems: MutableList<DownloadItem> = mutableListOf()
-    Paper.book("downloadItems").allKeys.forEach { downloadItemId ->
-      Paper.book("downloadItems").read<DownloadItem>(downloadItemId)?.let { downloadItems.add(it) }
-    }
-    return downloadItems
+    return readBook("downloadItems")
   }
 
   fun saveLocalMediaProgress(mediaProgress: LocalMediaProgress) {
@@ -127,16 +136,10 @@ class DbManager {
   // For books this will just be the localLibraryItemId for podcast episodes this will be
   // "{localLibraryItemId}-{episodeId}"
   fun getLocalMediaProgress(localMediaProgressId: String): LocalMediaProgress? {
-    return Paper.book("localMediaProgress").read(localMediaProgressId)
+    return readEntry("localMediaProgress", localMediaProgressId)
   }
   fun getAllLocalMediaProgress(): List<LocalMediaProgress> {
-    val mediaProgress: MutableList<LocalMediaProgress> = mutableListOf()
-    Paper.book("localMediaProgress").allKeys.forEach { localMediaProgressId ->
-      Paper.book("localMediaProgress").read<LocalMediaProgress>(localMediaProgressId)?.let {
-        mediaProgress.add(it)
-      }
-    }
-    return mediaProgress
+    return readBook("localMediaProgress")
   }
   fun removeLocalMediaProgress(localMediaProgressId: String) {
     Paper.book("localMediaProgress").delete(localMediaProgressId)
@@ -272,7 +275,7 @@ class DbManager {
     Paper.book("mediaItemHistory").write(mediaItemHistory.id, mediaItemHistory)
   }
   fun getMediaItemHistory(id: String): MediaItemHistory? {
-    return Paper.book("mediaItemHistory").read(id)
+    return readEntry("mediaItemHistory", id)
   }
 
   fun savePlaybackSession(playbackSession: PlaybackSession) {
@@ -282,23 +285,14 @@ class DbManager {
     Paper.book("playbackSession").delete(playbackSessionId)
   }
   fun getPlaybackSessions(): List<PlaybackSession> {
-    val sessions: MutableList<PlaybackSession> = mutableListOf()
-    Paper.book("playbackSession").allKeys.forEach { playbackSessionId ->
-      Paper.book("playbackSession").read<PlaybackSession>(playbackSessionId)?.let {
-        sessions.add(it)
-      }
-    }
-    return sessions
+    return readBook("playbackSession")
   }
 
   fun saveLog(log: AbsLog) {
     Paper.book("log").write(log.id, log)
   }
   fun getAllLogs(): List<AbsLog> {
-    val logs: MutableList<AbsLog> = mutableListOf()
-    Paper.book("log").allKeys.forEach { logId ->
-      Paper.book("log").read<AbsLog>(logId)?.let { logs.add(it) }
-    }
+    val logs: MutableList<AbsLog> = readBook<AbsLog>("log").toMutableList()
     return logs.sortedBy { it.timestamp }
   }
   fun removeAllLogs() {
