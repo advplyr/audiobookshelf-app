@@ -59,7 +59,9 @@ data class ServerConnectionConfig(
         var userId: String,
         var username: String,
         var token: String,
-        var customHeaders: Map<String, String>?
+        var customHeaders: Map<String, String>?,
+        // Alias of a certificate installed in the Android system KeyChain, used for mTLS
+        var clientCertAlias: String? = null
 )
 
 @JsonIgnoreProperties(ignoreUnknown = true)
