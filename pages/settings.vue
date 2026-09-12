@@ -67,6 +67,13 @@
       </div>
       <p class="pl-4">{{ $strings.LabelAllowSeekingOnMediaControls }}</p>
     </div>
+    <div v-if="!isiOS" class="flex items-center py-3">
+      <div class="w-10 flex justify-center" @click="toggleAutoResumeOnBtConnect">
+        <ui-toggle-switch v-model="settings.autoResumeAfterCarDisconnect" @input="saveSettings" />
+      </div>
+      <p class="pl-4">{{ $strings.LabelAutoResumeOnBtConnect }}</p>
+      <span class="material-symbols text-xl ml-2" @click.stop="showInfo('autoResumeOnBtConnect')">info</span>
+    </div>
 
     <!-- Sleep timer settings -->
     <template v-if="!isiOS">
@@ -223,11 +230,16 @@ export default {
         downloadUsingCellular: 'ALWAYS',
         streamingUsingCellular: 'ALWAYS',
         androidAutoBrowseLimitForGrouping: 100,
-        androidAutoBrowseSeriesSequenceOrder: 'ASC'
+        androidAutoBrowseSeriesSequenceOrder: 'ASC',
+        autoResumeAfterCarDisconnect: true
       },
       theme: 'dark',
       lockCurrentOrientation: false,
       settingInfo: {
+        autoResumeOnBtConnect: {
+          name: this.$strings.LabelAutoResumeOnBtConnect,
+          message: this.$strings.LabelAutoResumeOnBtConnectHelp
+        },
         disableShakeToResetSleepTimer: {
           name: this.$strings.LabelDisableShakeToReset,
           message: this.$strings.LabelDisableShakeToResetHelp
@@ -611,6 +623,10 @@ export default {
       this.settings.allowSeekingOnMediaControls = !this.settings.allowSeekingOnMediaControls
       this.saveSettings()
     },
+    toggleAutoResumeOnBtConnect() {
+      this.settings.autoResumeAfterCarDisconnect = !this.settings.autoResumeAfterCarDisconnect
+      this.saveSettings()
+    },
     getCurrentOrientation() {
       const orientation = window.screen?.orientation || {}
       const type = orientation.type || ''
@@ -671,6 +687,7 @@ export default {
 
       this.settings.androidAutoBrowseLimitForGrouping = deviceSettings.androidAutoBrowseLimitForGrouping
       this.settings.androidAutoBrowseSeriesSequenceOrder = deviceSettings.androidAutoBrowseSeriesSequenceOrder || 'ASC'
+      this.settings.autoResumeAfterCarDisconnect = deviceSettings.autoResumeAfterCarDisconnect !== false
     },
     async init() {
       this.loading = true

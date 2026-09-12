@@ -110,6 +110,8 @@
   "LabelAuthorLastFirst": "Author (Last, First)",
   "LabelAuthors": "Authors",
   "LabelAutoDownloadEpisodes": "Auto Download Episodes",
+  "LabelAutoResumeOnBtConnect": "Auto-resume on Bluetooth reconnect",
+  "LabelAutoResumeOnBtConnectHelp": "When car audio disconnects, playback resumes automatically if a Bluetooth headset connects within 15 seconds.",
   "LabelAutoRewindTime": "Auto rewind time",
   "LabelAutoSleepTimer": "Auto sleep timer",
   "LabelAutoSleepTimerAutoRewind": "Auto sleep timer auto rewind",
