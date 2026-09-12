@@ -48,7 +48,9 @@ class AbsDatabase : Plugin() {
   fun getDeviceData(call:PluginCall) {
     GlobalScope.launch(Dispatchers.IO) {
       val deviceData = DeviceManager.dbManager.getDeviceData()
-      call.resolve(JSObject(jacksonMapper.writeValueAsString(deviceData)))
+      val result = JSObject(jacksonMapper.writeValueAsString(deviceData))
+      result.put("isAndroidTv", DeviceManager.isAndroidTV(mainActivity))
+      call.resolve(result)
     }
   }
 
