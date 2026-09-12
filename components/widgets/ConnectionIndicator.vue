@@ -18,6 +18,12 @@ export default {
     socketConnected() {
       return this.$store.state.socketConnected
     },
+    socketAuthenticated() {
+      return this.$store.state.socketAuthenticated
+    },
+    socketRecovering() {
+      return this.$store.state.socketRecovering
+    },
     networkConnected() {
       return this.$store.state.networkConnected
     },
@@ -36,7 +42,7 @@ export default {
     icon() {
       if (!this.user && !this.attemptingConnection) return null // hide when not connected to server
 
-      if (this.attemptingConnection) {
+      if (this.attemptingConnection || this.socketRecovering || (this.socketConnected && !this.socketAuthenticated)) {
         return 'cloud_sync'
       } else if (!this.networkConnected) {
         return 'wifi_off'
@@ -50,6 +56,7 @@ export default {
     },
     iconClass() {
       if (!this.networkConnected) return 'text-error'
+      else if (this.socketRecovering || !this.socketAuthenticated) return 'text-warning'
       else if (!this.socketConnected) return 'text-warning'
       else if (!this.isNetworkUnmetered) return 'text-yellow-400'
       else if (this.isCellular) return 'text-gray-200'
@@ -59,7 +66,11 @@ export default {
   methods: {
     showAlertDialog() {
       var msg = ''
-      if (this.attemptingConnection) {
+      if (this.user && this.networkConnected && !this.socketAuthenticated) {
+        this.$socket.ensureConnected(this.$store.getters['user/getServerAddress'], 'status-indicator')
+      }
+
+      if (this.attemptingConnection || this.socketRecovering || (this.socketConnected && !this.socketAuthenticated)) {
         msg = this.$strings.MessageAttemptingServerConnection
       } else if (!this.networkConnected) {
         msg = this.$strings.MessageNoNetworkConnection

@@ -16,6 +16,7 @@
 
 <script>
 import { CapacitorHttp } from '@capacitor/core'
+import { App } from '@capacitor/app'
 import { AbsLogger } from '@/plugins/capacitor'
 
 export default {
@@ -26,6 +27,8 @@ export default {
       disconnectTime: 0,
       socketDisconnectedTime: 0,
       timeLostFocus: 0,
+      appStateListener: null,
+      refreshingSocketAuth: false,
       currentLang: null
     }
   },
@@ -40,15 +43,18 @@ export default {
           console.log(`[default] network connected changed ${oldVal} -> ${newVal}`)
           if (!this.user) {
             this.attemptConnection()
-          } else if (!this.currentLibraryId) {
-            this.initLibraries()
           } else {
-            var timeSinceDisconnect = Date.now() - this.disconnectTime
-            if (timeSinceDisconnect > 5000) {
-              console.log('[default] Time since disconnect was', timeSinceDisconnect, 'sync with server')
-              setTimeout(() => {
-                this.syncLocalSessions(false)
-              }, 4000)
+            this.recoverSocket('network-restored')
+            if (!this.currentLibraryId) {
+              this.initLibraries()
+            } else {
+              var timeSinceDisconnect = Date.now() - this.disconnectTime
+              if (timeSinceDisconnect > 5000) {
+                console.log('[default] Time since disconnect was', timeSinceDisconnect, 'sync with server')
+                setTimeout(() => {
+                  this.syncLocalSessions(false)
+                }, 4000)
+              }
             }
           }
         } else {
@@ -112,6 +118,36 @@ export default {
     }
   },
   methods: {
+    recoverSocket(reason) {
+      if (!this.user || !this.networkConnected) return false
+
+      const serverAddress = this.$store.getters['user/getServerAddress']
+      if (!serverAddress) return false
+
+      AbsLogger.info({ tag: 'default', message: `recoverSocket: ${reason}` })
+      return this.$socket.ensureConnected(serverAddress, reason)
+    },
+    async recoverSocketAuthentication() {
+      if (this.refreshingSocketAuth) return
+
+      this.refreshingSocketAuth = true
+      try {
+        const accessToken = await this.$store.dispatch('user/refreshToken')
+        if (!accessToken) {
+          AbsLogger.error({ tag: 'default', message: 'recoverSocketAuthentication: No refresh token available' })
+        }
+      } catch (error) {
+        AbsLogger.error({ tag: 'default', message: `recoverSocketAuthentication: ${error?.message || error}` })
+      } finally {
+        this.refreshingSocketAuth = false
+      }
+    },
+    appStateChanged({ isActive }) {
+      if (isActive) {
+        console.log('[default] native app state active, checking socket connection')
+        this.recoverSocket('app-active')
+      }
+    },
     initialStream(stream) {
       if (this.$refs.streamContainer?.audioPlayerReady) {
         this.$refs.streamContainer.streamOpen(stream)
@@ -327,6 +363,7 @@ export default {
       if (document.visibilityState === 'visible') {
         const elapsedTimeOutOfFocus = Date.now() - this.timeLostFocus
         console.log(`✅ [default] device visibility: has focus (${elapsedTimeOutOfFocus}ms out of focus)`)
+        this.recoverSocket('document-visible')
         // If device out of focus for more than 30s then reload local media progress
         if (elapsedTimeOutOfFocus > 30000) {
           console.log(`✅ [default] device visibility: reloading local media progress`)
@@ -351,9 +388,12 @@ export default {
   async mounted() {
     this.$eventBus.$on('change-lang', this.changeLanguage)
     document.addEventListener('visibilitychange', this.visibilityChanged)
+    this.appStateListener = await App.addListener('appStateChange', this.appStateChanged)
 
     this.$socket.on('user_updated', this.userUpdated)
     this.$socket.on('user_media_progress_updated', this.userMediaProgressUpdated)
+    this.$socket.on('authentication-failed', this.recoverSocketAuthentication)
+    this.$socket.on('authentication-timeout', this.recoverSocketAuthentication)
 
     if (this.$store.state.isFirstLoad) {
       AbsLogger.info({ tag: 'default', message: `mounted: initializing first load (${this.$platform} v${this.$config.version})` })
@@ -370,6 +410,7 @@ export default {
 
       if (this.$store.state.user.serverConnectionConfig) {
         AbsLogger.info({ tag: 'default', message: `mounted: Server connected, init libraries (${this.$store.getters['user/getServerConfigName']})` })
+        this.recoverSocket('app-start')
         await this.initLibraries()
       } else {
         AbsLogger.info({ tag: 'default', message: `mounted: Server not connected, attempt connection` })
@@ -378,17 +419,21 @@ export default {
 
       await this.syncLocalSessions(true)
 
-      this.hasMounted = true
-
       AbsLogger.info({ tag: 'default', message: 'mounted: fully initialized' })
       this.$eventBus.$emit('abs-ui-ready')
+    } else {
+      this.recoverSocket('layout-remounted')
     }
+    this.hasMounted = true
   },
   beforeDestroy() {
     this.$eventBus.$off('change-lang', this.changeLanguage)
     document.removeEventListener('visibilitychange', this.visibilityChanged)
+    if (this.appStateListener) this.appStateListener.remove()
     this.$socket.off('user_updated', this.userUpdated)
     this.$socket.off('user_media_progress_updated', this.userMediaProgressUpdated)
+    this.$socket.off('authentication-failed', this.recoverSocketAuthentication)
+    this.$socket.off('authentication-timeout', this.recoverSocketAuthentication)
   }
 }
 </script>
