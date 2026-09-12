@@ -294,7 +294,8 @@ export default {
     },
     notifyOnReady() {
       // TODO: was used on iOS to open last played media. May be removed
-      if (!this.isIos) return
+      // On Android this is the only signal native has that the UI can receive events; state
+      // pushed on activity resume arrives before any listener exists.
 
       // If settings aren't loaded yet, native player will receive incorrect settings
       console.log('Notify on ready... settingsLoaded:', this.settingsLoaded, 'isReady:', this.isReady)

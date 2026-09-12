@@ -52,6 +52,15 @@ class DbManager {
     return getLocalLibraryItems().find { it.libraryItemId == libraryItemId }
   }
 
+  /** Indexed so resolving a list of server items costs one scan instead of one per item. */
+  fun getLocalLibraryItemsByLId(mediaType: String? = null): Map<String, LocalLibraryItem> {
+    // Same server item downloaded twice keeps the first, matching getLocalLibraryItemByLId.
+    return getLocalLibraryItems(mediaType)
+            .filter { it.libraryItemId != null }
+            .groupBy { it.libraryItemId!! }
+            .mapValues { it.value.first() }
+  }
+
   fun getLocalLibraryItem(localLibraryItemId: String): LocalLibraryItem? {
     return Paper.book("localLibraryItems").read(localLibraryItemId)
   }
@@ -284,8 +293,18 @@ class DbManager {
   fun getPlaybackSessions(): List<PlaybackSession> {
     val sessions: MutableList<PlaybackSession> = mutableListOf()
     Paper.book("playbackSession").allKeys.forEach { playbackSessionId ->
-      Paper.book("playbackSession").read<PlaybackSession>(playbackSessionId)?.let {
-        sessions.add(it)
+      try {
+        Paper.book("playbackSession").read<PlaybackSession>(playbackSessionId)?.let {
+          sessions.add(it)
+        }
+      } catch (e: Exception) {
+        // A partially written session file throws on every read, so it would otherwise crash
+        // the app on each launch. Drop it and keep the rest of the sessions readable.
+        Log.e(tag, "Removing unreadable playback session $playbackSessionId", e)
+        try {
+          Paper.book("playbackSession").delete(playbackSessionId)
+        } catch (_: Exception) {
+        }
       }
     }
     return sessions
