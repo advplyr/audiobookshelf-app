@@ -1,6 +1,5 @@
 package com.audiobookshelf.app.plugins
 
-import android.net.Uri
 import android.os.Environment
 import com.audiobookshelf.app.MainActivity
 import com.audiobookshelf.app.data.*
@@ -65,88 +64,6 @@ class AbsDownloader : Plugin() {
             call.getString("downloads") ?: "Downloads",
             call.getString("cancel") ?: "Cancel")
     call.resolve()
-  }
-
-  /** Writes a malformed persisted queue entry for manually testing startup recovery. */
-  @PluginMethod
-  fun createInvalidDownloadQueueEntry(call: PluginCall) {
-    try {
-      val downloadItemId = "debug-invalid-download"
-      val filename = "debug-invalid-download.m4b"
-      val localFolder =
-              LocalFolder(
-                      "internal-book",
-                      "Internal App Storage",
-                      "",
-                      "",
-                      mainActivity.filesDir.absolutePath,
-                      "internal",
-                      "book"
-              )
-      val itemFolder = File(mainActivity.filesDir, "downloads/$downloadItemId")
-      val stagingFile =
-              File(mainActivity.filesDir, "download-staging/$downloadItemId/$filename.part")
-      val finalFile = File(itemFolder, filename)
-      val part =
-              DownloadItemPart(
-                      id = "$downloadItemId-part",
-                      downloadItemId = downloadItemId,
-                      filename = filename,
-                      fileSize = 1L,
-                      destinationPath = stagingFile.absolutePath,
-                      finalDestinationPath = finalFile.absolutePath,
-                      serverPath = "/debug/invalid-download",
-                      localFolderName = localFolder.name,
-                      localFolderUrl = localFolder.contentUrl,
-                      localFolderId = localFolder.id,
-                      ebookFile = null,
-                      audioTrack = null,
-                      episode = null,
-                      completed = false,
-                      moved = false,
-                      isMoving = false,
-                      failed = false,
-                      uri = Uri.parse("https://invalid.local/debug/invalid-download"),
-                      destinationUri = Uri.fromFile(stagingFile),
-                      finalDestinationUri = Uri.fromFile(finalFile),
-                      completedDestinationUri = null,
-                      finalDestinationSubfolder = downloadItemId,
-                      downloadId = null,
-                      lastUpdateTime = null,
-                      progress = 0L,
-                      bytesDownloaded = 0L
-              )
-
-      DownloadItemPart::class.java.getDeclaredField("destinationPath").apply {
-        isAccessible = true
-        set(part, null)
-      }
-
-      val downloadItem =
-              DownloadItem(
-                      id = downloadItemId,
-                      libraryItemId = downloadItemId,
-                      episodeId = null,
-                      userMediaProgress = null,
-                      serverConnectionConfigId = "debug",
-                      serverAddress = "https://invalid.local",
-                      serverUserId = "debug",
-                      mediaType = "book",
-                      itemFolderPath = itemFolder.absolutePath,
-                      localFolder = localFolder,
-                      itemTitle = "Invalid Download Queue Test",
-                      itemSubfolder = downloadItemId,
-                      media = MediaType(MediaTypeMetadata("Invalid Download Queue Test", false), null),
-                      downloadItemParts = mutableListOf(part)
-              )
-
-      DeviceManager.dbManager.saveDownloadItem(downloadItem)
-      AbsLogger.info(tag, "Created malformed download queue entry $downloadItemId")
-      call.resolve()
-    } catch (e: Exception) {
-      AbsLogger.error(tag, "Could not create malformed download queue entry: ${e.message}")
-      call.reject("Could not create malformed download queue entry", e)
-    }
   }
 
   /** Replays restored queue items when the frontend subscribes to download events. */
