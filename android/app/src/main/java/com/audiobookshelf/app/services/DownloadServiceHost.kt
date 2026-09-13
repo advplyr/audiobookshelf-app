@@ -2,6 +2,7 @@ package com.audiobookshelf.app.services
 
 import android.content.Context
 import androidx.core.content.ContextCompat
+import com.audiobookshelf.app.device.DeviceManager
 import com.audiobookshelf.app.device.FolderScanner
 import com.audiobookshelf.app.managers.DbManager
 import com.audiobookshelf.app.managers.DownloadItemManager
@@ -43,8 +44,12 @@ object DownloadServiceHost {
       DbManager.initialize(appContext)
       manager = DownloadItemManager(FolderScanner(appContext), appContext, ForwardingEmitter)
       restoreJob = scope.launch {
-        IncompleteDownloadCleanup.cleanupExpired(appContext)
-        manager!!.restoreQueue()
+        if (DeviceManager.dbManager.ensureValidDownloadQueue()) {
+          IncompleteDownloadCleanup.cleanupExpired(appContext)
+          manager!!.restoreQueue()
+        } else {
+          AbsLogger.error(TAG, "Skipping invalid download queue because it could not be cleared")
+        }
         onRestoreComplete(appContext)
       }
     }
