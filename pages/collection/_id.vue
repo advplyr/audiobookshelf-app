@@ -1,6 +1,15 @@
 <template>
   <div class="w-full h-full">
-    <div class="w-full h-full overflow-y-auto px-2 py-6 md:p-8">
+    <div class="w-full h-9 bg-bg relative z-20 flex items-center px-2 border-b border-fg/10">
+      <p class="pt-1 text-sm truncate flex-grow">{{ collectionName }} ({{ $formatNumber(filteredBooks.length) }})</p>
+      <div class="relative flex items-center px-2">
+        <span class="material-symbols text-2xl" @click="showFilterModal = true">filter_alt</span>
+        <div v-show="hasFilters" class="absolute top-0 right-2 w-2 h-2 rounded-full bg-success border border-green-300 shadow-sm z-10 pointer-events-none" />
+      </div>
+      <span class="material-symbols text-2xl px-2" @click="showSortModal = true">sort</span>
+    </div>
+
+    <div class="w-full overflow-y-auto px-2 py-6 md:p-8" style="height: calc(100% - 36px)">
       <div class="w-full flex justify-center md:block sm:w-32 md:w-52" style="min-width: 240px">
         <div class="relative" style="height: fit-content">
           <covers-collection-cover :book-items="bookItems" :width="240" :height="120 * bookCoverAspectRatio" :book-cover-aspect-ratio="bookCoverAspectRatio" />
@@ -22,16 +31,25 @@
           <p class="text-base text-fg">{{ description }}</p>
         </div>
 
-        <tables-collection-books-table :books="bookItems" :collection-id="collection.id" />
+        <div v-if="!filteredBooks.length" class="py-8 text-center text-fg-muted">
+          <p class="mb-4">{{ $strings.MessageNoItemsFound }}</p>
+          <ui-btn v-if="hasFilters" @click="clearFilter">{{ $strings.ButtonClearFilter }}</ui-btn>
+        </div>
+        <tables-collection-books-table v-else :books="filteredBooks" :collection-id="collection.id" />
       </div>
     </div>
     <div v-show="processingRemove" class="absolute top-0 left-0 w-full h-full z-10 bg-black bg-opacity-40 flex items-center justify-center">
       <ui-loading-indicator />
     </div>
+
+    <modals-order-modal v-model="showSortModal" :order-by.sync="settings.collectionBooksOrderBy" :descending.sync="settings.collectionBooksOrderDesc" @change="saveSettings" />
+    <modals-filter-modal v-model="showFilterModal" :filter-by.sync="settings.collectionFilterBy" filter-context="collections" @change="saveSettings" />
   </div>
 </template>
 
 <script>
+import { filterAndSortBooks } from '@/utils/bookFilters'
+
 export default {
   async asyncData({ store, params, app, redirect, route }) {
     if (!store.state.user.user) {
@@ -66,7 +84,10 @@ export default {
   data() {
     return {
       mediaIdStartingPlayback: null,
-      processingRemove: false
+      processingRemove: false,
+      showSortModal: false,
+      showFilterModal: false,
+      settings: {}
     }
   },
   computed: {
@@ -76,6 +97,24 @@ export default {
     bookItems() {
       return this.collection.books || []
     },
+    filterData() {
+      return this.$store.state.libraries.filterData || {}
+    },
+    hasFilters() {
+      return (this.settings.collectionFilterBy || 'all') !== 'all'
+    },
+    filteredBooks() {
+      const getProgress = (id) => this.$store.getters['user/getUserMediaProgress'](id)
+      return filterAndSortBooks(
+        this.bookItems,
+        this.settings.collectionFilterBy || 'all',
+        this.settings.collectionBooksOrderBy || 'media.metadata.title',
+        !!this.settings.collectionBooksOrderDesc,
+        this.$decode,
+        getProgress,
+        this.filterData
+      )
+    },
     collectionName() {
       return this.collection.name || ''
     },
@@ -83,8 +122,8 @@ export default {
       return this.collection.description || ''
     },
     playableItems() {
-      return this.bookItems.filter((book) => {
-        return !book.isMissing && !book.isInvalid && book.media.tracks.length
+      return this.filteredBooks.filter((book) => {
+        return !book.isMissing && !book.isInvalid && book.media?.tracks?.length
       })
     },
     playerIsPlaying() {
@@ -110,6 +149,18 @@ export default {
     }
   },
   methods: {
+    saveSettings() {
+      this.$store.dispatch('user/updateUserSettings', this.settings)
+    },
+    clearFilter() {
+      this.settings.collectionFilterBy = 'all'
+      this.saveSettings()
+    },
+    settingsUpdated(settings) {
+      for (const key in settings) {
+        this.settings[key] = settings[key]
+      }
+    },
     async playClick() {
       if (this.playerIsStartingPlayback) return
       await this.$hapticsImpact()
@@ -145,10 +196,13 @@ export default {
     }
   },
   mounted() {
+    this.settings = { ...this.$store.state.user.settings }
     this.$eventBus.$on('library-changed', this.libraryChanged)
+    this.$eventBus.$on('user-settings', this.settingsUpdated)
   },
   beforeDestroy() {
     this.$eventBus.$off('library-changed', this.libraryChanged)
+    this.$eventBus.$off('user-settings', this.settingsUpdated)
   }
 }
 </script>

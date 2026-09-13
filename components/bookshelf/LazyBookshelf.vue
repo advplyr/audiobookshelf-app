@@ -17,6 +17,7 @@
 
 <script>
 import bookshelfCardsHelpers from '@/mixins/bookshelfCardsHelpers'
+import { filterAndSortCollections } from '@/utils/bookFilters'
 
 export default {
   props: {
@@ -45,7 +46,8 @@ export default {
       pagesLoaded: {},
       isFirstInit: false,
       pendingReset: false,
-      localLibraryItems: []
+      localLibraryItems: [],
+      allCollections: null
     }
   },
   watch: {
@@ -80,17 +82,26 @@ export default {
       return this.page
     },
     hasFilter() {
-      if (this.page === 'series' || this.page === 'collections' || this.page === 'playlists') return false
+      if (this.page === 'playlists') return false
       return this.filterBy !== 'all'
     },
     orderBy() {
+      if (this.page === 'series') return this.$store.getters['user/getUserSetting']('seriesSortBy') || 'name'
+      if (this.page === 'collections') return this.$store.getters['user/getUserSetting']('collectionSortBy') || 'name'
       return this.$store.getters['user/getUserSetting']('mobileOrderBy')
     },
     orderDesc() {
-      return this.$store.getters['user/getUserSetting']('mobileOrderDesc')
+      if (this.page === 'series') return !!this.$store.getters['user/getUserSetting']('seriesSortDesc')
+      if (this.page === 'collections') return !!this.$store.getters['user/getUserSetting']('collectionSortDesc')
+      return !!this.$store.getters['user/getUserSetting']('mobileOrderDesc')
     },
     filterBy() {
-      return this.$store.getters['user/getUserSetting']('mobileFilterBy')
+      if (this.page === 'series') return this.$store.getters['user/getUserSetting']('seriesFilterBy') || 'all'
+      if (this.page === 'collections') return this.$store.getters['user/getUserSetting']('collectionFilterBy') || 'all'
+      return this.$store.getters['user/getUserSetting']('mobileFilterBy') || 'all'
+    },
+    filterData() {
+      return this.$store.state.libraries.filterData || {}
     },
     collapseSeries() {
       return this.$store.getters['user/getUserSetting']('collapseSeries')
@@ -163,11 +174,47 @@ export default {
   },
   methods: {
     clearFilter() {
-      this.$store.dispatch('user/updateUserSettings', {
-        mobileFilterBy: 'all'
+      const payload = {}
+      if (this.page === 'series') payload.seriesFilterBy = 'all'
+      else if (this.page === 'collections') payload.collectionFilterBy = 'all'
+      else payload.mobileFilterBy = 'all'
+      this.$store.dispatch('user/updateUserSettings', payload)
+    },
+    applyCollectionsToEntities(collections) {
+      const getProgress = (id) => this.$store.getters['user/getUserMediaProgress'](id)
+      const filtered = filterAndSortCollections(collections, this.filterBy, this.orderBy, this.orderDesc, this.$decode, getProgress, this.filterData)
+      this.initialized = true
+      this.totalEntities = filtered.length
+      this.totalShelves = Math.ceil(this.totalEntities / this.entitiesPerShelf)
+      this.entities = filtered
+      this.$eventBus.$emit('bookshelf-total-entities', this.totalEntities)
+    },
+    async fetchCollections() {
+      this.isFetchingEntities = true
+      const payload = await this.$nativeHttp.get(`/api/libraries/${this.currentLibraryId}/collections?limit=0&minified=1&include=rssfeed`).catch((error) => {
+        console.error('failed to fetch collections', error)
+        return null
       })
+      this.isFetchingEntities = false
+
+      if (this.pendingReset) {
+        this.pendingReset = false
+        this.resetEntities()
+        return
+      }
+
+      this.allCollections = (payload && payload.results) || []
+      this.applyCollectionsToEntities(this.allCollections)
+      this.pagesLoaded[0] = true
     },
     async fetchEntities(page) {
+      if (this.page === 'collections') {
+        if (page === 0 || !this.allCollections) {
+          await this.fetchCollections()
+        }
+        return
+      }
+
       const startIndex = page * this.booksPerFetch
 
       this.isFetchingEntities = true
@@ -299,6 +346,7 @@ export default {
       this.totalEntities = 0
       this.currentPage = 0
       this.initialized = false
+      this.allCollections = null
 
       this.initSizeData()
       if (this.user) {
@@ -378,13 +426,27 @@ export default {
       this.handleScroll(scrollTop)
     },
     buildSearchParams() {
-      if (this.page === 'search' || this.page === 'collections') {
+      if (this.page === 'search') {
         return ''
-      } else if (this.page === 'series') {
-        // Sort by name ascending
+      } else if (this.page === 'collections') {
         let searchParams = new URLSearchParams()
-        searchParams.set('sort', 'name')
-        searchParams.set('desc', 0)
+        if (this.filterBy && this.filterBy !== 'all') {
+          searchParams.set('filter', this.filterBy)
+        }
+        if (this.orderBy) {
+          searchParams.set('sort', this.orderBy)
+          searchParams.set('desc', this.orderDesc ? 1 : 0)
+        }
+        return searchParams.toString()
+      } else if (this.page === 'series') {
+        let searchParams = new URLSearchParams()
+        if (this.filterBy && this.filterBy !== 'all') {
+          searchParams.set('filter', this.filterBy)
+        }
+        if (this.orderBy) {
+          searchParams.set('sort', this.orderBy)
+          searchParams.set('desc', this.orderDesc ? 1 : 0)
+        }
         return searchParams.toString()
       }
 
@@ -422,6 +484,7 @@ export default {
         window.history.replaceState({ path: newurl }, '', newurl)
 
         this.routeFullPath = window.location.pathname + (window.location.search || '') // Update for saving scroll position
+        this.currentSFQueryString = newSearchParams
         return true
       }
 
@@ -430,7 +493,19 @@ export default {
     settingsUpdated(settings) {
       const wasUpdated = this.checkUpdateSearchParams()
       if (wasUpdated) {
-        this.resetEntities()
+        // Collections: re-filter cached list without refetch when possible
+        if (this.page === 'collections' && this.allCollections) {
+          this.destroyEntityComponents()
+          this.entityIndexesMounted = []
+          this.entityComponentRefs = {}
+          this.pagesLoaded = {}
+          this.initSizeData()
+          this.applyCollectionsToEntities(this.allCollections)
+          const lastBookIndex = Math.min(this.totalEntities, this.shelvesPerPage * this.entitiesPerShelf)
+          this.mountEntites(0, lastBookIndex)
+        } else {
+          this.resetEntities()
+        }
       }
     },
     libraryChanged() {
