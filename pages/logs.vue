@@ -8,6 +8,10 @@
       <ui-icon-btn outlined borderless icon="more_vert" @click="showDialog = true" />
     </div>
 
+    <div v-if="$platform === 'android'" class="px-4 mb-2">
+      <ui-btn color="error" small @click="createInvalidDownloadQueueEntry">Create Invalid Download Queue</ui-btn>
+    </div>
+
     <div class="w-full h-[calc(100%-40px)] overflow-y-auto relative" ref="logContainer">
       <div v-if="!logs.length && !isLoading" class="flex items-center justify-center h-32 p-4">
         <p class="text-gray-400">{{ $strings.MessageNoLogs }}</p>
@@ -29,7 +33,8 @@
   </div>
 </template>
 <script>
-import { AbsLogger } from '@/plugins/capacitor'
+import { Dialog } from '@capacitor/dialog'
+import { AbsDownloader, AbsLogger } from '@/plugins/capacitor'
 import { FileSharer } from '@webnativellc/capacitor-filesharer'
 
 export default {
@@ -60,6 +65,24 @@ export default {
     }
   },
   methods: {
+    async createInvalidDownloadQueueEntry() {
+      await this.$hapticsImpact()
+      const { value } = await Dialog.confirm({
+        title: 'Create Invalid Download Queue',
+        message: 'This will add a malformed queue entry. Existing queued downloads will be cleared the next time the app starts.',
+        okButtonTitle: 'Create',
+        cancelButtonTitle: this.$strings.ButtonCancel
+      })
+      if (!value) return
+
+      try {
+        await AbsDownloader.createInvalidDownloadQueueEntry()
+        this.$toast.success('Invalid download queue saved. Force-stop and reopen the app.')
+      } catch (error) {
+        console.error('Failed to create invalid download queue', error)
+        this.$toast.error('Failed to create invalid download queue: ' + error.message)
+      }
+    },
     async dialogAction(action) {
       await this.$hapticsImpact()
 
@@ -172,4 +195,3 @@ export default {
   }
 }
 </script>
-
