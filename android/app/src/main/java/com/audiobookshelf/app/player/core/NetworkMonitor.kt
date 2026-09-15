@@ -17,8 +17,10 @@ object NetworkMonitor {
     fun onNetworkStateChanged(state: State)
   }
 
+  private val IDLE_STATE = State(hasConnectivity = false, isUnmetered = false)
+
   @Volatile
-  private var currentState = State(hasConnectivity = false, isUnmetered = false)
+  private var currentState = IDLE_STATE
 
   private val listeners = CopyOnWriteArraySet<Listener>()
   private var connectivityManager: ConnectivityManager? = null
@@ -66,12 +68,32 @@ object NetworkMonitor {
   }
 
   fun addListener(listener: Listener) {
-    listeners.add(listener)
+    synchronized(this) { listeners.add(listener) }
     listener.onNetworkStateChanged(currentState)
   }
 
   fun removeListener(listener: Listener) {
-    listeners.remove(listener)
+    synchronized(this) {
+      listeners.remove(listener)
+      if (listeners.isEmpty()) release()
+    }
+  }
+
+  // A still-registered callback delivers binder transactions to a process that may be frozen.
+  // Callers hold the lock so the emptiness check and release happen atomically with add/remove.
+  private fun release() {
+    if (!initialized) return
+    networkCallback?.let { callback ->
+      try {
+        connectivityManager?.unregisterNetworkCallback(callback)
+      } catch (_: IllegalArgumentException) {
+        // Already unregistered
+      }
+    }
+    networkCallback = null
+    connectivityManager = null
+    currentState = IDLE_STATE
+    initialized = false
   }
 
   private fun updateNetworkState(networkCapabilities: NetworkCapabilities?) {
