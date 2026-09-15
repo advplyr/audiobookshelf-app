@@ -6,6 +6,7 @@ import android.os.Looper
 import android.util.Log
 import androidx.annotation.OptIn
 import androidx.media3.common.util.UnstableApi
+import com.audiobookshelf.app.BuildConfig
 import com.audiobookshelf.app.MainActivity
 import com.audiobookshelf.app.data.*
 import com.audiobookshelf.app.device.DeviceManager
@@ -47,11 +48,18 @@ class AbsDatabase : Plugin() {
     DeviceManager.dbManager.cleanLogs()
   }
 
+  // Lets the webview hide player-specific settings on the flavor that doesn't support them
+  private fun deviceDataToJSObject(deviceData: DeviceData): JSObject {
+    val jsobj = JSObject(jacksonMapper.writeValueAsString(deviceData))
+    jsobj.put("usesMedia3Player", BuildConfig.USE_MEDIA3)
+    return jsobj
+  }
+
   @PluginMethod
   fun getDeviceData(call:PluginCall) {
     GlobalScope.launch(Dispatchers.IO) {
       val deviceData = DeviceManager.dbManager.getDeviceData()
-      call.resolve(JSObject(jacksonMapper.writeValueAsString(deviceData)))
+      call.resolve(deviceDataToJSObject(deviceData))
     }
   }
 
@@ -584,7 +592,7 @@ class AbsDatabase : Plugin() {
         Log.w(tag, "Failed to notify Media3PlaybackService: ${t.message}")
       }
 
-      call.resolve(JSObject(jacksonMapper.writeValueAsString(DeviceManager.deviceData)))
+      call.resolve(deviceDataToJSObject(DeviceManager.deviceData))
     }
   }
 

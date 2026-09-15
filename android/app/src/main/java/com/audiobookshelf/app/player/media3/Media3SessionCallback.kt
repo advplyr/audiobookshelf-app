@@ -1,9 +1,11 @@
 package com.audiobookshelf.app.player.media3
 
+import android.content.Context
 import android.os.Bundle
 import android.util.Log
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
+import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.LibraryResult
@@ -14,6 +16,7 @@ import androidx.media3.session.SessionCommand
 import androidx.media3.session.SessionError
 import androidx.media3.session.SessionResult
 import com.audiobookshelf.app.data.PlaybackSession
+import com.audiobookshelf.app.device.DeviceManager
 import com.audiobookshelf.app.media.MediaManager
 import com.audiobookshelf.app.player.PlaybackConstants
 import com.google.common.collect.ImmutableList
@@ -40,6 +43,7 @@ interface BrowseApi {
 @UnstableApi
 class Media3SessionCallback(
   private val logTag: String,
+  private val appContext: Context,
   private val scope: CoroutineScope,
   private val browseTree: Media3BrowseTree,
   private val autoLibraryCoordinator: Media3AutoLibraryCoordinator,
@@ -218,39 +222,100 @@ class Media3SessionCallback(
       }
 
       val mediaId = requestedMediaItem.mediaId
-      val preferCastStream = isCastActive()
-      val resolvedPlayable = browseApi.resolve(mediaId, preferCastStream)
-
-      if (resolvedPlayable == null || resolvedPlayable.mediaItems.isEmpty()) {
-        debugLog(logTag) { "onSetMediaItems: unable to resolve mediaId=$mediaId" }
-        return@future MediaSession.MediaItemsWithStartPosition(emptyList(), 0, C.TIME_UNSET)
-      }
-
-      browseApi.assignSession(resolvedPlayable.session)
-
-      // Avoid resuming in the final five seconds. startPositionMs is relative to its track, so
-      // the completion check must use the absolute position.
-      var adjustedStartIndex =
-        resolvedPlayable.startIndex.coerceIn(0, resolvedPlayable.mediaItems.lastIndex)
-      var adjustedStartPositionMs = resolvedPlayable.startPositionMs
-      val resolvedSession = resolvedPlayable.session
-      val totalDurationMs = resolvedSession.totalDurationMs
-      val absoluteStartMs = PlaybackPositionModel.bookAbsoluteMsFor(
-        resolvedSession,
-        adjustedStartIndex,
-        adjustedStartPositionMs
-      )
-      if (totalDurationMs > 0 && (totalDurationMs - absoluteStartMs) < FINISHED_BOOK_THRESHOLD_MS) {
-        adjustedStartIndex = 0
-        adjustedStartPositionMs = 0L
-      }
-
-      MediaSession.MediaItemsWithStartPosition(
-        resolvedPlayable.mediaItems,
-        adjustedStartIndex,
-        adjustedStartPositionMs
-      )
+      resolveForPlayback(mediaId)
+        ?: MediaSession.MediaItemsWithStartPosition(emptyList(), 0, C.TIME_UNSET)
     }
+  }
+
+  /**
+   * Android Auto asks for the resumable item when it connects. Without an implementation the
+   * default throws and Auto waits out its autoplay timeout before showing the browse tree.
+   */
+  override fun onPlaybackResumption(
+    mediaSession: MediaSession,
+    controller: MediaSession.ControllerInfo,
+    isForPlayback: Boolean
+  ): ListenableFuture<MediaSession.MediaItemsWithStartPosition> {
+    return scope.future {
+      // Declining still answers Auto immediately, so browse appears without waiting out its
+      // autoplay timeout; only the automatic resume is given up.
+      val resumptionEnabled = DeviceManager.deviceData.deviceSettings
+        ?.enableAndroidAutoPlaybackResumption ?: true
+      if (!resumptionEnabled) {
+        Log.d(logTag, "onPlaybackResumption: declined, resumption disabled in settings")
+        throw UnsupportedOperationException("Playback resumption disabled")
+      }
+      val lastSession = DeviceManager.getLastPlaybackSession()
+      val mediaId = lastSession?.let { resumptionMediaId(it) }
+      if (mediaId == null) {
+        Log.d(logTag, "onPlaybackResumption: no resumable session")
+        // Failing fast beats an empty list, which Auto treats as a stalled resume.
+        throw UnsupportedOperationException("No resumable playback session")
+      }
+      Log.d(logTag, "onPlaybackResumption: isForPlayback=$isForPlayback mediaId=$mediaId")
+      // isForPlayback=false is only a metadata probe, so resolving a server session and claiming
+      // it as the active one would start a session the user never asked to play.
+      if (!isForPlayback) {
+        return@future MediaSession.MediaItemsWithStartPosition(
+          listOf(resumptionMetadataItem(lastSession, mediaId)),
+          0,
+          C.TIME_UNSET
+        )
+      }
+      resolveForPlayback(mediaId)
+        ?: throw UnsupportedOperationException("Unable to resolve resumable item $mediaId")
+    }
+  }
+
+  // findMediaTarget resolves a bare episode id through getPodcastWithEpisodeByEpisodeId, so the
+  // episode id is the media id for podcasts; books resolve by library item id.
+  private fun resumptionMediaId(session: PlaybackSession): String? =
+    session.episodeId ?: session.libraryItemId ?: session.localLibraryItem?.id
+
+  /** Metadata-only item for the resumption probe, which may run at boot with no network. */
+  private fun resumptionMetadataItem(session: PlaybackSession, mediaId: String): MediaItem {
+    val metadata = MediaMetadata.Builder()
+      .setTitle(session.displayTitle)
+      .setArtist(session.displayAuthor)
+      .setArtworkUri(runCatching { session.getCoverUri(appContext) }.getOrNull())
+      .setIsBrowsable(false)
+      .setIsPlayable(true)
+      .build()
+    return MediaItem.Builder().setMediaId(mediaId).setMediaMetadata(metadata).build()
+  }
+
+  /** Shared by explicit play requests and Auto's resumption request. */
+  private suspend fun resolveForPlayback(mediaId: String): MediaSession.MediaItemsWithStartPosition? {
+    val resolvedPlayable = browseApi.resolve(mediaId, isCastActive())
+    if (resolvedPlayable == null || resolvedPlayable.mediaItems.isEmpty()) {
+      debugLog(logTag) { "resolveForPlayback: unable to resolve mediaId=$mediaId" }
+      return null
+    }
+
+    browseApi.assignSession(resolvedPlayable.session)
+
+    // Avoid resuming in the final five seconds. startPositionMs is relative to its track, so
+    // the completion check must use the absolute position.
+    var adjustedStartIndex =
+      resolvedPlayable.startIndex.coerceIn(0, resolvedPlayable.mediaItems.lastIndex)
+    var adjustedStartPositionMs = resolvedPlayable.startPositionMs
+    val resolvedSession = resolvedPlayable.session
+    val totalDurationMs = resolvedSession.totalDurationMs
+    val absoluteStartMs = PlaybackPositionModel.bookAbsoluteMsFor(
+      resolvedSession,
+      adjustedStartIndex,
+      adjustedStartPositionMs
+    )
+    if (totalDurationMs > 0 && (totalDurationMs - absoluteStartMs) < FINISHED_BOOK_THRESHOLD_MS) {
+      adjustedStartIndex = 0
+      adjustedStartPositionMs = 0L
+    }
+
+    return MediaSession.MediaItemsWithStartPosition(
+      resolvedPlayable.mediaItems,
+      adjustedStartIndex,
+      adjustedStartPositionMs
+    )
   }
 
 

@@ -788,6 +788,7 @@ class Media3PlaybackService : MediaLibraryService(), PlaybackEventSink, Playback
 
     return Media3SessionCallback(
       logTag = TAG,
+      appContext = applicationContext,
       scope = serviceScope,
       browseTree = browseTree,
       autoLibraryCoordinator = autoLibraryCoordinator,
