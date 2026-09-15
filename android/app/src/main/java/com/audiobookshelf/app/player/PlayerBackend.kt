@@ -15,6 +15,7 @@ import com.audiobookshelf.app.data.PlayerState
 import com.audiobookshelf.app.device.DeviceManager
 import com.audiobookshelf.app.media.MediaEventManager
 import com.audiobookshelf.app.player.core.NetworkMonitor
+import com.audiobookshelf.app.player.media3.Media3PlaybackService
 import com.audiobookshelf.app.player.media3.PlaybackController
 
 /**
@@ -237,7 +238,7 @@ class Media3PlayerBackend(
 
     // Attaching hands a session started outside the app UI to the web UI. Binding the service
     // does not promote it to foreground, so this posts no notification.
-    if (DeviceManager.getLastPlaybackSession() != null) {
+    if (Media3PlaybackService.hasLiveSession) {
       playbackController.connect()
     }
   }
@@ -315,7 +316,7 @@ class Media3PlayerBackend(
 
   private fun resyncWebUi() {
     // Resyncing without a controller silently does nothing; connect() is a no-op when held.
-    if (activePlaybackSession == null && DeviceManager.getLastPlaybackSession() == null) return
+    if (activePlaybackSession == null && !Media3PlaybackService.hasLiveSession) return
     playbackController.connect { playbackController.resyncUiState() }
   }
 

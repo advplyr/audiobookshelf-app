@@ -32,6 +32,13 @@ class Media3PlaybackService : MediaLibraryService(), PlaybackEventSink, Playback
     // Shutdown timeouts
     private const val TASK_REMOVAL_CLOSE_TIMEOUT_MS = 5_000L
     private const val FINAL_SYNC_TIMEOUT_MS = 500L
+
+    // Set while the service is running, so callers can check for a live session without binding.
+    @Volatile
+    private var instance: Media3PlaybackService? = null
+
+    val hasLiveSession: Boolean
+      get() = instance?.currentPlaybackSession != null
   }
 
   // Service lifecycle
@@ -158,6 +165,7 @@ class Media3PlaybackService : MediaLibraryService(), PlaybackEventSink, Playback
 
   override fun onCreate() {
     super.onCreate()
+    instance = this
     playbackMetrics.noteServiceStart()
 
     DbManager.initialize(this)
@@ -188,14 +196,20 @@ class Media3PlaybackService : MediaLibraryService(), PlaybackEventSink, Playback
     } catch (_: Exception) {
     }
 
-    super.onDestroy()
-    if (this::progressSync.isInitialized) {
-      progressSync.cleanup()
+    try {
+      super.onDestroy()
+      if (this::progressSync.isInitialized) {
+        progressSync.cleanup()
+      }
+      serviceScope.cancel()
+      cleanupPlaybackResources()
+      networkStateListener?.let { NetworkMonitor.removeListener(it) }
+      notifyWidgetState(isPlaybackClosed = true)
+    } finally {
+      if (instance === this) {
+        instance = null
+      }
     }
-    serviceScope.cancel()
-    cleanupPlaybackResources()
-    networkStateListener?.let { NetworkMonitor.removeListener(it) }
-    notifyWidgetState(isPlaybackClosed = true)
   }
 
   override fun onTaskRemoved(rootIntent: Intent?) {

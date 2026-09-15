@@ -11,6 +11,7 @@
 <script>
 import { AbsAudioPlayer, AbsLogger } from '@/plugins/capacitor'
 import { Dialog } from '@capacitor/dialog'
+import { PlayMethod } from '@/plugins/constants'
 import CellularPermissionHelpers from '@/mixins/cellularPermissionHelpers'
 
 export default {
@@ -51,6 +52,18 @@ export default {
     },
     currentPlaybackSession() {
       return this.$store.state.currentPlaybackSession
+    }
+  },
+  watch: {
+    // Restore server-only controls when native playback outlives the WebView.
+    currentPlaybackSession: {
+      immediate: true,
+      handler(session) {
+        if (this.isIos) return
+        if (session?.playMethod === PlayMethod.LOCAL) return
+        this.serverLibraryItemId = session?.libraryItemId || null
+        this.serverEpisodeId = session?.episodeId || null
+      }
     }
   },
   methods: {
