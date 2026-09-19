@@ -5,6 +5,7 @@ import android.util.Log
 import com.audiobookshelf.app.data.*
 import com.audiobookshelf.app.models.DownloadItem
 import com.audiobookshelf.app.plugins.AbsLog
+import com.audiobookshelf.app.plugins.AbsLogList
 import com.audiobookshelf.app.plugins.AbsLogger
 import io.paperdb.Paper
 
@@ -291,34 +292,72 @@ class DbManager {
     return sessions
   }
 
+  private fun logHour(timestamp: Long) = timestamp / 3600000
+
   fun saveLog(log: AbsLog) {
-    Paper.book("log").write(log.id, log)
+    Paper.book("log").write("${log.timestamp}-${log.id}", log)
   }
+
+  /**
+   * Folds every closed hour of single-entry records into one record named after that hour. Keeps
+   * the record count near the retention window instead of growing with how much the app is used.
+   */
+  fun mergeLogs() {
+    val openHour = logHour(System.currentTimeMillis())
+    Paper.book("log")
+            .allKeys
+            .groupBy { key ->
+              // Entries written before this merged layout carry no hour, so they cost one read.
+              key.substringBefore('-').toLongOrNull()?.let { logHour(it) }
+                      ?: Paper.book("log").read<AbsLog>(key)?.let { logHour(it.timestamp) }
+            }
+            .forEach { (hour, keys) ->
+              if (hour == null || hour == openHour) return@forEach
+              val merged = keys.mapNotNull { Paper.book("log").read<AbsLog>(it) }
+              val existing = Paper.book("logMerged").read<AbsLogList>("$hour")?.value.orEmpty()
+              Paper.book("logMerged").write("$hour", AbsLogList(existing + merged))
+              keys.forEach { Paper.book("log").delete(it) }
+            }
+  }
+
   fun getAllLogs(): List<AbsLog> {
     val logs: MutableList<AbsLog> = mutableListOf()
-    Paper.book("log").allKeys.forEach { logId ->
-      Paper.book("log").read<AbsLog>(logId)?.let { logs.add(it) }
+    Paper.book("logMerged").allKeys.forEach { hour ->
+      Paper.book("logMerged").read<AbsLogList>(hour)?.let { logs.addAll(it.value) }
+    }
+    Paper.book("log").allKeys.forEach { key ->
+      Paper.book("log").read<AbsLog>(key)?.let { logs.add(it) }
     }
     return logs.sortedBy { it.timestamp }
   }
+
   fun removeAllLogs() {
     Paper.book("log").destroy()
+    Paper.book("logMerged").destroy()
   }
+
+  /** Deserialises nothing: both books name their records after the hour they hold. */
   fun cleanLogs() {
     val numberOfHoursToKeep = 48
-    val keepLogCutoff = System.currentTimeMillis() - (3600000 * numberOfHoursToKeep)
-    val allLogs = getAllLogs()
-    var logsRemoved = 0
-    allLogs.forEach {
-      if (it.timestamp < keepLogCutoff) {
-        Paper.book("log").delete(it.id)
-        logsRemoved++
+    val keepHourCutoff = logHour(System.currentTimeMillis()) - numberOfHoursToKeep
+    var removed = 0
+    Paper.book("logMerged").allKeys.forEach { hour ->
+      if ((hour.toLongOrNull() ?: Long.MAX_VALUE) < keepHourCutoff) {
+        Paper.book("logMerged").delete(hour)
+        removed++
       }
     }
-    if (logsRemoved > 0) {
+    Paper.book("log").allKeys.forEach { key ->
+      val hour = key.substringBefore('-').toLongOrNull()?.let { logHour(it) } ?: return@forEach
+      if (hour < keepHourCutoff) {
+        Paper.book("log").delete(key)
+        removed++
+      }
+    }
+    if (removed > 0) {
       AbsLogger.info(
               "DbManager",
-              "cleanLogs: Removed $logsRemoved logs older than $numberOfHoursToKeep hours"
+              "cleanLogs: Removed $removed log records older than $numberOfHoursToKeep hours"
       )
     }
   }

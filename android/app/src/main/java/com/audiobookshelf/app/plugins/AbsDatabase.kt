@@ -41,7 +41,11 @@ class AbsDatabase : Plugin() {
 
     DeviceManager.dbManager.cleanLocalMediaProgress()
     DeviceManager.dbManager.cleanLocalLibraryItems(mainActivity)
-    DeviceManager.dbManager.cleanLogs()
+    // Merging reads the hour that just closed, so it stays off the thread that draws the app.
+    GlobalScope.launch(Dispatchers.IO) {
+      DeviceManager.dbManager.mergeLogs()
+      DeviceManager.dbManager.cleanLogs()
+    }
   }
 
   @PluginMethod
