@@ -6,27 +6,25 @@ import android.net.Network
 import android.net.NetworkCapabilities
 import java.util.concurrent.CopyOnWriteArraySet
 
-/**
- * Centralized network state tracker used by both the ExoPlayer PlayerNotificationService
- * and the Media3 stack. This shares metered/unmetered connectivity detection across both paths.
- */
+/** Tracks connectivity and metering state for both playback implementations. */
 object NetworkMonitor {
   data class State(val hasConnectivity: Boolean, val isUnmetered: Boolean)
 
   fun interface Listener {
-    fun onNetworkStateChanged(state: State)
+    /** True when delivering the current state to a newly registered listener. */
+    fun onNetworkStateChanged(state: State, isRegistrationReplay: Boolean)
   }
 
-  private val IDLE_STATE = State(hasConnectivity = false, isUnmetered = false)
+  private val INITIAL_STATE = State(hasConnectivity = false, isUnmetered = false)
 
   @Volatile
-  private var currentState = IDLE_STATE
+  private var currentState = INITIAL_STATE
 
   private val listeners = CopyOnWriteArraySet<Listener>()
   private var connectivityManager: ConnectivityManager? = null
   private var networkCallback: ConnectivityManager.NetworkCallback? = null
   @Volatile
-  var initialized = false
+  private var isInitialized = false
 
   val isUnmeteredNetwork: Boolean
     get() = currentState.isUnmetered
@@ -35,13 +33,13 @@ object NetworkMonitor {
     get() = currentState.hasConnectivity
 
   fun initialize(context: Context) {
-    if (initialized) return
+    if (isInitialized) return
     synchronized(this) {
-      if (initialized) return
-      val connectivityManagerService =
+      if (isInitialized) return
+      val manager =
         context.applicationContext.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
           ?: return
-      connectivityManager = connectivityManagerService
+      connectivityManager = manager
       val defaultNetworkCallback = object : ConnectivityManager.NetworkCallback() {
         override fun onCapabilitiesChanged(
           network: Network,
@@ -56,20 +54,24 @@ object NetworkMonitor {
           updateNetworkState(null)
         }
       }
-      connectivityManagerService.registerDefaultNetworkCallback(defaultNetworkCallback)
+      manager.registerDefaultNetworkCallback(defaultNetworkCallback)
       networkCallback = defaultNetworkCallback
-      updateNetworkState(
-        connectivityManagerService.getNetworkCapabilities(
-          connectivityManagerService.activeNetwork
+      // Read the initial state without reporting a change.
+      currentState = readNetworkState(
+        manager.getNetworkCapabilities(
+          manager.activeNetwork
         )
       )
-      initialized = true
+      isInitialized = true
     }
   }
 
   fun addListener(listener: Listener) {
-    synchronized(this) { listeners.add(listener) }
-    listener.onNetworkStateChanged(currentState)
+    // Replay while locked so a state change cannot overtake registration.
+    synchronized(this) {
+      listeners.add(listener)
+      listener.onNetworkStateChanged(currentState, true)
+    }
   }
 
   fun removeListener(listener: Listener) {
@@ -79,10 +81,10 @@ object NetworkMonitor {
     }
   }
 
-  // A still-registered callback delivers binder transactions to a process that may be frozen.
+  // Unregister the callback when unused, but retain the last known state for readers.
   // Callers hold the lock so the emptiness check and release happen atomically with add/remove.
   private fun release() {
-    if (!initialized) return
+    if (!isInitialized) return
     networkCallback?.let { callback ->
       try {
         connectivityManager?.unregisterNetworkCallback(callback)
@@ -92,19 +94,26 @@ object NetworkMonitor {
     }
     networkCallback = null
     connectivityManager = null
-    currentState = IDLE_STATE
-    initialized = false
+    isInitialized = false
   }
 
-  private fun updateNetworkState(networkCapabilities: NetworkCapabilities?) {
+  private fun readNetworkState(networkCapabilities: NetworkCapabilities?): State {
     val hasConnectivity =
       networkCapabilities?.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED) == true &&
         networkCapabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
     val isUnmetered =
       networkCapabilities?.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED) == true
-    val newState = State(hasConnectivity, isUnmetered)
-    if (newState == currentState) return
-    currentState = newState
-    listeners.forEach { listener -> listener.onNetworkStateChanged(newState) }
+    return State(hasConnectivity, isUnmetered)
+  }
+
+  private fun updateNetworkState(networkCapabilities: NetworkCapabilities?) {
+    val newState = readNetworkState(networkCapabilities)
+    // Update under the lock, then notify listeners without holding it.
+    val listenersToNotify = synchronized(this) {
+      if (newState == currentState) return
+      currentState = newState
+      listeners.toList()
+    }
+    listenersToNotify.forEach { listener -> listener.onNetworkStateChanged(newState, false) }
   }
 }

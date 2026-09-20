@@ -399,8 +399,9 @@ class Media3PlaybackService : MediaLibraryService(), PlaybackEventSink, Playback
   }
 
   private fun registerNetworkMonitor() {
-    val listener = NetworkMonitor.Listener { state ->
-      if (state.hasConnectivity && !mediaManager.isAutoDataLoaded) {
+    val listener = NetworkMonitor.Listener { state, isRegistrationReplay ->
+      // Registration reports the current state; only later changes should retry the load.
+      if (!isRegistrationReplay && state.hasConnectivity && !mediaManager.isAutoDataLoaded) {
         serviceScope.launch { runCatching { autoLibraryCoordinator.awaitAutoDataLoaded() } }
       }
     }

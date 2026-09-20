@@ -226,7 +226,7 @@ class Media3PlayerBackend(
 
     NetworkMonitor.initialize(context)
     if (networkStateListener == null) {
-      val listener = NetworkMonitor.Listener { state ->
+      val listener = NetworkMonitor.Listener { state, _ ->
         clientEventEmitter.onNetworkMeteredChanged(state.isUnmetered)
       }
       networkStateListener = listener

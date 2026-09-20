@@ -269,7 +269,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat(), PlaybackStateHost
     DeviceManager.initializeWidgetUpdater(ctx)
 
     NetworkMonitor.initialize(applicationContext)
-    val listener = NetworkMonitor.Listener { state ->
+    val listener = NetworkMonitor.Listener { state, _ ->
       hasNetworkConnectivity = state.hasConnectivity
       Log.i(
         tag,
