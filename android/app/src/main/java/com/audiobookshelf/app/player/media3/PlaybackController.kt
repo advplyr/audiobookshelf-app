@@ -417,8 +417,10 @@ class PlaybackController(private val context: Context) {
     val clampedPositionMs = positionMs.coerceIn(0L, session.totalDurationMs)
     session.currentTime = clampedPositionMs / 1000.0
 
+    // An empty queue is the same situation as a session without tracks: there is no item to seek
+    // within, and indexing into that range throws. The controller reports no items while it fills.
     val audioTracks = session.audioTracks
-    if (audioTracks.isEmpty()) {
+    if (audioTracks.isEmpty() || controller.mediaItemCount == 0) {
       controller.seekTo(clampedPositionMs)
       return
     }

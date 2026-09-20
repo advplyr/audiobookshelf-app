@@ -41,6 +41,7 @@ interface PlaybackEventSink : PlaybackSessionHost {
   fun handlePlaybackEnded(session: PlaybackSession)
   fun handlePlaybackResumed(pauseDurationMs: Long)
   fun handleCastDeviceChanged(isCast: Boolean)
+  fun tryAdoptReceiverSession()
 
   fun updatePlaybackSpeedButton(speed: Float)
 

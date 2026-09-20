@@ -35,6 +35,12 @@ class Media3PlayerEventListener(
         "state=$stateLabel playWhenReady=${player.playWhenReady} isPlaying=${player.isPlaying} buffered=${player.bufferedPercentage}%"
       }
     }
+
+    // The queue arriving from a receiver this app just rejoined is the first moment it can tell
+    // which of its sessions plays there.
+    if (events.contains(Player.EVENT_TIMELINE_CHANGED)) {
+      host.tryAdoptReceiverSession()
+    }
   }
 
   override fun onIsPlayingChanged(callbackIsPlaying: Boolean) {

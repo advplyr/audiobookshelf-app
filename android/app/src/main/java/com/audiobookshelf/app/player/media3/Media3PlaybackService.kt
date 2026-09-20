@@ -10,6 +10,7 @@ import com.audiobookshelf.app.*
 import com.audiobookshelf.app.data.*
 import com.audiobookshelf.app.data.DeviceInfo
 import com.audiobookshelf.app.device.DeviceManager
+import com.audiobookshelf.app.plugins.AbsLogger
 import com.audiobookshelf.app.managers.DbManager
 import com.audiobookshelf.app.media.*
 import com.audiobookshelf.app.media.SyncResult
@@ -213,6 +214,14 @@ class Media3PlaybackService : MediaLibraryService(), PlaybackEventSink, Playback
   }
 
   override fun onTaskRemoved(rootIntent: Intent?) {
+    // Playback on a cast device carries on without this app, so swiping it away must not end it.
+    // Checked before super, which stops the service itself when the player is not playing locally -
+    // and while casting it never is.
+    if (isCastActive && currentPlaybackSession != null) {
+      AbsLogger.info(TAG, "onTaskRemoved: Keeping the service alive, playback runs on a cast device")
+      return
+    }
+
     super.onTaskRemoved(rootIntent)
     if (currentPlaybackSession != null) {
       closePlayback()
@@ -498,6 +507,27 @@ class Media3PlaybackService : MediaLibraryService(), PlaybackEventSink, Playback
       reloadQueueForCast(session)
     }
 
+  }
+
+  /**
+   * The Cast SDK rejoins a receiver that is still playing, but nothing tells this app which of its
+   * sessions that is, so playback runs on without any progress reaching the server. The queue comes
+   * back carrying the media ids this app wrote, and those start with the playback session id - so
+   * the receiver names the session itself, and the stored one only has to agree.
+   */
+  override fun tryAdoptReceiverSession() {
+    if (currentPlaybackSession != null || !isCastActive) return
+    val saved = DeviceManager.getLastPlaybackSession() ?: return
+    // The receiver may hold a session from a server this app is no longer connected to, and the
+    // syncs that follow would go to the current one.
+    if (DeviceManager.serverConnectionConfigId != saved.serverConnectionConfigId) return
+    // Returns null unless the queue has arrived and its media ids belong to this session, and
+    // writes the receiver's position - track offset included - into it.
+    PlaybackPositionModel(saved, player).writeBackToSession() ?: return
+
+    AbsLogger.info(TAG, "tryAdoptReceiverSession: Adopting the session playing on the receiver")
+    switchPlaybackSession(saved)
+    startProgressSyncIfPlaying(saved)
   }
 
   private fun reloadQueueForCast(session: PlaybackSession) {
