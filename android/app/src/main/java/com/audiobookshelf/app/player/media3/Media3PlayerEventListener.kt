@@ -36,8 +36,7 @@ class Media3PlayerEventListener(
       }
     }
 
-    // The queue arriving from a receiver this app just rejoined is the first moment it can tell
-    // which of its sessions plays there.
+    // A rejoined receiver's queue arrives here; onDeviceInfoChanged retries for the other order.
     if (events.contains(Player.EVENT_TIMELINE_CHANGED)) {
       host.tryAdoptReceiverSession()
     }
@@ -177,5 +176,11 @@ class Media3PlayerEventListener(
     if (isCast == lastIsCastState) return
     lastIsCastState = isCast
     host.handleCastDeviceChanged(isCast)
+
+    // Adoption needs the remote device info and the receiver's queue, which land independently.
+    // Whichever arrives second completes it; the guards make the earlier attempt a no-op.
+    if (isCast) {
+      host.tryAdoptReceiverSession()
+    }
   }
 }
