@@ -53,5 +53,6 @@
   "ButtonStream": "پخش آنلاین",
   "ButtonSubmit": "ثبت",
   "ButtonSwitchServerUser": "تعویض سرور/کاربر",
-  "ButtonUnmaskServerAddress": "نمایش آدرس سرور"
+  "ButtonUnmaskServerAddress": "نمایش آدرس سرور",
+  "HeaderLocalFolders": "پوشه‌های محلی"
 }
