@@ -44,13 +44,20 @@ object DownloadServiceHost {
       DbManager.initialize(appContext)
       manager = DownloadItemManager(FolderScanner(appContext), appContext, ForwardingEmitter)
       restoreJob = scope.launch {
-        if (DeviceManager.dbManager.ensureValidDownloadQueue()) {
-          IncompleteDownloadCleanup.cleanupExpired(appContext)
-          manager!!.restoreQueue()
-        } else {
-          AbsLogger.error(TAG, "Skipping invalid download queue because it could not be cleared")
+        try {
+          if (DeviceManager.dbManager.ensureValidDownloadQueue()) {
+            IncompleteDownloadCleanup.cleanupExpired(appContext)
+            manager!!.restoreQueue()
+          } else {
+            AbsLogger.error(TAG, "Skipping invalid download queue because it could not be cleared")
+          }
+          onRestoreComplete(appContext)
+        } catch (restoreError: Exception) {
+          AbsLogger.error(
+                  TAG,
+                  "Could not restore download queue (${restoreError.javaClass.simpleName}: ${restoreError.message})"
+          )
         }
-        onRestoreComplete(appContext)
       }
     }
     return manager!!
