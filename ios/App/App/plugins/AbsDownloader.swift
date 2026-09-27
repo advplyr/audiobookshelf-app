@@ -78,6 +78,7 @@ public class AbsDownloader: CAPPlugin, CAPBridgedPlugin, URLSessionDownloadDeleg
                 liveDownloadItemPart.progress = 100
                 liveDownloadItemPart.completed = true
             }
+            AbsLogger.info(message: "Download completed for \(liveDownloadItemPart.filename ?? partId)")
             
             do {
                 // Move the downloaded file into place
@@ -89,6 +90,7 @@ public class AbsDownloader: CAPPlugin, CAPBridgedPlugin, URLSessionDownloadDeleg
                 try realm.write {
                     liveDownloadItemPart.moved = true
                 }
+                AbsLogger.info(message: "Move completed for \(liveDownloadItemPart.filename ?? partId) to \(destinationUrl.path)")
             } catch {
                 try realm.write {
                     liveDownloadItemPart.failed = true

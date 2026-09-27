@@ -21,6 +21,31 @@ class CastManager constructor(val mainActivity:Activity) {
 
   private var playerNotificationService:PlayerNotificationService? = null
   private var newConnectionListener: SessionListener? = null
+  private var castStateListener: CastStateListener? = null
+
+  /**
+   * The framework reports NO_DEVICES_AVAILABLE when a session ends, because it stops discovering -
+   * taken at face value that hides the cast button. The media router is the second opinion.
+   */
+  private fun isReceiverAvailable(castState: Int): Boolean {
+    if (castState != CastState.NO_DEVICES_AVAILABLE) return true
+
+    // The framework's own selector, which carries the receiver id this app is configured with -
+    // building one by hand here would ask about a different receiver than the one being cast to
+    val selector = getContext().mergedSelector ?: return false
+
+    return getMediaRouter()?.isRouteAvailable(
+      selector,
+      MediaRouter.AVAILABILITY_FLAG_IGNORE_DEFAULT_ROUTE or
+        MediaRouter.AVAILABILITY_FLAG_REQUIRE_MATCH
+    ) == true
+  }
+
+  /** Drops what this manager registered for the activity, which does not outlive it. */
+  fun detach() {
+    castStateListener?.let { getContext().removeCastStateListener(it) }
+    castStateListener = null
+  }
 
   private fun switchToPlayer(useCastPlayer:Boolean) {
     Handler(Looper.getMainLooper()).post() {
@@ -123,6 +148,13 @@ class CastManager constructor(val mainActivity:Activity) {
   }
 
   fun startRouteScan(connListener:ChromecastListener) {
+    // ChromecastListener has always implemented CastStateListener, but nothing registered it, so
+    // availability hung entirely on the media router callback below - which does not always fire
+    val stateListener = CastStateListener { state -> connListener.onReceiverAvailableUpdate(isReceiverAvailable(state)) }
+    castStateListener = stateListener
+    getContext().addCastStateListener(stateListener)
+    connListener.onReceiverAvailableUpdate(isReceiverAvailable(getContext().castState))
+
     val callback = object : ScanCallback() {
       override fun onRouteUpdate(routes: List<MediaRouter.RouteInfo>?) {
         Log.d(tag, "CAST On ROUTE UPDATED ${routes?.size} | ${getContext().castState}")

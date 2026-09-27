@@ -14,7 +14,7 @@ data class DownloadItemPart(
   val id: String,
   val downloadItemId: String,
   val filename: String,
-  val fileSize: Long,
+  var fileSize: Long,
   @JsonIgnore val destinationPath: String,
   val finalDestinationPath:String,
   val serverPath: String,
@@ -38,7 +38,9 @@ data class DownloadItemPart(
   var progress: Long,
   var bytesDownloaded: Long,
   @JsonIgnore var retryCount: Int = 0,
-  @JsonIgnore var waitingForSpace: Boolean = false
+  @JsonIgnore var authRetryCount: Int = 0,
+  @JsonIgnore var waitingForSpace: Boolean = false,
+  @JsonIgnore var reusedExistingFile: Boolean = false
 ) {
   companion object {
     fun make(downloadItemId:String, filename:String, fileSize: Long, destinationFile: File, finalDestinationFile: File, subfolder:String, serverPath:String, localFolder: LocalFolder, ebookFile: EBookFile?, audioTrack: AudioTrack?, episode: PodcastEpisode?) :DownloadItemPart {
@@ -74,7 +76,8 @@ data class DownloadItemPart(
         downloadId = null,
         lastUpdateTime = null,
         progress = 0,
-        bytesDownloaded = 0
+        bytesDownloaded = 0,
+        reusedExistingFile = false
       )
     }
   }

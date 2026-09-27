@@ -218,6 +218,8 @@
   "LabelPlaybackDirect": "Άμεση αναπαραγωγή",
   "LabelPlaybackLocal": "Αναπαραγωγή τοπικού αρχείου",
   "LabelPlaybackSpeed": "Ταχύτητα Αναπαραγωγής",
+  "LabelPodcast": "Πόντκαστ",
+  "LabelPodcasts": "Πόντκαστ",
   "LabelProgress": "Πρόοδος",
   "LabelPubDate": "Ημερομηνία έκδοσης",
   "LabelPublishYear": "Χρονολογία Έκδοσης",
@@ -268,5 +270,7 @@
   "MessageMarkAsFinished": "Σήμανση ως Ολοκληρωμένο",
   "MessageNoItemsFound": "Δεν βρέθηκαν αντικείμενα",
   "MessageNoNetworkConnection": "Δεν υπάρχει σύνδεση δικτύου",
-  "MessageNoUserPlaylists": "Δεν έχετε λίστες αναπαραγωγής"
+  "MessageNoUserPlaylists": "Δεν έχετε λίστες αναπαραγωγής",
+  "UnitMinutesShort": "{0} min",
+  "UnitSecondsShort": "{0} s"
 }

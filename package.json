@@ -1,6 +1,6 @@
 {
   "name": "audiobookshelf-app",
-  "version": "0.14.0-beta",
+  "version": "0.14.1-beta",
   "author": "advplyr",
   "scripts": {
     "dev": "nuxt --hostname 0.0.0.0 --port 1337",
@@ -27,7 +27,7 @@
     "@capacitor/ios": "^7.0.0",
     "@capacitor/network": "^7.0.0",
     "@capacitor/preferences": "^7.0.0",
-    "@capacitor/status-bar": "^7.0.0",
+    "@capacitor/status-bar": "^7.0.6",
     "@nuxtjs/axios": "^5.13.6",
     "@teckel/vue-pdf": "^4.3.5",
     "buffer": "^6.0.3",
