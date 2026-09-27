@@ -121,6 +121,86 @@ class DbManager {
     return downloadItems
   }
 
+  /**
+   * Validate persisted download queue entries before restoring them.
+   *
+   * Queue entries can become incompatible or malformed, for example after an app update. If any
+   * entry cannot be read or fails the checks required for queue restoration, the entire persisted
+   * queue is cleared so startup can continue without restoring invalid data.
+   *
+   * @return true if the queue passes validation or was successfully cleared; false if an invalid
+   * queue could not be cleared
+   */
+  fun ensureValidDownloadQueue(): Boolean {
+    val downloadBook = Paper.book("downloadItems")
+    val queueIsValid =
+            try {
+              downloadBook.allKeys
+                      .map { downloadItemId ->
+                        val item =
+                                downloadBook.read<DownloadItem>(downloadItemId)
+                                        ?: throw IllegalStateException(
+                                                "Download queue entry $downloadItemId could not be read"
+                                        )
+                        if (item.id != downloadItemId) {
+                          throw IllegalStateException(
+                                  "Download queue entry $downloadItemId has a mismatched item ID"
+                          )
+                        }
+                        item
+                      }
+                      .all { item ->
+                        listOf<String?>(item.id, item.libraryItemId, item.localFolder.id).all {
+                          !it.isNullOrBlank()
+                        } &&
+                                item.downloadItemParts.isNotEmpty() &&
+                                item.downloadItemParts.all { part ->
+                                  listOf<String?>(
+                                                  part.id,
+                                                  part.downloadItemId,
+                                                  part.filename,
+                                                  part.destinationPath,
+                                                  part.finalDestinationPath,
+                                                  part.serverPath,
+                                                  part.localFolderId
+                                          )
+                                          .all { !it.isNullOrBlank() } &&
+                                          part.downloadItemId == item.id
+                                }
+                      }
+            } catch (readError: Exception) {
+              AbsLogger.error(
+                      tag,
+                      "Could not read persisted download queue; clearing queue (${readError.message})"
+              )
+              false
+            }
+
+    if (queueIsValid) return true
+
+    AbsLogger.error(tag, "Persisted download queue contains invalid data; clearing queue")
+    return try {
+      downloadBook.destroy()
+      val remainingKeys = downloadBook.allKeys
+      if (remainingKeys.isEmpty()) {
+        AbsLogger.info(tag, "Cleared invalid persisted download queue")
+        true
+      } else {
+        AbsLogger.error(
+                tag,
+                "Invalid persisted download queue still contains ${remainingKeys.size} entries after clearing"
+        )
+        false
+      }
+    } catch (clearError: Exception) {
+      AbsLogger.error(
+              tag,
+              "Could not clear invalid persisted download queue (${clearError.message})"
+      )
+      false
+    }
+  }
+
   fun saveLocalMediaProgress(mediaProgress: LocalMediaProgress) {
     Paper.book("localMediaProgress").write(mediaProgress.id, mediaProgress)
   }
