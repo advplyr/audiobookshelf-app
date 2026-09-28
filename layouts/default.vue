@@ -16,7 +16,7 @@
 
 <script>
 import { CapacitorHttp } from '@capacitor/core'
-import { AbsLogger } from '@/plugins/capacitor'
+import { AbsLogger, AbsCertificate } from '@/plugins/capacitor'
 
 export default {
   data() {
@@ -155,6 +155,14 @@ export default {
       }
 
       AbsLogger.info({ tag: 'default', message: `attemptConnection: Got server config, attempt authorize (${serverConfig.name})` })
+
+      // Preload the saved certificate alias (if any) before the request fires, otherwise native
+      // has no way to know which cert to present on a fresh app process and this request fails
+      if (this.$platform === 'android') {
+        await AbsCertificate.setActiveCertificateAlias({ alias: serverConfig.clientCertAlias || null }).catch((error) => {
+          console.error('[default] Failed to preload client certificate alias', error)
+        })
+      }
 
       const nativeHttpOptions = {
         headers: {

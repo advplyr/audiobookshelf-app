@@ -44,8 +44,10 @@ class ApiHandler(var ctx:Context) {
     }
   }
 
-  private var defaultClient = OkHttpClient()
-  private var pingClient = OkHttpClient.Builder().callTimeout(3, TimeUnit.SECONDS).build()
+  private var baseDefaultClient = OkHttpClient()
+  private var basePingClient = OkHttpClient.Builder().callTimeout(3, TimeUnit.SECONDS).build()
+  private val defaultClient get() = MtlsManager.wrap(baseDefaultClient)
+  private val pingClient get() = MtlsManager.wrap(basePingClient)
   private var jacksonMapper = jacksonObjectMapper().enable(JsonReadFeature.ALLOW_UNESCAPED_CONTROL_CHARS.mappedFeature())
   private var secureStorage = SecureStorage(ctx)
 
@@ -270,6 +272,7 @@ class ApiHandler(var ctx:Context) {
       DeviceManager.serverConnectionConfig = null
       DeviceManager.deviceData.lastServerConnectionConfigId = null
       DeviceManager.dbManager.saveDeviceData(DeviceManager.deviceData)
+      MtlsManager.reset()
       if (checkAbsDatabaseNotifyListenersInitted()) {
         absDatabaseNotifyListeners(
                 "onTokenRefreshFailure",

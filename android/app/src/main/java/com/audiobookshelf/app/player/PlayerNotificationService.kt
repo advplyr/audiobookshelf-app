@@ -38,6 +38,7 @@ import com.audiobookshelf.app.media.MediaManager
 import com.audiobookshelf.app.media.MediaProgressSyncer
 import com.audiobookshelf.app.media.getUriToAbsIconDrawable
 import com.audiobookshelf.app.media.getUriToDrawable
+import com.audiobookshelf.app.server.MtlsManager
 import com.audiobookshelf.app.plugins.AbsLogger
 import com.audiobookshelf.app.server.ApiHandler
 import com.google.android.exoplayer2.*
@@ -242,6 +243,11 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
     connectivityManager.registerNetworkCallback(networkRequest, networkCallback)
 
     DbManager.initialize(ctx)
+
+    // Initialize mTLS client certificate support, in case this service is started directly
+    // (e.g. media-button resume, Android Auto) without MainActivity having run first
+    MtlsManager.initialize(ctx)
+    MtlsManager.refreshGlobalDefault()
 
     // Initialize API
     apiHandler = ApiHandler(ctx)
