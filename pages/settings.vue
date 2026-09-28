@@ -173,6 +173,13 @@
           <ui-text-input :value="androidAutoBrowseSeriesSequenceOrderOption" readonly append-icon="expand_more" style="max-width: 200px" />
         </div>
       </div>
+      <div v-if="usesMedia3Player" class="flex items-center py-3">
+        <div class="w-10 flex justify-center" @click="toggleAndroidAutoPlaybackResumption">
+          <ui-toggle-switch v-model="settings.enableAndroidAutoPlaybackResumption" @input="saveSettings" />
+        </div>
+        <p class="pl-4">{{ $strings.LabelAndroidAutoPlaybackResumption }}</p>
+        <span class="material-symbols text-xl ml-2" @click.stop="showInfo('enableAndroidAutoPlaybackResumption')">info</span>
+      </div>
     </template>
 
     <div v-show="loading" class="w-full h-full absolute top-0 left-0 flex items-center justify-center z-10">
@@ -223,7 +230,8 @@ export default {
         downloadUsingCellular: 'ALWAYS',
         streamingUsingCellular: 'ALWAYS',
         androidAutoBrowseLimitForGrouping: 100,
-        androidAutoBrowseSeriesSequenceOrder: 'ASC'
+        androidAutoBrowseSeriesSequenceOrder: 'ASC',
+        enableAndroidAutoPlaybackResumption: true
       },
       theme: 'dark',
       lockCurrentOrientation: false,
@@ -259,6 +267,10 @@ export default {
         androidAutoBrowseLimitForGrouping: {
           name: this.$strings.LabelAndroidAutoBrowseLimitForGrouping,
           message: this.$strings.LabelAndroidAutoBrowseLimitForGroupingHelp
+        },
+        enableAndroidAutoPlaybackResumption: {
+          name: this.$strings.LabelAndroidAutoPlaybackResumption,
+          message: this.$strings.LabelAndroidAutoPlaybackResumptionHelp
         }
       },
       hapticFeedbackItems: [
@@ -353,6 +365,9 @@ export default {
     },
     isiOS() {
       return this.$platform === 'ios'
+    },
+    usesMedia3Player() {
+      return !!this.deviceData?.usesMedia3Player
     },
     jumpForwardSecondsOptions() {
       return this.$store.state.globals.jumpForwardSecondsOptions || []
@@ -583,6 +598,10 @@ export default {
       this.settings.autoSleepTimerAutoRewind = !this.settings.autoSleepTimerAutoRewind
       this.saveSettings()
     },
+    toggleAndroidAutoPlaybackResumption() {
+      this.settings.enableAndroidAutoPlaybackResumption = !this.settings.enableAndroidAutoPlaybackResumption
+      this.saveSettings()
+    },
     toggleDisableSleepTimerFadeOut() {
       this.settings.disableSleepTimerFadeOut = !this.settings.disableSleepTimerFadeOut
       this.saveSettings()
@@ -671,6 +690,7 @@ export default {
 
       this.settings.androidAutoBrowseLimitForGrouping = deviceSettings.androidAutoBrowseLimitForGrouping
       this.settings.androidAutoBrowseSeriesSequenceOrder = deviceSettings.androidAutoBrowseSeriesSequenceOrder || 'ASC'
+      this.settings.enableAndroidAutoPlaybackResumption = deviceSettings.enableAndroidAutoPlaybackResumption !== false
     },
     async init() {
       this.loading = true

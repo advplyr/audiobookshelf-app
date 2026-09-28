@@ -11,6 +11,7 @@
 <script>
 import { AbsAudioPlayer, AbsLogger } from '@/plugins/capacitor'
 import { Dialog } from '@capacitor/dialog'
+import { PlayMethod } from '@/plugins/constants'
 import CellularPermissionHelpers from '@/mixins/cellularPermissionHelpers'
 
 export default {
@@ -51,6 +52,18 @@ export default {
     },
     currentPlaybackSession() {
       return this.$store.state.currentPlaybackSession
+    }
+  },
+  watch: {
+    // Restore server-only controls when native playback outlives the WebView.
+    currentPlaybackSession: {
+      immediate: true,
+      handler(session) {
+        if (this.isIos) return
+        if (session?.playMethod === PlayMethod.LOCAL) return
+        this.serverLibraryItemId = session?.libraryItemId || null
+        this.serverEpisodeId = session?.episodeId || null
+      }
     }
   },
   methods: {
@@ -294,7 +307,8 @@ export default {
     },
     notifyOnReady() {
       // TODO: was used on iOS to open last played media. May be removed
-      if (!this.isIos) return
+      // On Android this is the only signal native has that the UI can receive events; state
+      // pushed on activity resume arrives before any listener exists.
 
       // If settings aren't loaded yet, native player will receive incorrect settings
       console.log('Notify on ready... settingsLoaded:', this.settingsLoaded, 'isReady:', this.isReady)
