@@ -107,8 +107,12 @@ class AbsAudioPlayer : Plugin() {
           emit("onNetworkMeteredChanged", isUnmetered)
         }
 
-        override fun onMediaItemHistoryUpdated(mediaItemHistory:MediaItemHistory) {
-          notifyListeners("onMediaItemHistoryUpdated", JSObject(jacksonMapper.writeValueAsString(mediaItemHistory)))
+        override fun onMediaItemHistoryEventAdded(mediaItemId:String, mediaItemHistoryMetadata:MediaItemHistory, event:MediaItemEvent) {
+          val payload = JSObject()
+          payload.put("mediaItemId", mediaItemId)
+          payload.put("mediaItemHistoryMetadata", JSObject(jacksonMapper.writeValueAsString(mediaItemHistoryMetadata)))
+          payload.put("event", JSObject(jacksonMapper.writeValueAsString(event)))
+          notifyListeners("onMediaItemHistoryEventAdded", payload)
         }
 
         override fun onPlaybackSpeedChanged(playbackSpeed:Float) {

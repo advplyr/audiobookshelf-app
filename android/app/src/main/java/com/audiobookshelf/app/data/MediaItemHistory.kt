@@ -14,4 +14,18 @@ class MediaItemHistory(
         var serverUserId: String?,
         var createdAt: Long,
         var events: MutableList<MediaItemEvent>,
-)
+) {
+  fun copyWithoutEvents() =
+          MediaItemHistory(
+                  id,
+                  mediaDisplayTitle,
+                  libraryItemId,
+                  episodeId,
+                  isLocal,
+                  serverConnectionConfigId,
+                  serverAddress,
+                  serverUserId,
+                  createdAt,
+                  mutableListOf()
+          )
+}
