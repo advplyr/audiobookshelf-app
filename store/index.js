@@ -17,6 +17,7 @@ export const state = () => ({
   networkConnectionType: null,
   isNetworkUnmetered: true,
   isFirstLoad: true,
+  isAndroidTv: false,
   isFirstAudioLoad: true,
   hasStoragePermission: false,
   selectedLibraryItem: null,
@@ -126,6 +127,9 @@ export const actions = {
 }
 
 export const mutations = {
+  setIsAndroidTv(state, val) {
+    state.isAndroidTv = val
+  },
   setDeviceData(state, deviceData) {
     state.deviceData = deviceData
   },
