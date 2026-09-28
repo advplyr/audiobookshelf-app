@@ -90,8 +90,12 @@ export default {
     serverLibraryItemId() {
       if (!this.isLocal) return this.libraryItem.id
       // Check if local library item is connected to the current server
-      if (!this.libraryItem.serverAddress || !this.libraryItem.libraryItemId) return null
-      if (this.$store.getters['user/getServerAddress'] === this.libraryItem.serverAddress) {
+      if (!this.libraryItem.libraryItemId) return null
+      const currentConfigId = this.$store.getters['user/getServerConnectionConfigId']
+      if (this.libraryItem.serverConnectionConfigId && currentConfigId === this.libraryItem.serverConnectionConfigId) {
+        return this.libraryItem.libraryItemId
+      }
+      if (this.libraryItem.serverAddress && this.$store.getters['user/getServerAddress'] === this.libraryItem.serverAddress) {
         return this.libraryItem.libraryItemId
       }
       return null

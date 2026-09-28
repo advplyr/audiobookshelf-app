@@ -148,6 +148,8 @@ export default {
     },
     isConnectedToServer() {
       if (!this.isLocal) return true
+      const currentConfigId = this.$store.getters['user/getServerConnectionConfigId']
+      if (this.libraryItem.serverConnectionConfigId && currentConfigId === this.libraryItem.serverConnectionConfigId) return true
       if (!this.libraryItem.serverAddress) return false
       return this.$store.getters['user/getServerAddress'] === this.libraryItem.serverAddress
     },

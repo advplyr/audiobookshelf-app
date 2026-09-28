@@ -563,9 +563,9 @@ class AudioPlayer: NSObject {
             // See: https://github.com/advplyr/audiobookshelf/pull/4263
             let contentUrl: String
             if Store.isServerVersionGreaterThanOrEqualTo("2.22.0") {
-                contentUrl = "\(Store.serverConfig!.address)/public/session/\(playbackSession.id)/track/\(track.index ?? 1)"
+                contentUrl = "\(Store.serverConfig!.resolvedAddress)/public/session/\(playbackSession.id)/track/\(track.index ?? 1)"
             } else {
-                contentUrl = "\(Store.serverConfig!.address)/api/items/\(itemId)/file/\(ino)?token=\(Store.serverConfig!.token)"
+                contentUrl = "\(Store.serverConfig!.resolvedAddress)/api/items/\(itemId)/file/\(ino)?token=\(Store.serverConfig!.token)"
             }
             let url = URL(string: contentUrl)!
             return AVURLAsset(url: url)
@@ -573,7 +573,7 @@ class AudioPlayer: NSObject {
             guard let localFile = track.getLocalFile() else {
                 // Worst case we can stream the file
                 AbsLogger.info(message:"Unable to play local file. Resulting to streaming \(track.localFileId ?? "Unknown")")
-                let urlstr = "\(Store.serverConfig!.address)/api/items/\(itemId)/file/\(ino)?token=\(Store.serverConfig!.token)"
+                let urlstr = "\(Store.serverConfig!.resolvedAddress)/api/items/\(itemId)/file/\(ino)?token=\(Store.serverConfig!.token)"
                 let url = URL(string: urlstr)!
                 return AVURLAsset(url: url)
             }
@@ -583,7 +583,7 @@ class AudioPlayer: NSObject {
                 "Authorization": "Bearer \(Store.serverConfig!.token)"
             ]
             
-            let contentUrl = "\(Store.serverConfig!.address)\(track.contentUrl ?? "")"
+            let contentUrl = "\(Store.serverConfig!.resolvedAddress)\(track.contentUrl ?? "")"
             return AVURLAsset(url: URL(string: contentUrl)!, options: ["AVURLAssetHTTPHeaderFieldsKey": headers])
         }
     }

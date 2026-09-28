@@ -10,6 +10,8 @@ import { registerPlugin, Capacitor, WebPlugin } from '@capacitor/core'
  * @property {string} userId
  * @property {string} username
  * @property {string} token
+ * @property {string} [localAddress]
+ * @property {string[]} [localSsidWhitelist]
  * @property {string} [refreshToken] - Only passed in when setting config, then stored in secure storage
  */
 
@@ -49,6 +51,8 @@ class AbsDatabaseWeb extends WebPlugin {
       ssc.username = serverConnectionConfig.username
       ssc.version = serverConnectionConfig.version
       ssc.customHeaders = serverConnectionConfig.customHeaders || {}
+      ssc.localAddress = serverConnectionConfig.localAddress || null
+      ssc.localSsidWhitelist = serverConnectionConfig.localSsidWhitelist || []
 
       if (serverConnectionConfig.refreshToken) {
         console.log('[AbsDatabase] Updating refresh token...')
@@ -67,7 +71,9 @@ class AbsDatabaseWeb extends WebPlugin {
         address: serverConnectionConfig.address,
         token: serverConnectionConfig.token,
         version: serverConnectionConfig.version,
-        customHeaders: serverConnectionConfig.customHeaders || {}
+        customHeaders: serverConnectionConfig.customHeaders || {},
+        localAddress: serverConnectionConfig.localAddress || null,
+        localSsidWhitelist: serverConnectionConfig.localSsidWhitelist || []
       }
 
       if (serverConnectionConfig.refreshToken) {

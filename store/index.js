@@ -15,7 +15,9 @@ export const state = () => ({
   socketConnected: false,
   networkConnected: false,
   networkConnectionType: null,
+  networkStatusChangeId: 0,
   isNetworkUnmetered: true,
+  activeServerAddress: null,
   isFirstLoad: true,
   isFirstAudioLoad: true,
   hasStoragePermission: false,
@@ -190,9 +192,16 @@ export const mutations = {
       state.networkConnected = true
     }
     state.networkConnectionType = val.connectionType
+    state.networkStatusChangeId += 1
   },
   setIsNetworkUnmetered(state, val) {
     state.isNetworkUnmetered = val
+  },
+  setActiveServerAddress(state, val) {
+    if (state.activeServerAddress && val && state.activeServerAddress !== val) {
+      state.socketConnected = false
+    }
+    state.activeServerAddress = val
   },
   showReader(state, { libraryItem, keepProgress, fileId }) {
     state.selectedLibraryItem = libraryItem
