@@ -12,7 +12,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         // Override point for customization after application launch.
 
         let configuration = Realm.Configuration(
-            schemaVersion: 21,
+            schemaVersion: 22,
             migrationBlock: { [weak self] migration, oldSchemaVersion in
                 if (oldSchemaVersion < 1) {
                     AbsLogger.info(message: "Realm schema version was \(oldSchemaVersion)")
@@ -74,6 +74,12 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
                 if (oldSchemaVersion < 21) {
                     // One-time wipe of accumulated logs that were freezing the app on load/clear
                     migration.deleteData(forType: LogEntry.className())
+                }
+                if (oldSchemaVersion < 22) {
+                    AbsLogger.info(message: "Realm schema version was \(oldSchemaVersion)... Adding useAuthorAsChapterSubtitle setting")
+                    migration.enumerateObjects(ofType: PlayerSettings.className()) { oldObject, newObject in
+                        newObject?["useAuthorAsChapterSubtitle"] = false
+                    }
                 }
             }
         )
