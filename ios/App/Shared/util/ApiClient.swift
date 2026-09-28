@@ -545,7 +545,7 @@ class ApiClient {
                     AbsLogger.info(message: "syncLocalSessionsWithServer: No User")
                     return
                 }
-                try currentUser.mediaProgress.forEach { mediaProgress in
+                for mediaProgress in currentUser.mediaProgress {
                     let localMediaProgress = localMediaProgressList.first { lmp in
                         if (lmp.episodeId != nil) {
                             return lmp.episodeId == mediaProgress.episodeId
@@ -553,13 +553,37 @@ class ApiClient {
                             return lmp.libraryItemId == mediaProgress.libraryItemId
                         }
                     }
-                    if (localMediaProgress != nil && mediaProgress.lastUpdate > localMediaProgress!.lastUpdate) {
-                        AbsLogger.info(message: "syncLocalSessionsWithServer: Updating local media progress \(localMediaProgress!.id) with server media progress")
-                        if let localMediaProgress = localMediaProgress?.thaw() {
-                            try localMediaProgress.updateFromServerMediaProgress(mediaProgress)
+                    guard let localMediaProgress = localMediaProgress else { continue }
+
+                    let syncDirection = MediaProgressConflictResolver.resolveAudioProgress(
+                        localCurrentTime: localMediaProgress.currentTime,
+                        localIsFinished: localMediaProgress.isFinished,
+                        localLastUpdate: localMediaProgress.lastUpdate,
+                        serverCurrentTime: mediaProgress.currentTime,
+                        serverIsFinished: mediaProgress.isFinished,
+                        serverLastUpdate: mediaProgress.lastUpdate
+                    )
+
+                    switch syncDirection {
+                    case .serverToLocal:
+                        AbsLogger.info(message: "syncLocalSessionsWithServer: Server audio progress for \(localMediaProgress.id) is further. Updating local currentTime from \(localMediaProgress.currentTime) to \(mediaProgress.currentTime)")
+                        if let thawedLocalMediaProgress = localMediaProgress.thaw() {
+                            try thawedLocalMediaProgress.updateFromServerMediaProgress(mediaProgress)
                         }
-                    } else if (localMediaProgress != nil) {
-                        AbsLogger.info(message: "syncLocalSessionsWithServer: Local progress for \(localMediaProgress!.id) is more recent then server progress")
+                    case .localToServer:
+                        guard let libraryItemId = localMediaProgress.libraryItemId else { continue }
+                        AbsLogger.info(message: "syncLocalSessionsWithServer: Local audio progress for \(localMediaProgress.id) is further. Updating server currentTime from \(mediaProgress.currentTime) to \(localMediaProgress.currentTime)")
+                        let payload = MediaProgressUpdatePayload(from: localMediaProgress)
+                        let success = await updateMediaProgress(
+                            libraryItemId: libraryItemId,
+                            episodeId: localMediaProgress.episodeId,
+                            payload: payload
+                        )
+                        if !success {
+                            AbsLogger.error(message: "syncLocalSessionsWithServer: Failed to update server audio progress for \(localMediaProgress.id)")
+                        }
+                    case .none:
+                        AbsLogger.info(message: "syncLocalSessionsWithServer: Audio progress for \(localMediaProgress.id) is up-to-date")
                     }
                 }
             }
@@ -595,6 +619,19 @@ class ApiClient {
         let endpoint = episodeId?.isEmpty ?? true ? "api/me/progress/\(libraryItemId)" : "api/me/progress/\(libraryItemId)/\(episodeId ?? "")"
         patchResourceWithTokenRefresh(endpoint: endpoint, parameters: payload) { _ in
             callback()
+        }
+    }
+
+    private static func updateMediaProgress<T: Encodable>(libraryItemId: String, episodeId: String?, payload: T) async -> Bool {
+        var endpoint = "api/me/progress/\(libraryItemId)"
+        if let episodeId = episodeId, !episodeId.isEmpty {
+            endpoint += "/\(episodeId)"
+        }
+
+        return await withCheckedContinuation { continuation in
+            patchResourceWithTokenRefresh(endpoint: endpoint, parameters: payload) { success in
+                continuation.resume(returning: success)
+            }
         }
     }
     
@@ -710,6 +747,24 @@ struct PartialPlaybackSessionSyncPayload: Encodable {
 struct LocalPlaybackSessionSyncAllPayload: Encodable {
     var sessions: [PartialPlaybackSessionSyncPayload]
     var deviceInfo: [String: String?]?
+}
+
+struct MediaProgressUpdatePayload: Encodable {
+    let currentTime: Double
+    let duration: Double
+    let progress: Double
+    let isFinished: Bool
+    let finishedAt: Double?
+    let lastUpdate: Double
+
+    init(from progress: LocalMediaProgress) {
+        currentTime = progress.currentTime
+        duration = progress.duration
+        self.progress = progress.progress
+        isFinished = progress.isFinished
+        finishedAt = progress.finishedAt
+        lastUpdate = progress.lastUpdate
+    }
 }
 
 struct Connectivity {

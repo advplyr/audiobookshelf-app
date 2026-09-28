@@ -9,6 +9,7 @@ import android.util.Log
 import com.audiobookshelf.app.data.*
 import com.audiobookshelf.app.device.DeviceManager
 import com.audiobookshelf.app.media.MediaEventManager
+import com.audiobookshelf.app.media.MediaProgressConflictResolver
 import com.audiobookshelf.app.media.MediaProgressSyncData
 import com.audiobookshelf.app.media.SyncResult
 import com.audiobookshelf.app.models.User
@@ -782,14 +783,24 @@ class ApiHandler(var ctx:Context) {
       if (user == null) {
         AbsLogger.error("ApiHandler", "syncLocalMediaProgressForUser: Failed to load user from server (${DeviceManager.serverConnectionConfigName})")
       } else {
-        var numLocalMediaProgressUptToDate = 0
+        var numLocalMediaProgressUpToDate = 0
         var numLocalMediaProgressUpdated = 0
+        val localProgressUpdatesForServer = mutableListOf<Pair<LocalMediaProgress, MediaProgress>>()
 
         // Compare server user progress with local progress
         user.mediaProgress.forEach { mediaProgress ->
           // Get matching local media progress
           allLocalMediaProgress.find { it.isMatch(mediaProgress) }?.let { localMediaProgress ->
-            if (mediaProgress.lastUpdate > localMediaProgress.lastUpdate) {
+            val audioSyncDirection = MediaProgressConflictResolver.resolveAudioProgress(
+              localMediaProgress.currentTime,
+              localMediaProgress.isFinished,
+              localMediaProgress.lastUpdate,
+              mediaProgress.currentTime,
+              mediaProgress.isFinished,
+              mediaProgress.lastUpdate
+            )
+
+            if (audioSyncDirection == MediaProgressConflictResolver.SyncDirection.SERVER_TO_LOCAL) {
               val updateLogs = mutableListOf<String>()
               if (mediaProgress.progress != localMediaProgress.progress) {
                 updateLogs.add("Updated progress from ${localMediaProgress.progress} to ${mediaProgress.progress}")
@@ -815,6 +826,8 @@ class ApiHandler(var ctx:Context) {
               }
               DeviceManager.dbManager.saveLocalMediaProgress(localMediaProgress)
               numLocalMediaProgressUpdated++
+            } else if (audioSyncDirection == MediaProgressConflictResolver.SyncDirection.LOCAL_TO_SERVER) {
+              localProgressUpdatesForServer.add(Pair(localMediaProgress, mediaProgress))
             } else if (localMediaProgress.lastUpdate > mediaProgress.lastUpdate && localMediaProgress.ebookLocation != null && localMediaProgress.ebookLocation != mediaProgress.ebookLocation) {
               // Patch ebook progress to server
               AbsLogger.info("ApiHandler", "syncLocalMediaProgressForUser: Local progress for ebook item \"${mediaProgress.mediaItemId}\" is more recent than server progress. Local progress last updated ${localMediaProgress.lastUpdate}, server progress last updated ${mediaProgress.lastUpdate}. Sending server request to update ebook progress from ${mediaProgress.ebookProgress} to ${localMediaProgress.ebookProgress}")
@@ -827,12 +840,44 @@ class ApiHandler(var ctx:Context) {
                 AbsLogger.info("ApiHandler", "syncLocalMediaProgressForUser: Successfully updated server ebook progress for item item \"${mediaProgress.mediaItemId}\"")
               }
             } else {
-              numLocalMediaProgressUptToDate++
+              numLocalMediaProgressUpToDate++
             }
           }
         }
 
-        AbsLogger.info("ApiHandler", "syncLocalMediaProgressForUser: Finishing syncing local media progress with server. $numLocalMediaProgressUptToDate up-to-date, $numLocalMediaProgressUpdated updated")
+        if (localProgressUpdatesForServer.isNotEmpty()) {
+          var pendingUpdates = localProgressUpdatesForServer.size
+          localProgressUpdatesForServer.forEach { (localMediaProgress, serverMediaProgress) ->
+            AbsLogger.info("ApiHandler", "syncLocalMediaProgressForUser: Local audio progress for item \"${serverMediaProgress.mediaItemId}\" is further than server progress. Sending server request to update currentTime from ${serverMediaProgress.currentTime} to ${localMediaProgress.currentTime}")
+            val endpoint = if (localMediaProgress.episodeId.isNullOrEmpty()) {
+              "/api/me/progress/${localMediaProgress.libraryItemId}"
+            } else {
+              "/api/me/progress/${localMediaProgress.libraryItemId}/${localMediaProgress.episodeId}"
+            }
+            val updatePayload = JSObject()
+            updatePayload.put("currentTime", localMediaProgress.currentTime)
+            updatePayload.put("duration", localMediaProgress.duration)
+            updatePayload.put("progress", localMediaProgress.progress)
+            updatePayload.put("isFinished", localMediaProgress.isFinished)
+            updatePayload.put("finishedAt", localMediaProgress.finishedAt)
+            updatePayload.put("lastUpdate", localMediaProgress.lastUpdate)
+            patchRequest(endpoint, updatePayload) { response ->
+              if (!response.getString("error").isNullOrEmpty()) {
+                AbsLogger.error("ApiHandler", "syncLocalMediaProgressForUser: Failed to update server audio progress for item \"${serverMediaProgress.mediaItemId}\": ${response.getString("error")}")
+              }
+              synchronized(localProgressUpdatesForServer) {
+                pendingUpdates--
+                if (pendingUpdates == 0) {
+                  AbsLogger.info("ApiHandler", "syncLocalMediaProgressForUser: Finished syncing local media progress with server. $numLocalMediaProgressUpToDate up-to-date, $numLocalMediaProgressUpdated updated locally, ${localProgressUpdatesForServer.size} updated on server")
+                  cb()
+                }
+              }
+            }
+          }
+          return@getCurrentUser
+        }
+
+        AbsLogger.info("ApiHandler", "syncLocalMediaProgressForUser: Finished syncing local media progress with server. $numLocalMediaProgressUpToDate up-to-date, $numLocalMediaProgressUpdated updated locally")
       }
       cb()
     }
