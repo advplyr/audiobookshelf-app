@@ -300,6 +300,10 @@ export default ({ store, app }, inject) => {
 
   // Android only
   App.addListener('backButton', async ({ canGoBack }) => {
+    if (store.state.showSideDrawer) {
+      store.commit('setShowSideDrawer', false)
+      return
+    }
     if (store.state.globals.isModalOpen) {
       eventBus.$emit('close-modal')
       return
@@ -312,7 +316,13 @@ export default ({ store, app }, inject) => {
       eventBus.$emit('minimize-player')
       return
     }
-    if (!canGoBack) {
+    // On Android TV, if logged out and on Home, treat as exit regardless
+    // of history depth — stale history entries from before logout should
+    // not prevent the user from exiting.
+    const isTV = document.documentElement.classList.contains('android-tv')
+    const isLoggedOut = !store.state.user?.user
+    const isHome = window.location.pathname === '/' || window.location.pathname === '/bookshelf'
+    if (!canGoBack || (isTV && isLoggedOut && isHome)) {
       const { value } = await Dialog.confirm({
         title: eventBus.$strings.HeaderConfirm,
         message: eventBus.$strings.MessageConfirmAppExit
