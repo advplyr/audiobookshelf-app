@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.app.*
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ServiceInfo
 import android.graphics.Bitmap
 import android.graphics.Color
 import android.graphics.ImageDecoder
@@ -68,6 +69,8 @@ const val PLAYER_EXO = "exo-player"
 class PlayerNotificationService : MediaBrowserServiceCompat() {
 
   companion object {
+    const val ACTION_WIDGET_PLAY = "com.audiobookshelf.app.player.WIDGET_PLAY"
+
     var isStarted = false
     var isClosed = false
     var isUnmeteredNetwork = false
@@ -166,9 +169,144 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
 
   override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
     isStarted = true
-    Log.d(tag, "onStartCommand $startId")
+    Log.d(tag, "onStartCommand $startId action=${intent?.action}")
+
+    if (intent?.action == ACTION_WIDGET_PLAY) {
+      handleWidgetPlay()
+    }
 
     return START_STICKY
+  }
+
+  private fun handleWidgetPlay() {
+    if (currentPlaybackSession != null) {
+      playPause()
+      return
+    }
+
+    val lastPlaybackSession = DeviceManager.deviceData.lastPlaybackSession
+    if (lastPlaybackSession == null) {
+      Log.w(tag, "handleWidgetPlay: No last playback session to resume")
+      stopSelf()
+      return
+    }
+
+    // Must be in the foreground until the player notification is posted
+    startPlaceholderForeground(lastPlaybackSession.displayTitle)
+
+    val playbackRate = mediaManager.getSavedPlaybackRate()
+
+    // Only use the currently connected server
+    val currentServerConfigId = DeviceManager.deviceData.lastServerConnectionConfigId
+    val serverConnectionConfig = DeviceManager.getServerConnectionConfig(currentServerConfigId)
+    val isCurrentServer = lastPlaybackSession.serverConnectionConfigId == currentServerConfigId
+
+    // Prefer a download when there is one, even if the last session was streamed
+    val localLibraryItem =
+            lastPlaybackSession.localLibraryItem?.id?.let {
+              DeviceManager.dbManager.getLocalLibraryItem(it)
+            }
+                    ?: lastPlaybackSession.libraryItemId?.let {
+                      DeviceManager.dbManager.getLocalLibraryItemByLId(it)
+                    }
+    val localEpisodeId = lastPlaybackSession.localEpisodeId
+    val serverEpisodeId = lastPlaybackSession.episodeId
+    val episode =
+            if (localEpisodeId != null) {
+              DeviceManager.dbManager.getLocalLibraryItemWithEpisode(localEpisodeId)?.episode
+            } else {
+              (localLibraryItem?.media as? Podcast)?.episodes?.find {
+                serverEpisodeId != null && it.serverEpisodeId == serverEpisodeId
+              }
+            }
+    val isEpisode = localEpisodeId != null || serverEpisodeId != null
+    // Stream instead when the downloaded copy is no longer playable
+    if (localLibraryItem != null &&
+                    (!isEpisode || episode != null) &&
+                    localLibraryItem.hasTracks(ctx, episode)
+    ) {
+      currentPlaybackSession = lastPlaybackSession
+      if (serverConnectionConfig == null || !isCurrentServer || !DeviceManager.checkConnectivity(ctx)) {
+        resumeLocalItem(localLibraryItem, episode, lastPlaybackSession, playbackRate)
+        return
+      }
+
+      // Update local progress from the server first, as on app launch
+      apiHandler.pingServer(serverConnectionConfig) { isReachable ->
+        if (isReachable) {
+          DeviceManager.serverConnectionConfig = serverConnectionConfig
+          apiHandler.syncLocalMediaProgressForUser {
+            Handler(Looper.getMainLooper()).post {
+              resumeLocalItem(localLibraryItem, episode, lastPlaybackSession, playbackRate)
+            }
+          }
+        } else {
+          Handler(Looper.getMainLooper()).post {
+            resumeLocalItem(localLibraryItem, episode, lastPlaybackSession, playbackRate)
+          }
+        }
+      }
+      return
+    }
+
+    if (lastPlaybackSession.libraryItemId == null || serverConnectionConfig == null || !isCurrentServer) {
+      Log.w(tag, "handleWidgetPlay: Last playback session is not local and not on the current server")
+      cancelWidgetPlay()
+      return
+    }
+
+    Log.i(tag, "handleWidgetPlay: Resuming server item \"${lastPlaybackSession.displayTitle}\"")
+    DeviceManager.serverConnectionConfig = serverConnectionConfig
+    currentPlaybackSession = lastPlaybackSession
+    startNewPlaybackSession(playbackRate) {
+      // Another session may have started while waiting on the server
+      if (!it && currentPlaybackSession == lastPlaybackSession) {
+        cancelWidgetPlay()
+      }
+    }
+  }
+
+  private fun resumeLocalItem(
+          localLibraryItem: LocalLibraryItem,
+          episode: PodcastEpisode?,
+          lastPlaybackSession: PlaybackSession,
+          playbackRate: Float
+  ) {
+    // Another session may have started while waiting on the server
+    if (currentPlaybackSession != lastPlaybackSession) return
+
+    // Build a fresh session so playback resumes at the saved local progress
+    val playbackSession = localLibraryItem.getPlaybackSession(episode, getDeviceInfo())
+    Log.i(tag, "handleWidgetPlay: Resuming local item \"${playbackSession.displayTitle}\"")
+    preparePlayer(playbackSession, true, playbackRate)
+  }
+
+  private fun startPlaceholderForeground(title: String?) {
+    if (PlayerNotificationListener.isForegroundService) return
+
+    val notification =
+            NotificationCompat.Builder(ctx, channelId)
+                    .setSmallIcon(R.drawable.icon_monochrome)
+                    .setContentTitle(title ?: getString(R.string.app_name))
+                    .setContentText(getString(R.string.widget_resuming_playback))
+                    .setPriority(NotificationCompat.PRIORITY_LOW)
+                    .setOngoing(true)
+                    .build()
+
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+      startForeground(notificationId, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK)
+    } else {
+      startForeground(notificationId, notification)
+    }
+    PlayerNotificationListener.isForegroundService = true
+  }
+
+  private fun cancelWidgetPlay() {
+    currentPlaybackSession = null
+    clientEventEmitter?.onPlaybackClosed()
+    stopForeground(Service.STOP_FOREGROUND_REMOVE)
+    PlayerNotificationListener.isForegroundService = false
+    stopSelf()
   }
 
   @Deprecated("Deprecated in Java")
@@ -199,7 +337,10 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
     Log.d(tag, "onDestroy")
     isStarted = false
     isClosed = true
-    DeviceManager.widgetUpdater?.onPlayerChanged(this)
+    PlayerListener.lazyIsPlaying = false
+    PlayerNotificationListener.isForegroundService = false
+    currentPlaybackSession = null
+    DeviceManager.widgetUpdater?.onPlayerClosed()
 
     playerNotificationManager.setPlayer(null)
     mPlayer.release()
@@ -668,7 +809,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
     }
   }
 
-  fun startNewPlaybackSession() {
+  fun startNewPlaybackSession(playbackRate: Float? = null, cb: (Boolean) -> Unit = {}) {
     currentPlaybackSession?.let { playbackSession ->
       Log.i(tag, "Starting new playback session for ${playbackSession.displayTitle}")
 
@@ -681,12 +822,19 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
         apiHandler.playLibraryItem(libraryItemId, episodeId, playItemRequestPayload) {
           if (it == null) {
             Log.e(tag, "Failed to start new playback session")
+            Handler(Looper.getMainLooper()).post { cb(false) }
           } else {
             Log.d(
                     tag,
                     "New playback session response from server with session id ${it.id} for \"${it.displayTitle}\""
             )
-            Handler(Looper.getMainLooper()).post { preparePlayer(it, true, null) }
+            Handler(Looper.getMainLooper()).post {
+              // Skip if another session started or the service stopped while waiting
+              if (currentPlaybackSession == playbackSession) {
+                preparePlayer(it, true, playbackRate)
+                cb(true)
+              }
+            }
           }
         }
       }
@@ -1065,6 +1213,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
     clientEventEmitter?.onPlaybackClosed()
 
     PlayerListener.lastPauseTime = 0
+    PlayerListener.lazyIsPlaying = false
     isClosed = true
     DeviceManager.widgetUpdater?.onPlayerClosed()
     stopForeground(Service.STOP_FOREGROUND_REMOVE)

@@ -8,6 +8,7 @@ import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
 import android.net.Uri
+import android.os.Build
 import android.support.v4.media.session.PlaybackStateCompat
 import android.util.Log
 import android.view.View
@@ -16,6 +17,7 @@ import androidx.media.session.MediaButtonReceiver
 import com.audiobookshelf.app.data.PlaybackSession
 import com.audiobookshelf.app.device.DeviceManager
 import com.audiobookshelf.app.managers.DbManager
+import com.audiobookshelf.app.player.PlayerNotificationService
 import com.bumptech.glide.Glide
 import com.bumptech.glide.request.RequestOptions
 import com.bumptech.glide.request.target.AppWidgetTarget
@@ -50,6 +52,18 @@ class MediaPlayerWidget : AppWidgetProvider() {
   }
 }
 
+private fun buildWidgetPlayPendingIntent(context: Context): PendingIntent {
+  val intent = Intent(context, PlayerNotificationService::class.java).apply {
+    action = PlayerNotificationService.ACTION_WIDGET_PLAY
+  }
+  val flags = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+  return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+    PendingIntent.getForegroundService(context, 0, intent, flags)
+  } else {
+    PendingIntent.getService(context, 0, intent, flags)
+  }
+}
+
 internal fun updateAppWidget(context: Context, appWidgetManager: AppWidgetManager, appWidgetId: Int, playbackSession: PlaybackSession?, isPlaying:Boolean, isAppClosed:Boolean) {
   val tag = "MediaPlayerWidget"
   val views = RemoteViews(context.packageName, R.layout.media_player_widget)
@@ -63,7 +77,11 @@ internal fun updateAppWidget(context: Context, appWidgetManager: AppWidgetManage
     PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
   )
 
-  val playPausePI = MediaButtonReceiver.buildMediaButtonPendingIntent(context, PlaybackStateCompat.ACTION_PLAY_PAUSE)
+  val playPausePI = if (isAppClosed) {
+    buildWidgetPlayPendingIntent(context)
+  } else {
+    MediaButtonReceiver.buildMediaButtonPendingIntent(context, PlaybackStateCompat.ACTION_PLAY_PAUSE)
+  }
   views.setOnClickPendingIntent(R.id.widgetPlayPauseButton, playPausePI)
 
   val fastForwardPI = MediaButtonReceiver.buildMediaButtonPendingIntent(context, PlaybackStateCompat.ACTION_FAST_FORWARD)
@@ -72,8 +90,10 @@ internal fun updateAppWidget(context: Context, appWidgetManager: AppWidgetManage
   val rewindPI = MediaButtonReceiver.buildMediaButtonPendingIntent(context, PlaybackStateCompat.ACTION_REWIND)
   views.setOnClickPendingIntent(R.id.widgetRewindButton, rewindPI)
 
-  // Show/Hide button container
-  views.setViewVisibility(R.id.widgetButtonContainer, if (isAppClosed) View.GONE else View.VISIBLE)
+  // Show/Hide buttons
+  views.setViewVisibility(R.id.widgetButtonContainer, if (isAppClosed && playbackSession == null) View.GONE else View.VISIBLE)
+  views.setViewVisibility(R.id.widgetRewindButton, if (isAppClosed) View.GONE else View.VISIBLE)
+  views.setViewVisibility(R.id.widgetFastForwardButton, if (isAppClosed) View.GONE else View.VISIBLE)
 
   views.setOnClickPendingIntent(R.id.widgetBackground, wholeWidgetClickPI)
 
