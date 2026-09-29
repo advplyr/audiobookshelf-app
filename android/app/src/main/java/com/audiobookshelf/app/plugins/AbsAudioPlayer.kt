@@ -35,6 +35,8 @@ class AbsAudioPlayer : Plugin() {
 
   // Track foreground state to avoid flooding WebView with events while backgrounded
   private var isInForeground: Boolean = true
+  // Keep only the latest suppressed sync state so the UI can reconcile once on resume
+  private var progressSyncSuccessful: Boolean? = null
 
   override fun load() {
     mainActivity = (activity as MainActivity)
@@ -51,10 +53,12 @@ class AbsAudioPlayer : Plugin() {
 
       playerNotificationService.clientEventEmitter = (object : PlayerNotificationService.ClientEventEmitter {
         override fun onPlaybackSession(playbackSession: PlaybackSession) {
+          progressSyncSuccessful = null
           notifyListeners("onPlaybackSession", JSObject(jacksonMapper.writeValueAsString(playbackSession)))
         }
 
         override fun onPlaybackClosed() {
+          progressSyncSuccessful = null
           emit("onPlaybackClosed", true)
         }
 
@@ -96,10 +100,14 @@ class AbsAudioPlayer : Plugin() {
         }
 
         override fun onProgressSyncFailing() {
+          progressSyncSuccessful = false
+          if (!isInForeground) return
           emit("onProgressSyncFailing", "")
         }
 
         override fun onProgressSyncSuccess() {
+          progressSyncSuccessful = true
+          if (!isInForeground) return
           emit("onProgressSyncSuccess", "")
         }
 
@@ -108,6 +116,7 @@ class AbsAudioPlayer : Plugin() {
         }
 
         override fun onMediaItemHistoryUpdated(mediaItemHistory:MediaItemHistory) {
+          if (!isInForeground) return
           notifyListeners("onMediaItemHistoryUpdated", JSObject(jacksonMapper.writeValueAsString(mediaItemHistory)))
         }
 
@@ -148,6 +157,11 @@ class AbsAudioPlayer : Plugin() {
         playerNotificationService.sleepTimerManager.sendCurrentSleepTimerState()
         playerNotificationService.mediaProgressSyncer.currentLocalMediaProgress?.let {
           playerNotificationService.clientEventEmitter?.onLocalMediaProgressUpdate(it)
+        }
+        when (progressSyncSuccessful) {
+          true -> playerNotificationService.clientEventEmitter?.onProgressSyncSuccess()
+          false -> playerNotificationService.clientEventEmitter?.onProgressSyncFailing()
+          null -> Unit
         }
       }, 100)
     }
