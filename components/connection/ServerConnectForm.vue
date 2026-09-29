@@ -1,17 +1,18 @@
 <template>
   <div class="w-full max-w-md mx-auto px-2 sm:px-4 lg:px-8 z-10">
-    <div v-show="!loggedIn" class="mt-8 bg-primary overflow-hidden shadow rounded-lg px-4 py-6 w-full">
+    <div v-show="!loggedIn" :class="[$store.state.isAndroidTv ? 'mt-4' : 'mt-8', 'bg-primary overflow-hidden shadow rounded-lg px-4 py-6 w-full']">
       <!-- list of server connection configs -->
       <template v-if="!showForm">
-        <div v-for="config in serverConnectionConfigs" :key="config.id" class="border-b border-fg/10 py-4">
-          <div class="flex items-center my-1 relative space-x-2" @click="connectToServer(config)">
-            <div class="grow inline-flex items-center overflow-hidden">
+        <div v-for="(config, index) in serverConnectionConfigs" :key="config.id" class="border-b border-fg/10 py-4">
+          <div ref="entryRows" tabindex="0" class="-mx-1.5 px-1.5 flex items-center my-1 relative space-x-2 cursor-pointer" @focus="onEntryRowFocus(index)" @click="connectToServer(config)" @keydown.enter.prevent="connectToServer(config)" @keydown.right.prevent="focusIcon(index, 'edit')" @keydown.left.prevent="focusEntry(index)">
+            <div class="grow inline-flex flex-col overflow-hidden">
+              <p v-if="$store.state.isAndroidTv && config.username" class="text-base text-fg truncate">{{ config.username }}</p>
               <p class="text-base text-fg truncate">{{ config.name }}</p>
             </div>
-            <div class="h-full w-6 flex items-center" @click.stop="editServerConfig(config)">
+            <div ref="editIcons" tabindex="0" class="h-full w-6 flex items-center cursor-pointer" @focus="handleIconFocus($event, index)" @click.stop="editServerConfig(config)" @keydown.enter.prevent.stop="editServerConfig(config)" @keydown.right.prevent.stop="focusIcon(index, 'delete')" @keydown.left.prevent.stop="focusEntry(index)">
               <span class="material-symbols text-2xl text-fg-muted">more_vert</span>
             </div>
-            <div class="h-full w-6 flex items-center" @click.stop="removeServerConfigClick(config)">
+            <div ref="deleteIcons" tabindex="0" class="h-full w-6 flex items-center cursor-pointer" @focus="handleIconFocus($event, index)" @click.stop="removeServerConfigClick(config)" @keydown.enter.prevent.stop="removeServerConfigClick(config)" @keydown.left.prevent.stop="focusIcon(index, 'edit')" @keydown.right.prevent.stop="lockScroll">
               <span class="material-symbols fill text-1.5xl text-fg-muted">delete</span>
             </div>
           </div>
@@ -34,30 +35,30 @@
       <div v-else class="w-full">
         <!-- server address input -->
         <form v-if="!showAuth" @submit.prevent="submit(false)" novalidate class="w-full">
-          <div v-if="serverConnectionConfigs.length" class="flex items-center mb-4" @click="showServerList">
+          <div v-if="serverConnectionConfigs.length" tabindex="0" class="flex items-center mb-4 cursor-pointer" @click="showServerList" @keydown.enter.prevent="showServerList">
             <span class="material-symbols text-fg-muted">arrow_back</span>
           </div>
           <h2 class="text-lg leading-7 mb-2">{{ $strings.LabelServerAddress }}</h2>
-          <ui-text-input v-model="serverConfig.address" :disabled="processing || !networkConnected || !!serverConfig.id" placeholder="http://55.55.55.55:13378" type="url" class="w-full h-10" />
+          <ui-text-input ref="serverAddressInput" v-model="serverConfig.address" :disabled="processing || !networkConnected || !!serverConfig.id" placeholder="http://55.55.55.55:13378" type="url" class="w-full h-10" />
           <div class="flex justify-end items-center mt-6">
             <ui-btn :disabled="processing || !networkConnected" type="submit" :padding-x="3" class="h-10">{{ networkConnected ? $strings.ButtonSubmit : $strings.MessageNoNetworkConnection }}</ui-btn>
           </div>
         </form>
         <!-- username/password and auth methods -->
         <template v-else>
-          <div v-if="serverConfig.id" class="flex items-center mb-4" @click="showServerList">
+          <div v-if="serverConfig.id" tabindex="0" class="flex items-center mb-4 cursor-pointer" @click="showServerList" @keydown.enter.prevent="showServerList">
             <span class="material-symbols text-fg-muted">arrow_back</span>
           </div>
 
           <div class="flex items-center">
             <p class="text-fg-muted">{{ serverConfig.address }}</p>
             <div class="flex-grow" />
-            <span v-if="!serverConfig.id" class="material-symbols" style="font-size: 1.1rem" @click="editServerAddress">edit</span>
+            <span v-if="!serverConfig.id" tabindex="0" class="material-symbols cursor-pointer" style="font-size: 1.1rem" @click="editServerAddress" @keydown.enter.prevent="editServerAddress">edit</span>
           </div>
           <div class="w-full h-px bg-fg/10 my-2" />
           <form v-if="isLocalAuthEnabled" @submit.prevent="submitAuth" class="pt-3">
-            <ui-text-input v-model="serverConfig.username" :disabled="processing" :placeholder="$strings.LabelUsername" class="w-full mb-2 text-lg" />
-            <ui-text-input v-model="password" type="password" :disabled="processing" :placeholder="$strings.LabelPassword" class="w-full mb-2 text-lg" />
+            <ui-text-input ref="usernameInput" v-model="serverConfig.username" :disabled="processing" :placeholder="$strings.LabelUsername" class="w-full mb-2 text-lg" />
+            <ui-text-input ref="passwordInput" v-model="password" type="password" :disabled="processing" :autofocus="!$store.state.isAndroidTv" :placeholder="$strings.LabelPassword" class="w-full mb-2 text-lg" />
 
             <div class="flex items-center pt-2">
               <ui-icon-btn v-if="serverConfig.id" bg-color="error" icon="delete" type="button" @click="removeServerConfigClick(serverConfig)" />
@@ -125,6 +126,26 @@ export default {
       }
     }
   },
+  watch: {
+    showAuth(newVal) {
+      if (!this.$store.state.isAndroidTv) return
+      if (newVal) {
+        // Auth form just appeared — ensure username input gets focus.
+        // Using a watcher guarantees this fires after Vue renders the form
+        // and after the finally block sets processing = false.
+        this.$nextTick(() => this.ensureFocus('usernameInput'))
+      } else if (this.showForm) {
+        // Returned to address form (e.g. pencil edit) — focus address input.
+        this.$nextTick(() => this.ensureFocus('serverAddressInput'))
+      }
+    },
+    showForm(newVal) {
+      if (newVal && !this.showAuth && this.$store.state.isAndroidTv) {
+        // Address form just appeared — ensure server address input gets focus.
+        this.$nextTick(() => this.ensureFocus('serverAddressInput'))
+      }
+    }
+  },
   computed: {
     deviceData() {
       return this.$store.state.deviceData || {}
@@ -153,6 +174,60 @@ export default {
     }
   },
   methods: {
+    onEntryRowFocus(index) {
+      if (index !== 0) return
+      const scrollParent = this.getScrollParent()
+      if (!scrollParent) return
+      setTimeout(() => {
+        scrollParent.scrollTop = 0
+      }, 0)
+    },
+    handleIconFocus(event, index) {
+      // Skip redirect if our deferred dpadFocus is about to override anyway
+      if (this._dpadFocusActive) return
+      const entryRow = this.$refs.entryRows[index]
+      if (!entryRow) return
+      // Allow focus if it came from within the same entry row (right/left D-pad)
+      if (!event.relatedTarget || entryRow.contains(event.relatedTarget)) return
+      // Focus came from outside this row (up/down D-pad) — redirect to the entry row
+      entryRow.focus({ preventScroll: true })
+    },
+    getScrollParent() {
+      let el = this.$el
+      while (el && el !== document.documentElement) {
+        const style = window.getComputedStyle(el)
+        if (style.overflowY === 'auto' || style.overflowY === 'scroll') return el
+        el = el.parentElement
+      }
+      return document.scrollingElement
+    },
+    dpadFocus(el) {
+      if (!el) return
+      const scrollParent = this.getScrollParent()
+      const savedScroll = scrollParent ? scrollParent.scrollTop : 0
+      const isFirstEntry = this.$refs.entryRows && el === this.$refs.entryRows[0]
+      this._dpadFocusActive = true
+      setTimeout(() => {
+        el.focus({ preventScroll: true })
+        if (scrollParent) scrollParent.scrollTop = isFirstEntry ? 0 : savedScroll
+        this._dpadFocusActive = false
+      }, 0)
+    },
+    lockScroll() {
+      const scrollParent = this.getScrollParent()
+      if (!scrollParent) return
+      const savedScroll = scrollParent.scrollTop
+      setTimeout(() => {
+        scrollParent.scrollTop = savedScroll
+      }, 0)
+    },
+    focusEntry(index) {
+      this.dpadFocus(this.$refs.entryRows && this.$refs.entryRows[index])
+    },
+    focusIcon(index, type) {
+      const refs = type === 'edit' ? this.$refs.editIcons : this.$refs.deleteIcons
+      this.dpadFocus(refs && refs[index])
+    },
     showOldUserIdWarningDialog() {
       Dialog.alert({
         title: 'Old Server Connection Warning',
@@ -445,6 +520,12 @@ export default {
         userId: null,
         username: null
       }
+      if (this.$store.state.isAndroidTv) {
+        this.$nextTick(() => {
+          const firstRow = this.$el.querySelector('.border-b.border-fg\\/10 > div[tabindex="0"]')
+          if (firstRow) firstRow.focus()
+        })
+      }
     },
     async connectToServer(config) {
       await this.$hapticsImpact()
@@ -487,6 +568,7 @@ export default {
         message: this.$strings.MessageConfirmDeleteServerConfig
       })
       if (value) {
+        const deletedIndex = this.serverConnectionConfigs.findIndex((scc) => scc.id === serverConfig.id)
         this.processing = true
         await this.$db.removeServerConnectionConfig(serverConfig.id)
         const updatedDeviceData = { ...this.deviceData }
@@ -503,6 +585,14 @@ export default {
         this.showAuth = false
         this.showForm = !this.serverConnectionConfigs.length
         this.error = null
+
+        if (this.$store.state.isAndroidTv && !this.showForm) {
+          this.$nextTick(() => {
+            const focusIndex = deletedIndex > 0 ? deletedIndex - 1 : 0
+            const rows = this.$el.querySelectorAll('.border-b.border-fg\\/10 > div[tabindex="0"]')
+            if (rows[focusIndex]) rows[focusIndex].focus()
+          })
+        }
       }
     },
     async editServerConfig(serverConfig) {
@@ -524,6 +614,26 @@ export default {
       this.showForm = true
       this.showAuth = false
       this.error = null
+    },
+    ensureFocus(refName) {
+      // Poll until focus lands on the target input. The browser/form may
+      // redirect focus after validation errors — polling guarantees we win
+      // regardless of device speed.
+      // Cancel any previous poll so two ensureFocus calls don't fight.
+      if (this._ensureFocusPoll) clearInterval(this._ensureFocusPoll)
+      let attempts = 0
+      this._ensureFocusPoll = setInterval(() => {
+        attempts++
+        const target = this.$refs[refName]
+        const input = target?.$refs?.input
+        if (input && document.activeElement !== input) {
+          target.focus()
+        }
+        if ((input && document.activeElement === input) || attempts >= 40) {
+          clearInterval(this._ensureFocusPoll)
+          this._ensureFocusPoll = null
+        }
+      }, 50)
     },
     editServerAddress() {
       this.error = null
@@ -694,6 +804,9 @@ export default {
         return false
       } finally {
         this.processing = false
+        if (this.error && this.$store.state.isAndroidTv && !this.showAuth && this.showForm) {
+          this.ensureFocus('serverAddressInput')
+        }
       }
     },
     /** Validates the login form response from the server.
@@ -821,12 +934,14 @@ export default {
       if (!this.networkConnected) return
       if (!this.serverConfig.username) {
         this.error = 'Invalid username'
+        if (this.$store.state.isAndroidTv) this.ensureFocus('usernameInput')
         return
       }
 
       const duplicateConfig = this.serverConnectionConfigs.find((scc) => scc.address === this.serverConfig.address && scc.username === this.serverConfig.username && this.serverConfig.id !== scc.id)
       if (duplicateConfig) {
         this.error = 'Config already exists for this address and username'
+        if (this.$store.state.isAndroidTv) this.ensureFocus('usernameInput')
         return
       }
 
@@ -838,6 +953,8 @@ export default {
       if (payload) {
         // Will include access token and refresh token
         this.setUserAndConnection(payload)
+      } else if (this.$store.state.isAndroidTv) {
+        this.ensureFocus('passwordInput')
       }
     },
     async setUserAndConnection({ user, userDefaultLibraryId, serverSettings, ereaderDevices }) {
@@ -966,6 +1083,13 @@ export default {
         this.connectToServer(this.lastServerConnectionConfig)
       } else {
         this.showForm = !this.serverConnectionConfigs.length
+        // Auto-focus first server config on Android TV
+        if (!this.showForm && this.$store.state.isAndroidTv) {
+          this.$nextTick(() => {
+            const firstItem = this.$el?.querySelector('div[tabindex="0"]')
+            if (firstItem) firstItem.focus()
+          })
+        }
       }
     }
   },
