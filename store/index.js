@@ -132,6 +132,9 @@ export const mutations = {
   setLastBookshelfScrollData(state, { scrollTop, path, name }) {
     state.lastBookshelfScrollData[name] = { scrollTop, path }
   },
+  resetLastBookshelfScrollData(state) {
+    state.lastBookshelfScrollData = {}
+  },
   setLastItemScrollData(state, data) {
     state.lastItemScrollData = data
   },
