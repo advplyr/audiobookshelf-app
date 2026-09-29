@@ -102,6 +102,7 @@
 
 <script>
 import { Capacitor } from '@capacitor/core'
+import { wasDragGesture } from '@/utils/tapGuard'
 
 export default {
   props: {
@@ -479,6 +480,9 @@ export default {
       eventBus.$emit('play-item', { libraryItemId: this.libraryItemId, episodeId: this.recentEpisode.id })
     },
     async clickCard(e) {
+      // Ignore the click iOS synthesizes for a quick flick used to scroll
+      if (wasDragGesture()) return
+
       if (this.isSelectionMode) {
         e.stopPropagation()
         e.preventDefault()
