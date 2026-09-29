@@ -5,16 +5,16 @@
         <p v-show="!selectedSeriesName" class="pt-1">{{ $formatNumber(totalEntities) }} {{ entityTitle }}</p>
         <p v-show="selectedSeriesName" class="ml-2 pt-1">{{ selectedSeriesName }} ({{ $formatNumber(totalEntities) }})</p>
         <div class="flex-grow" />
-        <span v-if="page == 'library' || seriesBookPage" class="material-symbols text-2xl px-2" @click="changeView">{{ !bookshelfListView ? 'view_list' : 'grid_view' }}</span>
+        <span v-if="page == 'library' || seriesBookPage" tabindex="0" class="material-symbols text-2xl px-2" @click="changeView" @keydown.enter.prevent="changeView">{{ !bookshelfListView ? 'view_list' : 'grid_view' }}</span>
         <template v-if="page === 'library'">
-          <div class="relative flex items-center px-2">
-            <span class="material-symbols text-2xl" @click="showFilterModal = true">filter_alt</span>
+          <div class="relative flex items-center px-2" tabindex="0" @keydown.enter.prevent="showFilterModal = true" @click="showFilterModal = true">
+            <span class="material-symbols text-2xl">filter_alt</span>
             <div v-show="hasFilters" class="absolute top-0 right-2 w-2 h-2 rounded-full bg-success border border-green-300 shadow-sm z-10 pointer-events-none" />
           </div>
-          <span class="material-symbols text-2xl px-2" @click="showSortModal = true">sort</span>
+          <span tabindex="0" class="material-symbols text-2xl px-2" @click="showSortModal = true" @keydown.enter.prevent="showSortModal = true">sort</span>
         </template>
-        <span v-if="seriesBookPage" class="material-symbols text-2xl px-2" @click="downloadSeries">download</span>
-        <span v-if="(page == 'library' && isBookLibrary) || seriesBookPage" class="material-symbols text-2xl px-2" @click="showMoreMenuDialog = true">more_vert</span>
+        <span v-if="seriesBookPage" tabindex="0" class="material-symbols text-2xl px-2" @click="downloadSeries" @keydown.enter.prevent="downloadSeries">download</span>
+        <span v-if="(page == 'library' && isBookLibrary) || seriesBookPage" tabindex="0" class="material-symbols text-2xl px-2" @click="showMoreMenuDialog = true" @keydown.enter.prevent="showMoreMenuDialog = true">more_vert</span>
       </div>
     </div>
 

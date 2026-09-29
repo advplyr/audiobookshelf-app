@@ -1,10 +1,10 @@
 <template>
   <div class="w-full h-16 bg-primary relative z-20">
     <div id="appbar" class="absolute top-0 left-0 w-full h-full flex items-center px-2">
-      <nuxt-link v-show="!showBack" to="/" class="mr-3">
+      <nuxt-link v-show="!showBack" to="/" class="mr-3" tabindex="-1" aria-hidden="true">
         <img src="/Logo.png" class="h-10 w-10" />
       </nuxt-link>
-      <a v-if="showBack" @click="back" aria-label="Back" class="rounded-full h-10 w-10 flex items-center justify-center mr-2 cursor-pointer">
+      <a v-if="showBack" @click="back" @keydown.enter.prevent="back" aria-label="Back" tabindex="0" class="rounded-full h-10 w-10 flex items-center justify-center mr-2 cursor-pointer">
         <span class="material-symbols text-3xl text-fg">arrow_back</span>
       </a>
       <div v-if="user && currentLibrary">
