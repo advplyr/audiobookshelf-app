@@ -32,6 +32,7 @@ export default {
   watch: {
     networkConnected: {
       handler(newVal, oldVal) {
+        this.syncActiveBookmarks()
         if (!this.hasMounted) {
           // watcher runs before mount, handling libraries/connection should be handled in mount
           return
@@ -206,6 +207,7 @@ export default {
       this.$store.commit('user/setUser', user)
       this.$store.commit('user/setAccessToken', serverConnectionConfig.token)
       this.$store.commit('user/setServerConnectionConfig', serverConnectionConfig)
+      await this.syncActiveBookmarks()
 
       this.$socket.connect(serverConnectionConfig.address, serverConnectionConfig.token)
 
@@ -235,6 +237,15 @@ export default {
       this.$eventBus.$emit('library-changed')
       this.inittingLibraries = false
     },
+    async syncActiveBookmarks() {
+      if (!this.networkConnected || !this.user) return
+      try {
+        await this.$store.dispatch('bookmarks/syncActiveAccount')
+      } catch (error) {
+        console.error('[default] Failed to sync bookmarks', error)
+      }
+    },
+
     async syncLocalSessions(isFirstSync) {
       if (!this.user) {
         console.log('[default] No need to sync local sessions - not connected to server')
@@ -249,12 +260,14 @@ export default {
         await AbsLogger.info({ tag: 'default', message: 'syncLocalSessions: Successfully synced local sessions' })
         // Reload local media progresses
         await this.$store.dispatch('globals/loadLocalMediaProgress')
+        await this.syncActiveBookmarks()
       }
     },
     userUpdated(user) {
       if (this.user?.id == user.id) {
         this.$store.commit('user/setUser', user)
       }
+      this.syncActiveBookmarks()
     },
     async userMediaProgressUpdated(payload) {
       const prog = payload.data // MediaProgress
@@ -325,6 +338,7 @@ export default {
     },
     async visibilityChanged() {
       if (document.visibilityState === 'visible') {
+        await this.syncActiveBookmarks()
         const elapsedTimeOutOfFocus = Date.now() - this.timeLostFocus
         console.log(`✅ [default] device visibility: has focus (${elapsedTimeOutOfFocus}ms out of focus)`)
         // If device out of focus for more than 30s then reload local media progress

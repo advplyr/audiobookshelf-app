@@ -1,5 +1,65 @@
 import { Preferences } from '@capacitor/preferences'
 
+export const BOOKMARK_CACHE_VERSION = 1
+export const BOOKMARK_IDENTITIES_KEY = `bookmarkCacheIdentities:v${BOOKMARK_CACHE_VERSION}`
+
+export function getBookmarkCacheKey(identity) {
+  const parts = [identity?.serverConnectionConfigId, identity?.serverUserId, identity?.libraryItemId]
+  if (parts.some((part) => !part)) return null
+  return `bookmarkCache:v${BOOKMARK_CACHE_VERSION}:${parts.map((part) => encodeURIComponent(String(part))).join(':')}`
+}
+
+export function createEmptyBookmarkCache(identity) {
+  return {
+    version: BOOKMARK_CACHE_VERSION,
+    serverConnectionConfigId: identity?.serverConnectionConfigId || null,
+    serverUserId: identity?.serverUserId || null,
+    libraryItemId: identity?.libraryItemId || null,
+    bookmarks: [],
+    pendingOperations: [],
+    tombstones: {}
+  }
+}
+
+export function normalizeBookmarkCache(cache, identity) {
+  const empty = createEmptyBookmarkCache(identity)
+  if (!cache || cache.version !== BOOKMARK_CACHE_VERSION) return empty
+
+  const bookmarks = Array.isArray(cache.bookmarks) ? cache.bookmarks.filter((bookmark) => bookmark && Number.isFinite(Number(bookmark.time))).map((bookmark) => ({
+    ...bookmark,
+    time: Math.floor(Number(bookmark.time))
+  })) : []
+  const pendingOperations = Array.isArray(cache.pendingOperations) ? cache.pendingOperations.filter((operation) => operation && ['create', 'update', 'delete'].includes(operation.type) && operation.bookmarkKey != null).map((operation) => ({
+    ...operation,
+    bookmarkKey: String(operation.bookmarkKey),
+    attempts: Number(operation.attempts) || 0,
+    nextAttemptAt: Number(operation.nextAttemptAt) || 0,
+    permanentFailure: operation.permanentFailure === true,
+    lastError: operation.lastError || null
+  })) : []
+  const tombstones = cache.tombstones && typeof cache.tombstones === 'object' ? cache.tombstones : {}
+
+  return {
+    ...empty,
+    ...cache,
+    serverConnectionConfigId: identity?.serverConnectionConfigId || cache.serverConnectionConfigId,
+    serverUserId: identity?.serverUserId || cache.serverUserId,
+    libraryItemId: identity?.libraryItemId || cache.libraryItemId,
+    bookmarks,
+    pendingOperations,
+    tombstones
+  }
+}
+
+function isEmptyBookmarkCache(cache) {
+  return !cache.bookmarks.length && !cache.pendingOperations.length && !Object.keys(cache.tombstones).length
+}
+
+function identityKey(identity) {
+  if (!identity?.serverConnectionConfigId || !identity?.serverUserId || !identity?.libraryItemId) return null
+  return [identity.serverConnectionConfigId, identity.serverUserId, identity.libraryItemId].join(':')
+}
+
 class LocalStorage {
   constructor(vuexStore) {
     this.vuexStore = vuexStore
@@ -146,8 +206,8 @@ class LocalStorage {
 
   /**
    * Get preference value by key
-   * 
-   * @param {string} key 
+   *
+   * @param {string} key
    * @returns {Promise<string>}
    */
   async getPreferenceByKey(key) {
@@ -159,8 +219,89 @@ class LocalStorage {
       return null
     }
   }
-}
 
+  async getBookmarkCache(identity) {
+    const key = getBookmarkCacheKey(identity)
+    if (!key) return createEmptyBookmarkCache(identity)
+
+    try {
+      const preference = await Preferences.get({ key }) || {}
+      if (!preference.value) return createEmptyBookmarkCache(identity)
+      return normalizeBookmarkCache(JSON.parse(preference.value), identity)
+    } catch (error) {
+      console.warn('[LocalStorage] Failed to get bookmark cache; using an empty cache', error)
+      return createEmptyBookmarkCache(identity)
+    }
+  }
+
+  async _setBookmarkIdentities(identities) {
+    const unique = new Map()
+    for (const identity of identities) {
+      const key = identityKey(identity)
+      if (!key) continue
+      unique.set(key, {
+        key,
+        serverConnectionConfigId: identity.serverConnectionConfigId,
+        serverUserId: identity.serverUserId,
+        libraryItemId: identity.libraryItemId
+      })
+    }
+    await Preferences.set({ key: BOOKMARK_IDENTITIES_KEY, value: JSON.stringify(Array.from(unique.values())) })
+  }
+
+  async setBookmarkCache(identity, cache) {
+    const key = getBookmarkCacheKey(identity)
+    if (!key) throw new Error('Cannot persist bookmark cache without server, user, and item identity')
+
+    const normalizedCache = normalizeBookmarkCache(cache, identity)
+    try {
+      if (isEmptyBookmarkCache(normalizedCache)) {
+        await this.removeBookmarkCache(normalizedCache)
+        return normalizedCache
+      }
+
+      await Preferences.set({ key, value: JSON.stringify(normalizedCache) })
+      const identities = await this.getBookmarkIdentities()
+      identities.push(normalizedCache)
+      await this._setBookmarkIdentities(identities)
+    } catch (error) {
+      console.error('[LocalStorage] Failed to persist bookmark cache', error)
+      throw error
+    }
+    return normalizedCache
+  }
+
+  async getBookmarkIdentities() {
+    try {
+      const preference = await Preferences.get({ key: BOOKMARK_IDENTITIES_KEY }) || {}
+      const identities = preference.value ? JSON.parse(preference.value) : []
+      if (!Array.isArray(identities)) return []
+      return identities.filter((identity) => identityKey(identity)).map((identity) => ({
+        key: identityKey(identity),
+        serverConnectionConfigId: identity.serverConnectionConfigId,
+        serverUserId: identity.serverUserId,
+        libraryItemId: identity.libraryItemId
+      }))
+    } catch (error) {
+      console.warn('[LocalStorage] Failed to get bookmark identities', error)
+      return []
+    }
+  }
+
+  async removeBookmarkCache(identity) {
+    const key = getBookmarkCacheKey(identity)
+    if (!key) return
+    try {
+      await Preferences.remove({ key })
+      const removeKey = identityKey(identity)
+      const identities = await this.getBookmarkIdentities()
+      await this._setBookmarkIdentities(identities.filter((candidate) => identityKey(candidate) !== removeKey))
+    } catch (error) {
+      console.error('[LocalStorage] Failed to remove bookmark cache', error)
+      throw error
+    }
+  }
+}
 
 export default ({ app, store }, inject) => {
   inject('localStore', new LocalStorage(store))

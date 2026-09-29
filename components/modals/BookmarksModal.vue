@@ -24,7 +24,7 @@
         </div>
         <div class="w-full h-full" v-else>
           <template v-for="bookmark in bookmarks">
-            <modals-bookmarks-bookmark-item :key="bookmark.id" :highlight="currentTime === bookmark.time" :bookmark="bookmark" :playback-rate="_playbackRate" @click="clickBookmark" @edit="editBookmark" @delete="deleteBookmark" />
+            <modals-bookmarks-bookmark-item :key="bookmark.libraryItemId + '-' + bookmark.time" :highlight="Math.floor(currentTime) === bookmark.time" :bookmark="bookmark" :playback-rate="_playbackRate" @click="clickBookmark" @edit="editBookmark" @delete="deleteBookmark" />
           </template>
           <div v-if="!bookmarks.length" class="flex h-32 items-center justify-center">
             <p class="text-xl">{{ $strings.MessageNoBookmarks }}</p>
@@ -58,6 +58,7 @@ export default {
       type: Number,
       default: 1
     },
+    bookmarkIdentity: Object,
     libraryItemId: String
   },
   data() {
@@ -85,7 +86,7 @@ export default {
       }
     },
     canCreateBookmark() {
-      return !this.bookmarks.find((bm) => bm.time === this.currentTime)
+      return !this.bookmarks.find((bm) => bm.time === Math.floor(this.currentTime))
     },
     _playbackRate() {
       if (!this.playbackRate || isNaN(this.playbackRate)) return 1
@@ -110,25 +111,21 @@ export default {
       })
       if (!value) return
 
-      this.$nativeHttp
-        .delete(`/api/me/item/${this.libraryItemId}/bookmark/${bm.time}`)
-        .then(() => {
-          this.$store.commit('user/deleteBookmark', { libraryItemId: this.libraryItemId, time: bm.time })
-        })
-        .catch((error) => {
-          this.$toast.error(this.$strings.ToastBookmarkRemoveFailed)
-          console.error(error)
-        })
+      try {
+        await this.$store.dispatch('bookmarks/deleteBookmark', { identity: this.bookmarkIdentity, libraryItemId: this.libraryItemId, time: bm.time })
+      } catch (error) {
+        this.$toast.error(this.$strings.ToastBookmarkRemoveFailed)
+        console.error(error)
+      }
     },
     async clickBookmark(bm) {
       await this.$hapticsImpact()
       this.$emit('select', bm)
     },
     submitUpdateBookmark(updatedBookmark) {
-      this.$nativeHttp
-        .patch(`/api/me/item/${this.libraryItemId}/bookmark`, updatedBookmark)
-        .then((bookmark) => {
-          this.$store.commit('user/updateBookmark', bookmark)
+      this.$store
+        .dispatch('bookmarks/updateBookmark', { identity: this.bookmarkIdentity, bookmark: updatedBookmark })
+        .then(() => {
           this.showBookmarkTitleInput = false
         })
         .catch((error) => {
@@ -142,16 +139,12 @@ export default {
       }
       const bookmark = {
         title: this.newBookmarkTitle,
+        libraryItemId: this.libraryItemId,
         time: Math.floor(this.currentTime)
       }
-      this.$nativeHttp
-        .post(`/api/me/item/${this.libraryItemId}/bookmark`, bookmark)
-        .then(() => {
-          this.$toast.success('Bookmark added')
-        })
-        .catch((error) => {
-          this.$toast.error(this.$strings.ToastBookmarkCreateFailed)
-          console.error(error)
+      this.$store.dispatch('bookmarks/createBookmark', { identity: this.bookmarkIdentity, bookmark }).catch((error) => {
+        this.$toast.error(this.$strings.ToastBookmarkCreateFailed)
+        console.error(error)
         })
 
       this.newBookmarkTitle = ''
@@ -169,7 +162,8 @@ export default {
       if (this.selectedBookmark) {
         var updatePayload = {
           ...this.selectedBookmark,
-          title: this.newBookmarkTitle
+          title: this.newBookmarkTitle,
+          libraryItemId: this.libraryItemId,
         }
         this.submitUpdateBookmark(updatePayload)
       } else {
