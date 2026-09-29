@@ -12,6 +12,8 @@ class DeviceSettings: Object {
     @Persisted var disableAutoRewind: Bool = false
     @Persisted var enableAltView: Bool = true
     @Persisted var allowSeekingOnMediaControls: Bool = false
+    @Persisted var showMiniplayerCover: Bool = true
+    @Persisted var showMiniplayerTitle: Bool = true
     @Persisted var jumpBackwardsTime: Int = 10
     @Persisted var jumpForwardTime: Int = 10
     @Persisted var lockOrientation: String = "NONE"
@@ -31,6 +33,8 @@ func deviceSettingsToJSON(settings: DeviceSettings) -> Dictionary<String, Any> {
         "disableAutoRewind": settings.disableAutoRewind,
         "enableAltView": settings.enableAltView,
         "allowSeekingOnMediaControls": settings.allowSeekingOnMediaControls,
+        "showMiniplayerCover": settings.showMiniplayerCover,
+        "showMiniplayerTitle": settings.showMiniplayerTitle,
         "jumpBackwardsTime": settings.jumpBackwardsTime,
         "jumpForwardTime": settings.jumpForwardTime,
         "lockOrientation": settings.lockOrientation,

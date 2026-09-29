@@ -42,7 +42,7 @@
     </div>
 
     <!-- Book cover wrapper  -->
-    <div class="cover-wrapper absolute z-30 pointer-events-auto" @click="clickContainer">
+    <div v-if="showFullscreen || deviceSettings.showMiniplayerCover !== false" class="cover-wrapper absolute z-30 pointer-events-auto" @click="clickContainer">
       <div class="w-full h-full flex justify-center">
         <covers-book-cover v-if="libraryItem || localLibraryItemCoverSrc" ref="cover" :library-item="libraryItem" :download-cover="localLibraryItemCoverSrc" :width="bookCoverWidth" :book-cover-aspect-ratio="bookCoverAspectRatio" raw @imageLoaded="coverImageLoaded" />
       </div>
@@ -54,7 +54,7 @@
     </div>
 
     <!-- Title and author text -->
-    <div class="title-author-texts absolute z-30 left-0 right-0 overflow-hidden" @click="clickTitleAndAuthor">
+    <div v-show="showFullscreen || deviceSettings.showMiniplayerTitle !== false" class="title-author-texts absolute z-30 left-0 right-0 overflow-hidden" @click="clickTitleAndAuthor">
       <div ref="titlewrapper" class="overflow-hidden relative">
         <p class="title-text whitespace-nowrap"></p>
       </div>
@@ -205,6 +205,12 @@ export default {
   computed: {
     theme() {
       return document.documentElement.dataset.theme || 'dark'
+    },
+    deviceData() {
+      return this.$store.state.deviceData || {}
+    },
+    deviceSettings() {
+      return this.deviceData.deviceSettings || {}
     },
     menuItems() {
       const items = []
