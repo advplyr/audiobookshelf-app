@@ -67,6 +67,13 @@
       </div>
       <p class="pl-4">{{ $strings.LabelAllowSeekingOnMediaControls }}</p>
     </div>
+    <div v-if="!isiOS" class="flex items-center py-3">
+      <div class="w-10 flex justify-center" @click="toggleEnableAudioDucking">
+        <ui-toggle-switch v-model="settings.enableAudioDucking" @input="saveSettings" />
+      </div>
+      <p class="pl-4">{{ $strings.LabelEnableAudioDucking }}</p>
+      <span class="material-symbols text-xl ml-2" @click.stop="showInfo('enableAudioDucking')">info</span>
+    </div>
 
     <!-- Sleep timer settings -->
     <template v-if="!isiOS">
@@ -206,6 +213,7 @@ export default {
         jumpForwardTime: 10,
         jumpBackwardsTime: 10,
         enableMp3IndexSeeking: false,
+        enableAudioDucking: false,
         disableShakeToResetSleepTimer: false,
         shakeSensitivity: 'MEDIUM',
         lockOrientation: 0,
@@ -255,6 +263,10 @@ export default {
         enableMp3IndexSeeking: {
           name: this.$strings.LabelEnableMp3IndexSeeking,
           message: this.$strings.LabelEnableMp3IndexSeekingHelp
+        },
+        enableAudioDucking: {
+          name: this.$strings.LabelEnableAudioDucking,
+          message: this.$strings.LabelEnableAudioDuckingHelp
         },
         androidAutoBrowseLimitForGrouping: {
           name: this.$strings.LabelAndroidAutoBrowseLimitForGrouping,
@@ -575,6 +587,10 @@ export default {
       this.settings.enableMp3IndexSeeking = !this.settings.enableMp3IndexSeeking
       this.saveSettings()
     },
+    toggleEnableAudioDucking() {
+      this.settings.enableAudioDucking = !this.settings.enableAudioDucking
+      this.saveSettings()
+    },
     toggleAutoSleepTimer() {
       this.settings.autoSleepTimer = !this.settings.autoSleepTimer
       this.saveSettings()
@@ -646,6 +662,7 @@ export default {
       this.settings.jumpForwardTime = deviceSettings.jumpForwardTime || 10
       this.settings.jumpBackwardsTime = deviceSettings.jumpBackwardsTime || 10
       this.settings.enableMp3IndexSeeking = !!deviceSettings.enableMp3IndexSeeking
+      this.settings.enableAudioDucking = !!deviceSettings.enableAudioDucking
 
       this.settings.lockOrientation = deviceSettings.lockOrientation || 'NONE'
       this.lockCurrentOrientation = this.settings.lockOrientation !== 'NONE'
