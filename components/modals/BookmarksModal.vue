@@ -23,14 +23,32 @@
           </div>
         </div>
         <div class="w-full h-full" v-else>
+          <!-- Multi-select toolbar -->
+          <div v-if="selectMode" class="flex items-center justify-between px-4 py-2 bg-secondary border-b border-fg/10">
+            <div class="flex items-center">
+              <div class="w-9 h-9 flex items-center justify-center rounded-full hover:bg-white hover:bg-opacity-10 cursor-pointer" @click.stop="exitSelectMode">
+                <span class="material-symbols text-2xl">close</span>
+              </div>
+              <p class="text-sm pl-2">{{ selectedBookmarks.length }} {{ $strings.LabelSelected }}</p>
+            </div>
+            <div class="flex items-center">
+              <div class="w-9 h-9 flex items-center justify-center rounded-full hover:bg-white hover:bg-opacity-10 cursor-pointer mr-1" @click.stop="toggleSelectAll">
+                <span class="material-symbols text-2xl" :class="allSelected ? 'text-success fill' : 'text-fg-muted'">{{ allSelected ? 'check_circle' : 'select_all' }}</span>
+              </div>
+              <div v-if="selectedBookmarks.length > 0" class="w-9 h-9 flex items-center justify-center rounded-full hover:bg-white hover:bg-opacity-10 cursor-pointer" @click.stop="deleteSelectedBookmarks">
+                <span class="material-symbols text-2xl text-error">delete</span>
+              </div>
+            </div>
+          </div>
+
           <template v-for="bookmark in bookmarks">
-            <modals-bookmarks-bookmark-item :key="bookmark.id" :highlight="currentTime === bookmark.time" :bookmark="bookmark" :playback-rate="_playbackRate" @click="clickBookmark" @edit="editBookmark" @delete="deleteBookmark" />
+            <modals-bookmarks-bookmark-item :key="bookmark.id" :highlight="currentTime === bookmark.time" :bookmark="bookmark" :playback-rate="_playbackRate" :select-mode="selectMode" :selected="isBookmarkSelected(bookmark)" @click="clickBookmark" @edit="editBookmark" @delete="deleteBookmark" @toggle-select="toggleBookmarkSelect" @long-press="onBookmarkLongPress" />
           </template>
           <div v-if="!bookmarks.length" class="flex h-32 items-center justify-center">
             <p class="text-xl">{{ $strings.MessageNoBookmarks }}</p>
           </div>
         </div>
-        <div v-if="canCreateBookmark && !showBookmarkTitleInput" class="flex px-4 py-2 items-center text-center justify-between border-b border-fg/10 bg-success cursor-pointer text-white text-opacity-80 sticky bottom-0 left-0 w-full" @click.stop="createBookmark">
+        <div v-if="canCreateBookmark && !showBookmarkTitleInput && !selectMode" class="flex px-4 py-2 items-center text-center justify-between border-b border-fg/10 bg-success cursor-pointer text-white text-opacity-80 sticky bottom-0 left-0 w-full" @click.stop="createBookmark">
           <span class="material-symbols">add</span>
           <p class="text-base pl-2">{{ $strings.ButtonCreateBookmark }}</p>
           <p class="text-sm font-mono">{{ this.$secondsToTimestamp(currentTime / _playbackRate) }}</p>
@@ -64,7 +82,9 @@ export default {
     return {
       selectedBookmark: null,
       showBookmarkTitleInput: false,
-      newBookmarkTitle: ''
+      newBookmarkTitle: '',
+      selectMode: false,
+      selectedBookmarks: []
     }
   },
   watch: {
@@ -72,6 +92,7 @@ export default {
       if (newVal) {
         this.showBookmarkTitleInput = false
         this.newBookmarkTitle = ''
+        this.exitSelectMode()
       }
     }
   },
@@ -90,6 +111,9 @@ export default {
     _playbackRate() {
       if (!this.playbackRate || isNaN(this.playbackRate)) return 1
       return this.playbackRate
+    },
+    allSelected() {
+      return this.bookmarks.length > 0 && this.selectedBookmarks.length === this.bookmarks.length
     }
   },
   methods: {
@@ -175,6 +199,70 @@ export default {
       } else {
         this.submitCreateBookmark()
       }
+    },
+    // Multi-select methods
+    isBookmarkSelected(bookmark) {
+      return this.selectedBookmarks.some((bm) => bm.libraryItemId === bookmark.libraryItemId && bm.time === bookmark.time)
+    },
+    toggleBookmarkSelect(bookmark) {
+      if (this.isBookmarkSelected(bookmark)) {
+        this.selectedBookmarks = this.selectedBookmarks.filter((bm) => !(bm.libraryItemId === bookmark.libraryItemId && bm.time === bookmark.time))
+      } else {
+        this.selectedBookmarks.push(bookmark)
+      }
+      // Exit select mode if nothing is selected
+      if (this.selectedBookmarks.length === 0) {
+        this.selectMode = false
+      }
+    },
+    toggleSelectAll() {
+      if (this.allSelected) {
+        this.selectedBookmarks = []
+        this.selectMode = false
+      } else {
+        this.selectedBookmarks = [...this.bookmarks]
+      }
+    },
+    async onBookmarkLongPress(bookmark) {
+      await this.$hapticsImpact()
+      if (!this.selectMode) {
+        this.selectMode = true
+        this.selectedBookmarks = [bookmark]
+      }
+    },
+    exitSelectMode() {
+      this.selectMode = false
+      this.selectedBookmarks = []
+    },
+    async deleteSelectedBookmarks() {
+      await this.$hapticsImpact()
+      const count = this.selectedBookmarks.length
+      const { value } = await Dialog.confirm({
+        title: this.$strings.HeaderConfirmRemoveBookmarks,
+        message: this.$getString('MessageConfirmRemoveBookmarks', [count])
+      })
+      if (!value) return
+
+      const bookmarksToDelete = [...this.selectedBookmarks]
+      let failCount = 0
+
+      for (const bm of bookmarksToDelete) {
+        try {
+          await this.$nativeHttp.delete(`/api/me/item/${this.libraryItemId}/bookmark/${bm.time}`)
+          this.$store.commit('user/deleteBookmark', { libraryItemId: this.libraryItemId, time: bm.time })
+        } catch (error) {
+          failCount++
+          console.error('Failed to delete bookmark', error)
+        }
+      }
+
+      if (failCount > 0) {
+        this.$toast.error(this.$getString('ToastBookmarkRemoveSelectedFailed', [failCount]))
+      } else {
+        this.$toast.success(this.$getString('ToastBookmarkRemoveSelectedSuccess', [count]))
+      }
+
+      this.exitSelectMode()
     }
   },
   mounted() {}
