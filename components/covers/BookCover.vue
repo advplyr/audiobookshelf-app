@@ -55,13 +55,17 @@ export default {
     return {
       loading: true,
       imageFailed: false,
+      rawFailed: false,
       showCoverBg: false,
       imageReady: false
     }
   },
   watch: {
     cover() {
-      this.imageFailed = false
+      this.resetCoverState()
+    },
+    'libraryItem.id'() {
+      this.resetCoverState()
     }
   },
   computed: {
@@ -109,6 +113,9 @@ export default {
     placeholderUrl() {
       return '/book_placeholder.jpg'
     },
+    useRawCover() {
+      return this.raw && !this.rawFailed
+    },
     fullCoverUrl() {
       if (this.isLocal) {
         if (this.localCover) return Capacitor.convertFileSrc(this.localCover)
@@ -117,7 +124,7 @@ export default {
       if (this.downloadCover) return this.downloadCover
       if (!this.libraryItem) return null
       var store = this.$store || this.$nuxt.$store
-      return store.getters['globals/getLibraryItemCoverSrc'](this.libraryItem, this.placeholderUrl, this.raw)
+      return store.getters['globals/getLibraryItemCoverSrc'](this.libraryItem, this.placeholderUrl, this.useRawCover)
     },
     cover() {
       return this.media.coverPath || this.placeholderUrl
@@ -144,6 +151,13 @@ export default {
     }
   },
   methods: {
+    resetCoverState() {
+      this.imageFailed = false
+      this.rawFailed = false
+      this.loading = true
+      this.imageReady = false
+      this.showCoverBg = false
+    },
     setCoverBg() {
       if (this.$refs.coverBg) {
         this.$refs.coverBg.style.backgroundImage = `url("${this.fullCoverUrl}")`
@@ -171,8 +185,16 @@ export default {
       this.$emit('imageLoaded', this.fullCoverUrl)
     },
     imageError(err) {
+      // Prefer resized/cached cover when the full-resolution (raw) image fails
+      if (this.useRawCover) {
+        console.warn('ImgError raw cover failed, falling back to resized', this.fullCoverUrl, err)
+        this.rawFailed = true
+        this.loading = true
+        this.imageReady = false
+        return
+      }
       this.loading = false
-      console.error('ImgError', err)
+      console.error('ImgError', this.fullCoverUrl, err)
       this.imageFailed = true
     }
   },

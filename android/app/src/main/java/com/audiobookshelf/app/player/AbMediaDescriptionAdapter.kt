@@ -8,6 +8,7 @@ import android.os.Build
 import android.provider.MediaStore
 import android.support.v4.media.MediaMetadataCompat
 import android.support.v4.media.session.MediaControllerCompat
+import android.util.Log
 import com.google.android.exoplayer2.Player
 import com.google.android.exoplayer2.ui.PlayerNotificationManager
 import kotlinx.coroutines.*
@@ -48,12 +49,17 @@ class AbMediaDescriptionAdapter (private val controller: MediaControllerCompat, 
       currentIconUri = albumArtUri
 
       if (currentIconUri.toString().startsWith("content://")) {
-        currentBitmap = if (Build.VERSION.SDK_INT < 28) {
-          @Suppress("DEPRECATION")
-          MediaStore.Images.Media.getBitmap(playerNotificationService.contentResolver, currentIconUri)
-        } else {
-          val source: ImageDecoder.Source = ImageDecoder.createSource(playerNotificationService.contentResolver, currentIconUri!!)
-          ImageDecoder.decodeBitmap(source)
+        currentBitmap = try {
+          if (Build.VERSION.SDK_INT < 28) {
+            @Suppress("DEPRECATION")
+            MediaStore.Images.Media.getBitmap(playerNotificationService.contentResolver, currentIconUri)
+          } else {
+            val source: ImageDecoder.Source = ImageDecoder.createSource(playerNotificationService.contentResolver, currentIconUri!!)
+            ImageDecoder.decodeBitmap(source)
+          }
+        } catch (e: Exception) {
+          Log.e("AbMediaDescriptionAdapter", "Failed to decode bitmap: ${e.message}")
+          null
         }
         currentBitmap
       } else {
