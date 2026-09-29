@@ -45,6 +45,7 @@ class AudioPlayer: NSObject {
     private var queueItemStatusObserver:NSKeyValueObservation?
     
     private var isRebuildingQueue = false
+    private var wasPlayingBeforeInterruption = false
     
     // Sleep timer values
     internal var sleepTimeChapterStopAt: Double?
@@ -190,11 +191,17 @@ class AudioPlayer: NSObject {
     private func setupAudioSessionNotifications() {
         NotificationCenter.default.addObserver(self, selector: #selector(handleInteruption), name: AVAudioSession.interruptionNotification, object: AVAudioSession.sharedInstance())
         NotificationCenter.default.addObserver(self, selector: #selector(handleRouteChange), name: AVAudioSession.routeChangeNotification, object: AVAudioSession.sharedInstance())
+        if #available(iOS 15.0, *) {
+            NotificationCenter.default.addObserver(self, selector: #selector(handlePlayerRateChange), name: AVPlayer.rateDidChangeNotification, object: self.audioPlayer)
+        }
     }
-    
+
     private func removeAudioSessionNotifications() {
         NotificationCenter.default.removeObserver(self, name: AVAudioSession.interruptionNotification, object: AVAudioSession.sharedInstance())
         NotificationCenter.default.removeObserver(self, name: AVAudioSession.routeChangeNotification, object: AVAudioSession.sharedInstance())
+        if #available(iOS 15.0, *) {
+            NotificationCenter.default.removeObserver(self, name: AVPlayer.rateDidChangeNotification, object: self.audioPlayer)
+        }
     }
     
     private func setupTimeObservers() {
@@ -305,6 +312,7 @@ class AudioPlayer: NSObject {
     
     // MARK: - Methods
     public func play(allowSeekBack: Bool = false, isInitializing: Bool = false) {
+        AbsLogger.info(message:"PLAY: play() called allowSeekBack=\(allowSeekBack) isInitializing=\(isInitializing) status=\(self.status)")
         guard self.isInitialized() || isInitializing else { return }
         guard let session = self.getPlaybackSession() else {
             NotificationCenter.default.post(name: NSNotification.Name(PlayerEvents.failed.rawValue), object: nil)
@@ -623,10 +631,14 @@ class AudioPlayer: NSObject {
         }
         
         switch type {
+            case .began:
+                wasPlayingBeforeInterruption = self.status == .playing
+                AbsLogger.info(message:"INTERRUPTION: began wasPlayingBeforeInterruption=\(wasPlayingBeforeInterruption)")
             case .ended:
                 guard let optionsValue = userInfo[AVAudioSessionInterruptionOptionKey] as? UInt else { return }
                 let options = AVAudioSession.InterruptionOptions(rawValue: optionsValue)
-                if options.contains(.shouldResume) {
+                AbsLogger.info(message:"INTERRUPTION: ended shouldResume=\(options.contains(.shouldResume)) wasPlayingBeforeInterruption=\(wasPlayingBeforeInterruption)")
+                if options.contains(.shouldResume) && wasPlayingBeforeInterruption {
                     self.play(allowSeekBack: true)
                 }
             default: ()
@@ -644,6 +656,8 @@ class AudioPlayer: NSObject {
         case .newDeviceAvailable: // New device found.
             let session = AVAudioSession.sharedInstance()
             let headphonesConnected = hasHeadphones(in: session.currentRoute)
+            let outputTypes = session.currentRoute.outputs.map { $0.portType.rawValue }
+            AbsLogger.info(message:"ROUTECHANGE: newDeviceAvailable outputs=\(outputTypes) status=\(self.status) playerRate=\(self.audioPlayer.rate)")
             if headphonesConnected {
                 // We should just let things be, as it's okay to go from speaker to headphones
             }
@@ -660,6 +674,20 @@ class AudioPlayer: NSObject {
         }
     }
     
+    // On iOS 16+, AVPlayer automatically resumes at defaultRate after an audio session interruption ends.
+    // This catches that auto-resume and cancels it if the user had intentionally paused.
+    @objc private func handlePlayerRateChange(notification: Notification) {
+        guard #available(iOS 16.0, *) else { return }
+        let reason = notification.userInfo?[AVPlayer.rateDidChangeReasonKey] as? AVPlayer.RateDidChangeReason
+        AbsLogger.info(message:"RATECHANGE: reason=\(String(describing: reason)) rate=\(self.audioPlayer.rate) status=\(self.status)")
+        guard reason == .audioSessionInterrupted,
+              self.audioPlayer.rate > 0,
+              self.status == .paused else { return }
+        DispatchQueue.runOnMainQueue {
+            self.audioPlayer.pause()
+        }
+    }
+
     private func hasHeadphones(in routeDescription: AVAudioSessionRouteDescription) -> Bool {
         // Filter the outputs to only those with a port type of headphones.
         return !routeDescription.outputs.filter({$0.portType == .headphones}).isEmpty
@@ -679,11 +707,8 @@ class AudioPlayer: NSObject {
         commandCenter.playCommand.removeTarget(nil)
         commandCenter.playCommand.addTarget { [weak self] event in
             guard let strongSelf = self else { return .commandFailed }
-            if strongSelf.isPlaying() {
-                strongSelf.pause()
-            } else {
-                strongSelf.play(allowSeekBack: true)
-            }
+            AbsLogger.info(message:"REMOTE: playCommand received isPlaying=\(strongSelf.isPlaying())")
+            strongSelf.play(allowSeekBack: true)
             return .success
         }
 
@@ -691,11 +716,8 @@ class AudioPlayer: NSObject {
         commandCenter.pauseCommand.removeTarget(nil)
         commandCenter.pauseCommand.addTarget { [weak self] event in
             guard let strongSelf = self else { return .commandFailed }
-            if strongSelf.isPlaying() {
-                strongSelf.pause()
-            } else {
-                strongSelf.play(allowSeekBack: true)
-            }
+            AbsLogger.info(message:"REMOTE: pauseCommand received isPlaying=\(strongSelf.isPlaying())")
+            strongSelf.pause()
             return .success
         }
 
@@ -703,6 +725,7 @@ class AudioPlayer: NSObject {
         commandCenter.togglePlayPauseCommand.removeTarget(nil)
         commandCenter.togglePlayPauseCommand.addTarget { [weak self] event in
             guard let strongSelf = self else { return .commandFailed }
+            AbsLogger.info(message:"REMOTE: togglePlayPauseCommand received isPlaying=\(strongSelf.isPlaying())")
             if strongSelf.isPlaying() {
                 strongSelf.pause()
             } else {
