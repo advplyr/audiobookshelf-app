@@ -40,6 +40,7 @@ export default {
         font: 'serif',
         fontScale: 100,
         lineSpacing: 115,
+        flow: 'paginated',
         textStroke: 0
       }
     }
@@ -137,6 +138,11 @@ export default {
       this.rendition.themes.fontSize(`${fontScale}%`)
       this.rendition.themes.font(settings.font)
       this.rendition.spread(settings.spread || 'auto')
+
+      const flow = settings.flow || 'paginated'
+      if (this.rendition.settings.flow !== flow) {
+        this.rendition.flow(flow)
+      }
     },
     goToChapter(href) {
       return this.rendition?.display(href)
@@ -325,7 +331,7 @@ export default {
         height: window.innerHeight - this.readerHeightOffset,
         snap: true,
         manager: 'continuous',
-        flow: 'paginated'
+        flow: this.ereaderSettings.flow || 'paginated'
       })
 
       reader.book.ready.then(() => {
@@ -340,6 +346,8 @@ export default {
           console.log('%c [EpubReader] Rendition displayed', 'color:blue;')
 
           // Overriding the needsSnap function in epubjs `snap.js` to fix a bug with scrollLeft being a decimal
+          // Snapper only exists in paginated flow
+          if (!reader.rendition.manager.snapper) return
           reader.rendition.manager.snapper.needsSnap = function () {
             let left = Math.round(this.scrollLeft)
             let snapWidth = this.layout.pageWidth * this.layout.divisor
@@ -450,6 +458,11 @@ export default {
   height: calc(100% - 32px);
   max-height: calc(100% - 32px);
   overflow: hidden;
+}
+/* epubjs already corrects scroll position when prepending sections in scrolled flow.
+   Browser scroll anchoring would correct it a second time, jumping a whole section. */
+#viewer .epub-container {
+  overflow-anchor: none;
 }
 .reader-player-open #epub-frame {
   height: calc(100% - 132px);
