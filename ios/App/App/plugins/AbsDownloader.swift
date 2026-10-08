@@ -27,6 +27,7 @@ public class AbsDownloader: CAPPlugin, CAPBridgedPlugin, URLSessionDownloadDeleg
     }()
     private let progressStatusQueue = DispatchQueue(label: "progress-status-queue", attributes: .concurrent)
     private var downloadItemProgress = [String: DownloadItem]()
+    private var progressCoalescer = DownloadProgressCoalescer()
     private var monitoringProgressTimer: Timer?
 
     // Download queue management
@@ -101,6 +102,9 @@ public class AbsDownloader: CAPPlugin, CAPBridgedPlugin, URLSessionDownloadDeleg
     }
     
     public func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
+        // Flush any coalesced progress before completion so the final persisted progress is exact
+        flushPendingDownloadProgress()
+
         handleDownloadTaskUpdate(downloadTask: task) { downloadItem, downloadItemPart in
             if let error = error {
                 let realm = try Realm()
@@ -126,26 +130,12 @@ public class AbsDownloader: CAPPlugin, CAPBridgedPlugin, URLSessionDownloadDeleg
     }
     
     public func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didWriteData bytesWritten: Int64, totalBytesWritten: Int64, totalBytesExpectedToWrite: Int64) {
-        handleDownloadTaskUpdate(downloadTask: downloadTask) { downloadItem, downloadItemPart in
-            // Calculate the download percentage
-            let percentDownloaded = (Double(totalBytesWritten) / Double(totalBytesExpectedToWrite)) * 100
-
-            // Only update the progress if we received accurate progress data
-            if percentDownloaded >= 0.0 && percentDownloaded <= 100.0 {
-                let realm = try Realm()
-                let partId = downloadItemPart.id
-
-                // Get fresh reference to the object in this realm
-                guard let liveDownloadItemPart = realm.object(ofType: DownloadItemPart.self, forPrimaryKey: partId) else {
-                    throw LibraryItemDownloadError.downloadItemPartNotFound
-                }
-
-                try realm.write {
-                    liveDownloadItemPart.bytesDownloaded = Double(totalBytesWritten)
-                    liveDownloadItemPart.progress = percentDownloaded
-                }
-            }
+        // Per-chunk work stays in memory; the progress monitor timer flushes it to Realm and the WebView
+        guard let partId = downloadTask.taskDescription else { return }
+        progressStatusQueue.async(flags: .barrier) {
+            self.progressCoalescer.record(partId: partId, totalBytesWritten: totalBytesWritten, totalBytesExpectedToWrite: totalBytesExpectedToWrite)
         }
+        self.notifyDownloadProgress()
     }
     
     // Called when downloads are complete on the background thread
@@ -194,14 +184,59 @@ public class AbsDownloader: CAPPlugin, CAPBridgedPlugin, URLSessionDownloadDeleg
         }
     }
     
+    // Drains coalesced per-chunk progress and does the Realm write, bridge event, and
+    // progress map update for each part. Called from the progress monitor timer and
+    // before a download task completes, so per-chunk callbacks never touch Realm.
+    private func flushPendingDownloadProgress() {
+        let pendingProgress = progressStatusQueue.sync {
+            progressCoalescer.drain()
+        }
+        guard !pendingProgress.isEmpty else { return }
+
+        for (partId, progress) in pendingProgress {
+            // Find the download item
+            guard let downloadItem = Database.shared.getDownloadItem(downloadItemPartId: partId) else { continue }
+
+            // Find the download item part
+            guard let part = downloadItem.downloadItemParts.first(where: { $0.id == partId }) else { continue }
+
+            do {
+                let realm = try Realm()
+
+                // Get fresh reference to the object in this realm
+                guard let liveDownloadItemPart = realm.object(ofType: DownloadItemPart.self, forPrimaryKey: partId) else {
+                    throw LibraryItemDownloadError.downloadItemPartNotFound
+                }
+
+                // A completed part already has its exact final progress written by the completion handler
+                guard !liveDownloadItemPart.completed else { continue }
+
+                try realm.write {
+                    liveDownloadItemPart.bytesDownloaded = progress.bytesWritten
+                    liveDownloadItemPart.progress = progress.percent
+                }
+                try? self.notifyListeners("onDownloadItemPartUpdate", data: part.asDictionary())
+            } catch {
+                AbsLogger.error(message: "Error while flushing download progress")
+                debugPrint(error)
+            }
+
+            // Update the progress
+            let frozenDownloadItem = downloadItem.freeze()
+            self.progressStatusQueue.async(flags: .barrier) {
+                self.downloadItemProgress.updateValue(frozenDownloadItem, forKey: frozenDownloadItem.id!)
+            }
+        }
+    }
+
     // We want to handle updating the UI in the background and throttled so we don't overload the UI with progress updates
     private func notifyDownloadProgress() {
         if self.monitoringProgressTimer?.isValid ?? false {
-            AbsLogger.info(message: "Already monitoring progress, no need to start timer again")
+            // Already monitoring progress, no need to start timer again
         } else {
             DispatchQueue.runOnMainQueue {
-                self.monitoringProgressTimer = Timer.scheduledTimer(withTimeInterval: 0.2, repeats: true, block: { [unowned self] t in
-                    AbsLogger.info(message: "Starting monitoring download progress...")
+                self.monitoringProgressTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true, block: { [unowned self] t in
+                    self.flushPendingDownloadProgress()
                     
                     // Fetch active downloads in a thread-safe way
                     func fetchActiveDownloads() -> [String: DownloadItem]? {
