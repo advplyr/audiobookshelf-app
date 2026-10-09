@@ -9,6 +9,7 @@ import com.audiobookshelf.wear.data.AbsApi
 import com.audiobookshelf.wear.data.AuthStore
 import com.audiobookshelf.wear.data.DownloadStore
 import com.audiobookshelf.wear.data.ProgressStore
+import com.audiobookshelf.wear.sync.ContentSettings
 import com.audiobookshelf.wear.sync.PhoneConfig
 import com.audiobookshelf.wear.sync.SessionSync
 import kotlinx.coroutines.CoroutineScope
@@ -24,6 +25,7 @@ class WearApp : Application(), ImageLoaderFactory {
   lateinit var downloads: DownloadStore
   lateinit var progress: ProgressStore
   lateinit var phoneConfig: PhoneConfig
+  lateinit var contentSettings: ContentSettings
   lateinit var sessionSync: SessionSync
 
   override fun onCreate() {
@@ -33,6 +35,7 @@ class WearApp : Application(), ImageLoaderFactory {
     downloads = DownloadStore(this)
     progress = ProgressStore(this)
     phoneConfig = PhoneConfig(this)
+    contentSettings = ContentSettings(this)
     sessionSync = SessionSync(this, api, auth, progress)
 
     getSystemService(NotificationManager::class.java).createNotificationChannel(

@@ -1,5 +1,6 @@
 package com.audiobookshelf.wear.data
 
+import android.util.Base64
 import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -78,6 +79,21 @@ class AbsApi(private val auth: AuthStore) {
     return response.getJSONArray("results").objects().map(::summary) to response.optInt("total")
   }
 
+  suspend fun librarySeries(libraryId: String, page: Int, limit: Int = 30): Pair<List<SeriesSummary>, Int> {
+    val response = get("/api/libraries/$libraryId/series?minified=1&sort=name&limit=$limit&page=$page")
+    val series = response.getJSONArray("results").objects().map {
+      SeriesSummary(it.getString("id"), it.optString("name"), it.optJSONArray("books")?.objects()?.map(::summary) ?: emptyList())
+    }
+    return series to response.optInt("total")
+  }
+
+  /** One series' books in reading order. */
+  suspend fun seriesBooks(libraryId: String, seriesId: String): List<BookSummary> {
+    val filter = URLEncoder.encode(Base64.encodeToString(seriesId.toByteArray(), Base64.NO_WRAP), "UTF-8")
+    val response = get("/api/libraries/$libraryId/items?minified=1&filter=series.$filter&sort=sequence")
+    return response.getJSONArray("results").objects().map(::summary)
+  }
+
   suspend fun search(libraryId: String, query: String): List<BookSummary> {
     val q = URLEncoder.encode(query, "UTF-8")
     val response = get("/api/libraries/$libraryId/search?q=$q&limit=20")
@@ -125,7 +141,8 @@ class AbsApi(private val auth: AuthStore) {
       id = item.getString("id"),
       title = metadata.optString("title"),
       author = metadata.optString("authorName"),
-      duration = media.optDouble("duration", 0.0)
+      duration = media.optDouble("duration", 0.0),
+      seriesName = metadata.optString("seriesName")
     )
   }
 

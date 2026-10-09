@@ -35,8 +35,9 @@ private data class HomeData(
   val progress: Map<String, ServerProgress>
 )
 
+/** The original scrolling list home, available via Settings → Scrollable homepage (off by default). */
 @Composable
-fun HomeScreen(nav: NavHostController) {
+fun ClassicHomeScreen(nav: NavHostController) {
   val app = LocalApp.current
   val context = LocalContext.current
   val nowPlaying by NowPlaying.book.collectAsState()

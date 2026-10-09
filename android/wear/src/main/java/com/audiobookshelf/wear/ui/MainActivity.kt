@@ -86,6 +86,11 @@ object Routes {
   const val SLEEP = "sleep"
   const val CHAPTERS = "chapters"
   const val SETTINGS = "settings"
+  const val CONTINUE = "continue"
+  const val LIBRARIES = "libraries"
+  const val SERIES_LIBRARIES = "series_libraries"
+  fun series(libraryId: String, libraryName: String) = "series/$libraryId/${android.net.Uri.encode(libraryName)}"
+  fun seriesDetail(libraryId: String, seriesId: String, name: String) = "seriesDetail/$libraryId/$seriesId/${android.net.Uri.encode(name)}"
   fun library(id: String, name: String) = "library/$id/${android.net.Uri.encode(name)}"
   fun search(libraryId: String) = "search/$libraryId"
   fun item(id: String) = "item/$id"
@@ -107,7 +112,20 @@ private fun AppNavigation(openPlayerRequest: MutableStateFlow<Boolean>) {
     }
   }
   SwipeDismissableNavHost(navController = nav, startDestination = Routes.HOME) {
-    composable(Routes.HOME) { HomeScreen(nav) }
+    composable(Routes.HOME) {
+      val classicHome by LocalApp.current.contentSettings.classicHome.collectAsState()
+      if (classicHome) ClassicHomeScreen(nav) else HomeHubScreen(nav)
+    }
+    composable(Routes.CONTINUE) { ContinueListeningScreen(nav) }
+    composable(Routes.LIBRARIES) { LibraryPickerScreen(nav, forSeries = false) }
+    composable(Routes.SERIES_LIBRARIES) { LibraryPickerScreen(nav, forSeries = true) }
+    composable("series/{libraryId}/{name}") {
+      SeriesListScreen(nav, it.arguments?.getString("libraryId")!!, it.arguments?.getString("name").orEmpty())
+    }
+    composable("seriesDetail/{libraryId}/{seriesId}/{name}") {
+      val args = it.arguments!!
+      SeriesDetailScreen(nav, args.getString("libraryId")!!, args.getString("seriesId")!!, args.getString("name").orEmpty())
+    }
     composable("library/{id}/{name}") {
       LibraryScreen(nav, it.arguments?.getString("id")!!, it.arguments?.getString("name").orEmpty())
     }

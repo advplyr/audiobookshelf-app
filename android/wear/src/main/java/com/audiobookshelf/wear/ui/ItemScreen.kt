@@ -79,8 +79,7 @@ fun ItemScreen(nav: NavHostController, itemId: String) {
     playError = null
     scope.launch {
       try {
-        if (!isCurrent) player.play(book)
-        nav.navigate(Routes.PLAYER)
+        startBook(player, nav, book)
       } catch (e: Exception) {
         playError = e.message ?: "Could not start playback"
       } finally {

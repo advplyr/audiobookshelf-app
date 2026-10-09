@@ -47,7 +47,19 @@ data class BookSummary(
   val id: String,
   val title: String,
   val author: String,
-  val duration: Double
+  val duration: Double,
+  /** e.g. "Defiance of the Fall #3" for books in a series */
+  val seriesName: String = ""
+) {
+  /** The book's number within a series, e.g. "3", parsed from [seriesName]. */
+  val seriesSequence: String? get() = seriesName.substringAfterLast(" #", "").takeIf { it.isNotEmpty() }
+}
+
+data class SeriesSummary(
+  val id: String,
+  val name: String,
+  /** In reading order */
+  val books: List<BookSummary>
 )
 
 data class ServerProgress(

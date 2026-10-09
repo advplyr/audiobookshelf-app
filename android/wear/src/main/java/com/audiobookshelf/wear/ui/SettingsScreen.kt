@@ -2,6 +2,7 @@ package com.audiobookshelf.wear.ui
 
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Logout
+import androidx.compose.material.icons.automirrored.filled.ViewList
 import androidx.compose.material.icons.filled.CloudDone
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.runtime.Composable
@@ -26,6 +27,7 @@ import androidx.wear.compose.material3.EdgeButton
 import androidx.wear.compose.material3.EdgeButtonDefaults
 import androidx.wear.compose.material3.EdgeButtonSize
 import androidx.wear.compose.material3.SurfaceTransformation
+import androidx.wear.compose.material3.SwitchButton
 import androidx.wear.compose.material3.Text
 import kotlinx.coroutines.launch
 
@@ -37,6 +39,7 @@ fun SettingsScreen() {
   var pending by remember { mutableIntStateOf(app.progress.pendingSessions().size) }
   var syncing by remember { mutableStateOf(false) }
   var confirmSignOut by remember { mutableStateOf(false) }
+  val classicHome by app.contentSettings.classicHome.collectAsState()
 
   ListScreen(
     edgeButton = {
@@ -76,6 +79,16 @@ fun SettingsScreen() {
           syncing = false
         }
       }
+    }
+    item {
+      SwitchButton(
+        checked = classicHome,
+        onCheckedChange = { app.contentSettings.setClassicHome(it) },
+        modifier = itemModifier(spec),
+        transformation = SurfaceTransformation(spec),
+        icon = { Icon(Icons.AutoMirrored.Default.ViewList, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize)) },
+        label = { Text("Scrollable homepage") }
+      )
     }
   }
 
