@@ -126,6 +126,9 @@ dependencies {
   // OK HTTP
   implementation 'com.squareup.okhttp3:okhttp:4.9.2'
 
+  // Wearable Data Layer, shares the server connection with the Wear OS app
+  implementation 'com.google.android.gms:play-services-wearable:18.0.0'
+
   // Jackson for JSON
   implementation 'com.fasterxml.jackson.module:jackson-module-kotlin:2.12.2'
 }
