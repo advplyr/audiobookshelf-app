@@ -8,6 +8,9 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
+import android.util.Log
+import kotlin.math.abs
 import org.json.JSONObject
 
 /**
@@ -23,9 +26,17 @@ class ListeningTracker(
   private var timeListening = 0.0
   private var lastTickAt = 0L
   private var ticker: Job? = null
+  private var pausedAt = 0L
+  private var lastRecordedAt = 0L
+  /** While true, reports are held back so a stale position is never sent. */
+  private var checkingServer = false
 
   override fun onIsPlayingChanged(isPlaying: Boolean) {
     if (isPlaying) {
+      val pausedFor = if (pausedAt > 0) SystemClock.elapsedRealtime() - pausedAt else 0L
+      pausedAt = 0L
+      // Another device may have listened while we were paused (e.g. resumed from the watch face controls)
+      if (pausedFor > RESUME_CHECK_AFTER_MS) checkServerProgress()
       lastTickAt = SystemClock.elapsedRealtime()
       ticker?.cancel()
       ticker = scope.launch {
@@ -37,6 +48,36 @@ class ListeningTracker(
     } else {
       ticker?.cancel()
       record()
+      pausedAt = SystemClock.elapsedRealtime()
+    }
+  }
+
+  /**
+   * Seeks to the server's position if it changed after our last report, so the newest progress
+   * wins instead of being overwritten by where this watch happened to be paused.
+   */
+  private fun checkServerProgress() {
+    val playing = NowPlaying.book.value ?: return
+    val since = lastRecordedAt
+    checkingServer = true
+    scope.launch {
+      try {
+        val server = withTimeoutOrNull(SERVER_CHECK_TIMEOUT_MS) {
+          runCatching { app.api.progress(playing.book.id) }.getOrNull()
+        }
+        val stillSameSession = NowPlaying.book.value?.sessionId == playing.sessionId
+        if (server != null && stillSameSession && !server.isFinished && server.lastUpdate > since) {
+          if (abs(server.currentTime - playing.bookTime(player)) > 2) {
+            Log.i(TAG, "Server progress is newer, moving to ${server.currentTime}s")
+            val (index, positionMs) = playing.trackPosition(server.currentTime)
+            player.seekTo(index, positionMs)
+          }
+        }
+      } finally {
+        checkingServer = false
+        // Save a pause that happened while we were checking
+        if (!player.isPlaying) record()
+      }
     }
   }
 
@@ -52,8 +93,10 @@ class ListeningTracker(
   }
 
   private fun record() {
+    if (checkingServer) return
     val playing = NowPlaying.book.value ?: return
     val now = System.currentTimeMillis()
+    lastRecordedAt = now
     if (lastTickAt > 0) {
       timeListening += (SystemClock.elapsedRealtime() - lastTickAt) / 1000.0
     }
@@ -90,7 +133,10 @@ class ListeningTracker(
   }
 
   companion object {
+    private const val TAG = "ListeningTracker"
     private const val SYNC_INTERVAL_MS = 15_000L
+    private const val RESUME_CHECK_AFTER_MS = 5_000L
+    private const val SERVER_CHECK_TIMEOUT_MS = 4_000L
     private const val PLAYMETHOD_DIRECTPLAY = 0
     private const val PLAYMETHOD_LOCAL = 3
   }

@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.FormatListBulleted
 import androidx.compose.material.icons.filled.Bedtime
@@ -197,12 +198,20 @@ fun PlayerScreen(nav: NavHostController) {
         verticalArrangement = Arrangement.Center,
         modifier = Modifier.fillMaxSize().padding(horizontal = size * 0.14f)
       ) {
-        Text(
-          book.title,
-          style = MaterialTheme.typography.titleSmall,
-          maxLines = 1,
+        // The cover scrolls together with a long title because the marquee is on the whole row
+        Row(
+          verticalAlignment = Alignment.CenterVertically,
           modifier = Modifier.basicMarquee(iterations = Int.MAX_VALUE)
-        )
+        ) {
+          val app = LocalApp.current
+          val coverFile = app.downloads.coverFile(book.id)
+          Cover(
+            model = if (current.isLocal && coverFile.exists()) coverFile else app.api.coverUrl(book.id, 64),
+            size = 18.dp
+          )
+          Spacer(Modifier.width(4.dp))
+          Text(book.title, style = MaterialTheme.typography.titleSmall, maxLines = 1, softWrap = false)
+        }
         Text(
           listOfNotNull(
             if (chapterIndex >= 0) "Ch ${chapterIndex + 1}" else null,

@@ -13,12 +13,18 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.foundation.layout.size
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.layout.padding
 import androidx.wear.compose.material3.AlertDialog
 import androidx.wear.compose.material3.AlertDialogDefaults
 import androidx.wear.compose.material3.ButtonDefaults
 import androidx.wear.compose.material3.Icon
-import androidx.wear.compose.material3.OutlinedButton
+import androidx.wear.compose.material3.EdgeButton
+import androidx.wear.compose.material3.EdgeButtonDefaults
+import androidx.wear.compose.material3.EdgeButtonSize
 import androidx.wear.compose.material3.SurfaceTransformation
 import androidx.wear.compose.material3.Text
 import kotlinx.coroutines.launch
@@ -32,7 +38,25 @@ fun SettingsScreen() {
   var syncing by remember { mutableStateOf(false) }
   var confirmSignOut by remember { mutableStateOf(false) }
 
-  ListScreen {
+  ListScreen(
+    edgeButton = {
+      EdgeButton(
+        onClick = { confirmSignOut = true },
+        buttonSize = EdgeButtonSize.Medium,
+        colors = ButtonDefaults.filledTonalButtonColors()
+      ) {
+        // Small watches only have room for the label
+        if (LocalConfiguration.current.screenWidthDp >= 210) {
+          Icon(
+            Icons.AutoMirrored.Default.Logout,
+            contentDescription = null,
+            modifier = Modifier.size(EdgeButtonDefaults.SmallIconSize).align(Alignment.CenterVertically)
+          )
+        }
+        Text("Sign out", maxLines = 1, softWrap = false, modifier = Modifier.padding(start = 4.dp).align(Alignment.CenterVertically))
+      }
+    }
+  ) {
     header("Settings")
     caption(account?.username.orEmpty())
     caption(account?.serverAddress?.removePrefix("https://")?.removePrefix("http://").orEmpty())
@@ -52,15 +76,6 @@ fun SettingsScreen() {
           syncing = false
         }
       }
-    }
-    item {
-      OutlinedButton(
-        onClick = { confirmSignOut = true },
-        modifier = itemModifier(spec),
-        transformation = SurfaceTransformation(spec),
-        icon = { Icon(Icons.AutoMirrored.Default.Logout, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize)) },
-        label = { Text("Sign out") }
-      )
     }
   }
 

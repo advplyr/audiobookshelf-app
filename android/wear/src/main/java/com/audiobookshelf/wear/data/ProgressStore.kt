@@ -25,14 +25,28 @@ class ProgressStore(context: Context) {
       .apply()
   }
 
+  /** Queues a session report, unless a newer report for the same session is already queued. */
   @Synchronized
   fun addPendingSession(session: JSONObject) {
-    pendingPrefs.edit().putString(session.getString("id"), session.toString()).apply()
+    val id = session.getString("id")
+    val queued = pendingPrefs.getString(id, null)?.let(::JSONObject)
+    if (queued != null && queued.optLong("updatedAt") > session.optLong("updatedAt")) return
+    pendingPrefs.edit().putString(id, session.toString()).apply()
   }
 
+  /**
+   * Removes queued reports that have been sent. A report that was replaced by a newer one while
+   * the older copy was being sent is kept, so it still gets sent.
+   */
   @Synchronized
-  fun removePendingSessions(ids: Collection<String>) {
-    pendingPrefs.edit().apply { ids.forEach { remove(it) } }.apply()
+  fun removePendingSessions(sent: Collection<JSONObject>) {
+    val editor = pendingPrefs.edit()
+    sent.forEach { session ->
+      val id = session.getString("id")
+      val queued = pendingPrefs.getString(id, null)?.let(::JSONObject) ?: return@forEach
+      if (queued.optLong("updatedAt") <= session.optLong("updatedAt")) editor.remove(id)
+    }
+    editor.apply()
   }
 
   @Synchronized

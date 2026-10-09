@@ -1,6 +1,7 @@
 package com.audiobookshelf.wear.ui
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
@@ -8,6 +9,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.wear.compose.material3.AppScaffold
@@ -15,13 +17,20 @@ import androidx.wear.compose.navigation.SwipeDismissableNavHost
 import androidx.wear.compose.navigation.composable
 import androidx.wear.compose.navigation.rememberSwipeDismissableNavController
 import com.audiobookshelf.wear.WearApp
+import com.audiobookshelf.wear.playback.NowPlaying
 import com.audiobookshelf.wear.playback.PlayerConnection
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
 
 class MainActivity : ComponentActivity() {
   private lateinit var player: PlayerConnection
 
+  /** Set when launched from the media notification / now playing indicator. */
+  private val openPlayerRequest = MutableStateFlow(false)
+
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
+    if (savedInstanceState == null) handleIntent(intent)
     val app = application as WearApp
     player = PlayerConnection(this)
     player.connect()
@@ -38,11 +47,28 @@ class MainActivity : ComponentActivity() {
           // AppScaffold keeps the curved time text in place while screens swipe in and out
           AppScaffold {
             val account by app.auth.account.collectAsState()
-            if (account == null) LoginScreen() else AppNavigation()
+            if (account == null) LoginScreen() else AppNavigation(openPlayerRequest)
           }
         }
       }
     }
+  }
+
+  override fun onNewIntent(intent: Intent) {
+    super.onNewIntent(intent)
+    handleIntent(intent)
+  }
+
+  private fun handleIntent(intent: Intent?) {
+    if (intent?.getBooleanExtra(EXTRA_OPEN_PLAYER, false) == true) {
+      openPlayerRequest.value = true
+      // Consume it so recreating the activity doesn't jump to the player again
+      intent.removeExtra(EXTRA_OPEN_PLAYER)
+    }
+  }
+
+  companion object {
+    const val EXTRA_OPEN_PLAYER = "open_player"
   }
 
   override fun onDestroy() {
@@ -66,8 +92,20 @@ object Routes {
 }
 
 @Composable
-private fun AppNavigation() {
+private fun AppNavigation(openPlayerRequest: MutableStateFlow<Boolean>) {
   val nav = rememberSwipeDismissableNavController()
+  val openPlayer by openPlayerRequest.collectAsState()
+  val nowPlaying by NowPlaying.book.collectAsState()
+  LaunchedEffect(openPlayer, nowPlaying) {
+    if (openPlayer && nowPlaying != null) {
+      openPlayerRequest.value = false
+      nav.navigate(Routes.PLAYER) { launchSingleTop = true }
+    } else if (openPlayer) {
+      // Give the player a moment to reconnect, then drop the request so it can't fire later
+      delay(3000)
+      openPlayerRequest.value = false
+    }
+  }
   SwipeDismissableNavHost(navController = nav, startDestination = Routes.HOME) {
     composable(Routes.HOME) { HomeScreen(nav) }
     composable("library/{id}/{name}") {

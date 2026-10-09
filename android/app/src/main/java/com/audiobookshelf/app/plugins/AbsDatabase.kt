@@ -364,6 +364,10 @@ class AbsDatabase : Plugin() {
       if (localMediaProgress == null) {
         Log.w(tag, "syncServerMediaProgressWithLocalMediaProgress Local media progress not found $localMediaProgressId")
         call.resolve()
+      } else if (mediaProgress.lastUpdate <= localMediaProgress.lastUpdate) {
+        // Never replace progress on this phone with older progress
+        Log.d(tag, "syncServerMediaProgressWithLocalMediaProgress: Local progress is as new or newer, keeping it")
+        call.resolve(JSObject(jacksonMapper.writeValueAsString(localMediaProgress)))
       } else {
         MediaEventManager.syncEvent(mediaProgress, "Received from webhook event")
 

@@ -39,6 +39,12 @@ class MediaProgressSyncer(
   private var failedSyncs: Int = 0
 
   var currentPlaybackSession: PlaybackSession? = null // copy of pb session currently syncing
+
+  /**
+   * True while checking whether another device (e.g. the watch) made newer progress. Syncs are held
+   * back meanwhile so this phone's older position can't overwrite it; listening time still accumulates.
+   */
+  @Volatile var freshnessCheckPending = false
   var currentLocalMediaProgress: LocalMediaProgress? = null
 
   private val currentDisplayTitle
@@ -224,6 +230,10 @@ class MediaProgressSyncer(
   }
 
   fun sync(shouldSyncServer: Boolean, currentTime: Double, cb: (SyncResult?) -> Unit) {
+    if (freshnessCheckPending) {
+      Log.d(tag, "sync: Waiting for server progress check before syncing")
+      return cb(null)
+    }
     if (lastSyncTime <= 0) {
       Log.e(tag, "Last sync time is not set $lastSyncTime")
       return cb(null)

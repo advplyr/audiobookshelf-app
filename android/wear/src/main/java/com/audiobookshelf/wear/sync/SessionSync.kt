@@ -24,7 +24,7 @@ class SessionSync(
   private val auth: AuthStore,
   private val progressStore: ProgressStore
 ) {
-  private val flushMutex = Mutex()
+  private val sendMutex = Mutex()
 
   @SuppressLint("HardwareIds")
   val deviceInfo: JSONObject = JSONObject()
@@ -34,30 +34,46 @@ class SessionSync(
     .put("sdkVersion", Build.VERSION.SDK_INT)
     .put("clientVersion", BuildConfig.VERSION_NAME)
 
+  /** Newest report sent per session, so a late, older report can't roll the session back. */
+  private val lastSent = mutableMapOf<String, Long>()
+
   /** Sends the session now, or queues it to be sent later if the server can't be reached. */
   suspend fun sync(session: JSONObject) {
     if (auth.current == null) {
       progressStore.addPendingSession(session)
       return
     }
-    try {
-      api.syncLocalSession(session)
-      progressStore.removePendingSessions(listOf(session.getString("id")))
-      flushPending()
-    } catch (e: Exception) {
-      Log.w(TAG, "Session sync failed, queued for later: ${e.message}")
-      progressStore.addPendingSession(session)
+    // One request at a time, so reports reach the server in the order they were made
+    val sent = sendMutex.withLock {
+      val id = session.getString("id")
+      val updatedAt = session.optLong("updatedAt")
+      if (updatedAt < (lastSent[id] ?: 0L)) return
+      try {
+        api.syncLocalSession(session)
+        lastSent[id] = updatedAt
+        progressStore.removePendingSessions(listOf(session))
+        true
+      } catch (e: Exception) {
+        Log.w(TAG, "Session sync failed, queued for later: ${e.message}")
+        progressStore.addPendingSession(session)
+        false
+      }
     }
+    if (sent) flushPending()
   }
 
   suspend fun flushPending() {
     if (auth.current == null) return
-    flushMutex.withLock {
-      val pending = progressStore.pendingSessions()
+    sendMutex.withLock {
+      val queued = progressStore.pendingSessions()
+      // A queued report older than one already sent for the same session would roll it back
+      val (stale, pending) = queued.partition { it.optLong("updatedAt") < (lastSent[it.getString("id")] ?: 0L) }
+      progressStore.removePendingSessions(stale)
       if (pending.isEmpty()) return
       try {
         api.syncLocalSessions(pending, deviceInfo)
-        progressStore.removePendingSessions(pending.map { it.getString("id") })
+        pending.forEach { lastSent[it.getString("id")] = maxOf(lastSent[it.getString("id")] ?: 0L, it.optLong("updatedAt")) }
+        progressStore.removePendingSessions(pending)
         Log.i(TAG, "Synced ${pending.size} queued sessions")
       } catch (e: Exception) {
         Log.w(TAG, "Could not sync queued sessions: ${e.message}")

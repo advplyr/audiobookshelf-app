@@ -60,10 +60,15 @@ class PlaybackService : MediaSessionService() {
     tracker = ListeningTracker(app, player, scope)
     player.addListener(tracker)
 
-    val openApp = PendingIntent.getActivity(
-      this, 0, Intent(this, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+    // Used by the media notification and the "now playing" indicator on the watch face,
+    // so it opens straight into the player rather than the app's home screen
+    val openPlayer = PendingIntent.getActivity(
+      this,
+      REQUEST_OPEN_PLAYER,
+      Intent(this, MainActivity::class.java).putExtra(MainActivity.EXTRA_OPEN_PLAYER, true),
+      PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
     )
-    mediaSession = MediaSession.Builder(this, player).setSessionActivity(openApp).build()
+    mediaSession = MediaSession.Builder(this, player).setSessionActivity(openPlayer).build()
     current = this
   }
 
@@ -156,6 +161,7 @@ class PlaybackService : MediaSessionService() {
       context.getSharedPreferences("player", MODE_PRIVATE).edit().putFloat("speed", speed).apply()
     }
 
+    private const val REQUEST_OPEN_PLAYER = 1
     const val SEEK_BACK_MS = 10_000L
     const val SEEK_FORWARD_MS = 30_000L
 

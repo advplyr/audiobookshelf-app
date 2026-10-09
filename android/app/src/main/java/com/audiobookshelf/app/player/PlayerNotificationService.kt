@@ -840,6 +840,44 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
 
   // Called from PlayerListener play event
   // check with server if progress has updated since last play and sync progress update
+  /**
+   * Called when playback resumes after a pause. If the server has progress for this item that is
+   * newer than this phone's last report (e.g. from the watch), seek there so the latest progress
+   * wins instead of being overwritten by this phone's older position.
+   */
+  fun checkServerProgressOnResume() {
+    val session = mediaProgressSyncer.currentPlaybackSession ?: currentPlaybackSession ?: return
+    val libraryItemId = session.libraryItemId
+    if (libraryItemId.isNullOrEmpty() || !DeviceManager.isConnectedToServer || !DeviceManager.checkConnectivity(ctx)) return
+    if (session.isLocal && session.serverConnectionConfigId != DeviceManager.serverConnectionConfig?.id) return
+
+    val lastReportedAt = session.updatedAt
+    val mainHandler = Handler(Looper.getMainLooper())
+    mediaProgressSyncer.freshnessCheckPending = true
+    // Never hold syncs back for long, even if the server doesn't answer
+    val release = Runnable { mediaProgressSyncer.freshnessCheckPending = false }
+    mainHandler.postDelayed(release, 5000L)
+
+    apiHandler.getMediaProgress(libraryItemId, session.episodeId, null) { serverProgress ->
+      mainHandler.post {
+        mainHandler.removeCallbacks(release)
+        val stillSameSession = (mediaProgressSyncer.currentPlaybackSession ?: currentPlaybackSession)?.id == session.id
+        if (serverProgress != null && stillSameSession && !serverProgress.isFinished && serverProgress.lastUpdate > lastReportedAt &&
+          kotlin.math.abs(serverProgress.currentTime - getCurrentTimeSeconds()) > 2) {
+          AbsLogger.info(tag, "checkServerProgressOnResume: Server progress is newer, seeking to ${serverProgress.currentTime}s (${session.displayTitle})")
+          seekPlayer((serverProgress.currentTime * 1000).toLong())
+          if (session.isLocal) {
+            DeviceManager.dbManager.getLocalMediaProgress(session.localMediaProgressId)?.let { localProgress ->
+              localProgress.updateFromServerMediaProgress(serverProgress)
+              DeviceManager.dbManager.saveLocalMediaProgress(localProgress)
+            }
+          }
+        }
+        mediaProgressSyncer.freshnessCheckPending = false
+      }
+    }
+  }
+
   fun checkCurrentSessionProgress(seekBackTime: Long): Boolean {
     if (currentPlaybackSession == null) return true
 
