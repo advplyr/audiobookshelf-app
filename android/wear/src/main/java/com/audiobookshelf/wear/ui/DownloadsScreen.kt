@@ -1,26 +1,26 @@
 package com.audiobookshelf.wear.ui
 
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
-import androidx.wear.compose.foundation.lazy.items
-import androidx.wear.compose.material.Chip
-import androidx.wear.compose.material.ChipDefaults
-import androidx.wear.compose.material.ListHeader
-import androidx.wear.compose.material.MaterialTheme
-import androidx.wear.compose.material.Text
-import coil.compose.AsyncImage
+import androidx.wear.compose.material3.ButtonDefaults
+import androidx.wear.compose.material3.CircularProgressIndicator
+import androidx.wear.compose.material3.FilledTonalButton
+import androidx.wear.compose.material3.LinearProgressIndicator
+import androidx.wear.compose.material3.MaterialTheme
+import androidx.wear.compose.material3.SurfaceTransformation
+import androidx.wear.compose.material3.Text
 import com.audiobookshelf.wear.download.Downloads
 
 @Composable
@@ -28,50 +28,49 @@ fun DownloadsScreen(nav: NavHostController) {
   val app = LocalApp.current
   val context = LocalContext.current
   val books by app.downloads.books.collectAsState()
-  val active by remember { Downloads.active(context) }.collectAsState(emptySet())
+  val active by remember { Downloads.active(context) }.collectAsState(emptyList())
+  val used = books.sumOf { it.sizeBytes }
+  val free = app.downloads.freeBytes()
 
   ListScreen {
-    item { ListHeader { Text("On this watch") } }
+    header("On this watch")
     item {
-      Text(
-        "${formatBytes(books.sumOf { it.sizeBytes })} used · ${formatBytes(app.downloads.freeBytes())} free",
-        style = MaterialTheme.typography.caption2,
-        textAlign = TextAlign.Center
-      )
-    }
-    val inProgress = active - books.map { it.book.id }.toSet()
-    if (inProgress.isNotEmpty()) {
-      item {
-        Text("${inProgress.size} downloading…", style = MaterialTheme.typography.caption2, color = MaterialTheme.colors.primary)
-      }
-    }
-    if (books.isEmpty()) {
-      item {
+      Column(contentModifier(spec).padding(horizontal = 16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Text(
-          "Open a book and tap \"Download to watch\" to listen without your phone.",
-          style = MaterialTheme.typography.caption2,
-          textAlign = TextAlign.Center
+          "${formatBytes(used)} · ${formatBytes(free)} free",
+          style = MaterialTheme.typography.bodySmall,
+          color = MaterialTheme.colorScheme.onSurfaceVariant,
+          textAlign = androidx.compose.ui.text.style.TextAlign.Center
+        )
+        LinearProgressIndicator(
+          progress = { if (used + free > 0) used.toFloat() / (used + free) else 0f },
+          modifier = Modifier.fillMaxWidth().padding(top = 6.dp)
         )
       }
     }
+
+    val downloading = active.filter { a -> books.none { it.book.id == a.itemId } }
+    items(downloading, key = { "active-${it.itemId}" }) { download ->
+      FilledTonalButton(
+        onClick = { nav.navigate(Routes.item(download.itemId)) },
+        modifier = itemModifier(spec),
+        transformation = SurfaceTransformation(spec),
+        icon = { ProgressRing(download.percent / 100f, ButtonDefaults.LargeIconSize) },
+        secondaryLabel = { Text("Downloading ${download.percent}%") },
+        label = { Text(download.title.ifEmpty { "Book" }, maxLines = 2, overflow = TextOverflow.Ellipsis) }
+      )
+    }
+
+    if (books.isEmpty() && downloading.isEmpty()) {
+      caption("Open a book and tap Download to listen without your phone.")
+    }
     items(books, key = { it.book.id }) { downloaded ->
-      val coverFile = app.downloads.coverFile(downloaded.book.id)
-      Chip(
-        label = { Text(downloaded.book.title, maxLines = 2, overflow = TextOverflow.Ellipsis) },
-        secondaryLabel = { Text(formatBytes(downloaded.sizeBytes)) },
-        icon = {
-          if (coverFile.exists()) {
-            AsyncImage(
-              model = coverFile,
-              contentDescription = null,
-              contentScale = ContentScale.Crop,
-              modifier = Modifier.size(ChipDefaults.LargeIconSize).clip(RoundedCornerShape(4))
-            )
-          }
-        },
-        onClick = { nav.navigate(Routes.item(downloaded.book.id)) },
-        colors = ChipDefaults.secondaryChipColors(),
-        modifier = Modifier.fillMaxWidth()
+      BookButton(
+        spec = spec,
+        title = downloaded.book.title,
+        subtitle = formatBytes(downloaded.sizeBytes),
+        cover = app.downloads.coverFile(downloaded.book.id).takeIf { it.exists() },
+        onClick = { nav.navigate(Routes.item(downloaded.book.id)) }
       )
     }
   }

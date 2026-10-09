@@ -1,10 +1,10 @@
 package com.audiobookshelf.wear.ui
 
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.PlayArrow
@@ -15,19 +15,27 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
-import androidx.wear.compose.material.Chip
-import androidx.wear.compose.material.ChipDefaults
-import androidx.wear.compose.material.Icon
-import androidx.wear.compose.material.MaterialTheme
-import androidx.wear.compose.material.Text
-import coil.compose.AsyncImage
+import androidx.wear.compose.material3.AlertDialog
+import androidx.wear.compose.material3.AlertDialogDefaults
+import androidx.wear.compose.material3.ButtonDefaults
+import androidx.wear.compose.material3.CircularProgressIndicator
+import androidx.wear.compose.material3.EdgeButton
+import androidx.wear.compose.material3.EdgeButtonDefaults
+import androidx.wear.compose.material3.EdgeButtonSize
+import androidx.wear.compose.material3.FilledTonalButton
+import androidx.wear.compose.material3.Icon
+import androidx.wear.compose.material3.MaterialTheme
+import androidx.wear.compose.material3.OutlinedButton
+import androidx.wear.compose.material3.SurfaceTransformation
+import androidx.wear.compose.material3.Text
 import com.audiobookshelf.wear.data.BookDetail
 import com.audiobookshelf.wear.data.ServerProgress
 import com.audiobookshelf.wear.download.DownloadState
@@ -51,6 +59,7 @@ fun ItemScreen(nav: NavHostController, itemId: String) {
   var confirmRemove by remember { mutableStateOf(false) }
   var starting by remember { mutableStateOf(false) }
   var playError by remember { mutableStateOf<String?>(null) }
+  val coverSize = (LocalConfiguration.current.screenWidthDp * 0.34f).dp
 
   val (data, retry) = rememberLoad(itemId) {
     try {
@@ -60,16 +69,54 @@ fun ItemScreen(nav: NavHostController, itemId: String) {
       ItemData(app.downloads.get(itemId) ?: throw e, null)
     }
   }
+  val ready = data as? Load.Ready
+  val isCurrent = nowPlaying?.book?.id == itemId
+  val hasProgress = (ready?.value?.progress?.currentTime ?: app.progress.get(itemId)?.currentTime ?: 0.0) > 0
 
-  ListScreen {
+  fun play() {
+    val book = ready?.value?.book ?: return
+    starting = true
+    playError = null
+    scope.launch {
+      try {
+        if (!isCurrent) player.play(book)
+        nav.navigate(Routes.PLAYER)
+      } catch (e: Exception) {
+        playError = e.message ?: "Could not start playback"
+      } finally {
+        starting = false
+      }
+    }
+  }
+
+  ListScreen(
+    edgeButton = {
+      EdgeButton(onClick = ::play, enabled = ready != null && !starting, buttonSize = EdgeButtonSize.Medium) {
+        if (starting) {
+          CircularProgressIndicator(modifier = Modifier.size(24.dp))
+        } else {
+          // Small watches only have room for the label
+          if (LocalConfiguration.current.screenWidthDp >= 210) {
+            Icon(
+              Icons.Default.PlayArrow,
+              contentDescription = null,
+              modifier = Modifier.size(EdgeButtonDefaults.SmallIconSize).align(Alignment.CenterVertically)
+            )
+          }
+          Text(
+            if (isCurrent) "Playing" else if (hasProgress) "Resume" else "Play",
+            maxLines = 1,
+            softWrap = false,
+            modifier = Modifier.padding(start = 4.dp).align(Alignment.CenterVertically)
+          )
+        }
+      }
+    }
+  ) {
     item {
       val cover = app.downloads.coverFile(itemId).takeIf { downloaded != null && it.exists() } ?: app.api.coverUrl(itemId, 300)
-      AsyncImage(
-        model = cover,
-        contentDescription = null,
-        contentScale = ContentScale.Crop,
-        modifier = Modifier.size(72.dp).clip(RoundedCornerShape(8.dp))
-      )
+      // Not morphed: a shrinking cover would slide under the title while scrolling
+      Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) { Cover(cover, coverSize) }
     }
     when (data) {
       is Load.Loading -> loadingItem()
@@ -77,82 +124,80 @@ fun ItemScreen(nav: NavHostController, itemId: String) {
       is Load.Ready -> {
         val book = data.value.book
         val progress = data.value.progress
-        item { Text(book.title, style = MaterialTheme.typography.title3, textAlign = TextAlign.Center) }
         item {
-          val progressText = when {
-            progress?.isFinished == true -> " · Finished"
-            progress != null && progress.progress > 0 -> " · ${(progress.progress * 100).roundToInt()}%"
-            else -> ""
-          }
           Text(
-            "${book.author}\n${formatDuration(book.duration)}$progressText",
-            style = MaterialTheme.typography.caption2,
-            textAlign = TextAlign.Center
+            book.title,
+            style = MaterialTheme.typography.titleMedium,
+            textAlign = TextAlign.Center,
+            maxLines = 3,
+            overflow = TextOverflow.Ellipsis,
+            modifier = contentModifier(spec).padding(horizontal = 8.dp)
           )
         }
-        item {
-          val isCurrent = nowPlaying?.book?.id == book.id
-          Chip(
-            label = { Text(if (starting) "Starting…" else if (isCurrent) "Open player" else if ((progress?.currentTime ?: 0.0) > 0) "Resume" else "Play") },
-            secondaryLabel = { Text(playError ?: if (downloaded != null) "From watch" else "Streaming") },
-            icon = { Icon(Icons.Default.PlayArrow, contentDescription = null) },
-            enabled = !starting,
-            onClick = {
-              starting = true
-              playError = null
-              scope.launch {
-                try {
-                  if (!isCurrent) player.play(book)
-                  nav.navigate(Routes.PLAYER)
-                } catch (e: Exception) {
-                  playError = e.message ?: "Could not start playback"
-                } finally {
-                  starting = false
-                }
-              }
+        if (book.author.isNotEmpty()) caption(book.author)
+        caption(
+          listOfNotNull(
+            formatDuration(book.duration),
+            when {
+              progress?.isFinished == true -> "Finished"
+              progress != null && (progress.progress * 100).roundToInt() > 0 -> "${(progress.progress * 100).roundToInt()}%"
+              else -> null
             },
-            colors = ChipDefaults.primaryChipColors(),
-            modifier = Modifier.fillMaxWidth()
-          )
-        }
+            book.chapters.size.takeIf { it > 1 }?.let { "$it chapters" }
+          ).joinToString(" · ")
+        )
+        playError?.let { caption(it) { MaterialTheme.colorScheme.error } }
         item {
           val state = downloadState
           when {
-            downloaded != null -> Chip(
-              label = { Text(if (confirmRemove) "Tap again to remove" else "Remove download") },
-              secondaryLabel = { Text(formatBytes(downloaded.sizeBytes)) },
-              icon = { Icon(Icons.Default.Delete, contentDescription = null) },
-              enabled = !(nowPlaying?.book?.id == itemId && nowPlaying?.isLocal == true),
-              onClick = {
-                if (confirmRemove) app.downloads.delete(itemId) else confirmRemove = true
-              },
-              colors = ChipDefaults.secondaryChipColors(),
-              modifier = Modifier.fillMaxWidth()
+            downloaded != null -> OutlinedButton(
+              onClick = { confirmRemove = true },
+              enabled = !(isCurrent && nowPlaying?.isLocal == true),
+              modifier = itemModifier(spec),
+              transformation = SurfaceTransformation(spec),
+              icon = { Icon(Icons.Default.Delete, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize)) },
+              secondaryLabel = { Text("${formatBytes(downloaded.sizeBytes)} on watch") },
+              label = { Text("Remove download") }
             )
-            state is DownloadState.Running -> Chip(
-              label = { Text("Downloading ${state.percent}%") },
-              secondaryLabel = { Text("Tap to cancel") },
-              icon = { Icon(Icons.Default.Close, contentDescription = null) },
+            state is DownloadState.Running -> FilledTonalButton(
               onClick = { Downloads.cancel(context, itemId) },
-              colors = ChipDefaults.secondaryChipColors(),
-              modifier = Modifier.fillMaxWidth()
+              modifier = itemModifier(spec),
+              transformation = SurfaceTransformation(spec),
+              icon = { ProgressRing(state.percent / 100f, ButtonDefaults.IconSize) },
+              secondaryLabel = { Text("Tap to cancel") },
+              label = { Text("Downloading ${state.percent}%") }
             )
-            else -> Chip(
-              label = { Text(if (state is DownloadState.Failed) "Retry download" else "Download to watch") },
-              secondaryLabel = {
-                Text(if (state is DownloadState.Failed) state.message else "${formatBytes(book.totalSize)} · ${formatBytes(app.downloads.freeBytes())} free")
-              },
-              icon = { Icon(Icons.Default.Download, contentDescription = null) },
+            else -> FilledTonalButton(
               onClick = { Downloads.start(context, book.id, book.title) },
-              colors = ChipDefaults.secondaryChipColors(),
-              modifier = Modifier.fillMaxWidth()
+              modifier = itemModifier(spec),
+              transformation = SurfaceTransformation(spec),
+              icon = { Icon(Icons.Default.Download, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize)) },
+              secondaryLabel = {
+                Text(
+                  if (state is DownloadState.Failed) state.message else "${formatBytes(book.totalSize)} · ${formatBytes(app.downloads.freeBytes())} free",
+                  maxLines = 2
+                )
+              },
+              label = { Text(if (state is DownloadState.Failed) "Retry download" else "Download") }
             )
           }
-        }
-        if (book.chapters.isNotEmpty()) {
-          item { Text("${book.chapters.size} chapters", style = MaterialTheme.typography.caption3) }
         }
       }
     }
   }
+
+  AlertDialog(
+    visible = confirmRemove,
+    onDismissRequest = { confirmRemove = false },
+    icon = { Icon(Icons.Default.Delete, contentDescription = null) },
+    title = { Text("Remove download?") },
+    text = { Text("Your progress is kept. You can still stream this book.") },
+    confirmButton = {
+      AlertDialogDefaults.ConfirmButton(onClick = {
+        app.downloads.delete(itemId)
+        confirmRemove = false
+      })
+    },
+    dismissButton = { AlertDialogDefaults.DismissButton(onClick = { confirmRemove = false }) }
+  )
 }

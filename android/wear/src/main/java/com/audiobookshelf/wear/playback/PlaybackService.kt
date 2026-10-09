@@ -95,6 +95,7 @@ class PlaybackService : MediaSessionService() {
     }
     val (index, positionMs) = playing.trackPosition(startTime)
     player.setMediaItems(items, index, positionMs)
+    player.setPlaybackSpeed(playbackSpeed(this))
     player.prepare()
     player.play()
   }
@@ -109,9 +110,9 @@ class PlaybackService : MediaSessionService() {
     NowPlaying.book.value = null
   }
 
-  fun startSleepTimer(minutes: Int) {
+  fun startSleepTimer(durationMs: Long) {
     sleepJob?.cancel()
-    val endsAt = System.currentTimeMillis() + minutes * 60_000L
+    val endsAt = System.currentTimeMillis() + durationMs
     sleepJob = scope.launch {
       while (true) {
         val remaining = endsAt - System.currentTimeMillis()
@@ -147,6 +148,14 @@ class PlaybackService : MediaSessionService() {
   }
 
   companion object {
+    /** The listener's chosen speed, kept across books and app restarts. */
+    fun playbackSpeed(context: android.content.Context): Float =
+      context.getSharedPreferences("player", MODE_PRIVATE).getFloat("speed", 1f)
+
+    fun savePlaybackSpeed(context: android.content.Context, speed: Float) {
+      context.getSharedPreferences("player", MODE_PRIVATE).edit().putFloat("speed", speed).apply()
+    }
+
     const val SEEK_BACK_MS = 10_000L
     const val SEEK_FORWARD_MS = 30_000L
 

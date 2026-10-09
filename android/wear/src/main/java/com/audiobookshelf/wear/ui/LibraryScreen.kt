@@ -1,7 +1,8 @@
 package com.audiobookshelf.wear.ui
 
-import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -15,17 +16,17 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
-import androidx.wear.compose.material.Chip
-import androidx.wear.compose.material.ChipDefaults
-import androidx.wear.compose.material.Icon
-import androidx.wear.compose.material.ListHeader
-import androidx.wear.compose.material.Text
+import androidx.wear.compose.material3.EdgeButton
+import androidx.wear.compose.material3.EdgeButtonDefaults
+import androidx.wear.compose.material3.Icon
 import com.audiobookshelf.wear.data.BookSummary
 import com.audiobookshelf.wear.data.ServerProgress
 import kotlinx.coroutines.launch
 
+const val ALL_LIBRARIES = "all"
+
 @Composable
-fun LibraryScreen(nav: NavHostController, libraryId: String) {
+fun LibraryScreen(nav: NavHostController, libraryId: String, name: String) {
   val app = LocalApp.current
   val scope = rememberCoroutineScope()
   val books = remember { mutableStateListOf<BookSummary>() }
@@ -56,29 +57,25 @@ fun LibraryScreen(nav: NavHostController, libraryId: String) {
 
   LaunchedEffect(libraryId) { if (books.isEmpty()) loadMore() }
 
-  ListScreen {
-    item { ListHeader { Text("Library") } }
-    item {
-      Chip(
-        label = { Text("Search") },
-        icon = { Icon(Icons.Default.Search, contentDescription = null) },
-        onClick = { nav.navigate(Routes.search(libraryId)) },
-        colors = ChipDefaults.secondaryChipColors(),
-        modifier = Modifier.fillMaxWidth()
-      )
+  ListScreen(
+    edgeButton = {
+      EdgeButton(onClick = { nav.navigate(Routes.search(libraryId)) }) {
+        Icon(Icons.Default.Search, contentDescription = "Search $name", modifier = Modifier.size(EdgeButtonDefaults.SmallIconSize))
+      }
     }
-    bookChips(books, progress) { nav.navigate(Routes.item(it.id)) }
+  ) {
+    header(name.ifEmpty { "Library" })
+    if (total > 0) caption("$total books")
+    items(books.toList(), key = { it.id }) { book ->
+      BookButton(spec, book.title, progressLabel(book, progress[book.id]), app.api.coverUrl(book.id, 120), { nav.navigate(Routes.item(book.id)) })
+    }
     when {
       loading -> loadingItem()
       error != null -> errorItem(error!!, ::loadMore)
-      books.size < total -> item {
-        Chip(label = { Text("Load more") }, onClick = ::loadMore, colors = ChipDefaults.childChipColors())
-      }
+      books.size < total -> item { MenuButton(spec, Icons.Default.ExpandMore, "Show more", "${total - books.size} more", ::loadMore) }
     }
   }
 }
-
-const val ALL_LIBRARIES = "all"
 
 @Composable
 fun SearchScreen(nav: NavHostController, libraryId: String) {
@@ -87,32 +84,44 @@ fun SearchScreen(nav: NavHostController, libraryId: String) {
   var query by rememberSaveable { mutableStateOf("") }
   var results by remember { mutableStateOf<Load<List<BookSummary>>?>(null) }
 
-  fun search() {
-    if (query.isBlank()) return
+  fun search(text: String) {
+    query = text
+    if (text.isBlank()) return
     results = Load.Loading
     scope.launch {
       results = try {
-        val libraryIds = if (libraryId == ALL_LIBRARIES) app.api.libraries().filter { it.mediaType == "book" }.map { it.id } else listOf(libraryId)
-        Load.Ready(libraryIds.flatMap { app.api.search(it, query.trim()) }.distinctBy { it.id })
+        val libraryIds = if (libraryId == ALL_LIBRARIES) app.api.audioLibraries().map { it.id } else listOf(libraryId)
+        Load.Ready(libraryIds.flatMap { app.api.search(it, text) }.distinctBy { it.id })
       } catch (e: Exception) {
         Load.Failed(e.message ?: "Search failed")
       }
     }
   }
 
-  // Re-run the search when coming back from a book
-  LaunchedEffect(Unit) { if (query.isNotBlank() && results == null) search() }
+  val input = rememberTextInput(::search)
 
-  ListScreen {
-    item { ListHeader { Text("Search") } }
-    item { WearTextField(query, { query = it }, "Title or author", onDone = ::search) }
+  LaunchedEffect(Unit) {
+    // Open the keyboard straight away the first time; re-run the search when coming back from a book
+    if (query.isBlank()) input("Title or author") else if (results == null) search(query)
+  }
+
+  ListScreen(
+    edgeButton = {
+      EdgeButton(onClick = { input("Title or author") }) {
+        Icon(Icons.Default.Search, contentDescription = "New search", modifier = Modifier.size(EdgeButtonDefaults.SmallIconSize))
+      }
+    }
+  ) {
+    header(if (query.isBlank()) "Search" else "“$query”")
     when (val r = results) {
-      null -> {}
+      null -> caption("Search by title or author")
       is Load.Loading -> loadingItem()
-      is Load.Failed -> errorItem(r.message, ::search)
+      is Load.Failed -> errorItem(r.message) { search(query) }
       is Load.Ready -> {
-        if (r.value.isEmpty()) item { Text("No books found") }
-        bookChips(r.value) { nav.navigate(Routes.item(it.id)) }
+        if (r.value.isEmpty()) caption("No books found")
+        items(r.value, key = { it.id }) { book ->
+          BookButton(spec, book.title, book.author, app.api.coverUrl(book.id, 120), { nav.navigate(Routes.item(book.id)) })
+        }
       }
     }
   }

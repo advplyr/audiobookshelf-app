@@ -46,22 +46,22 @@ android {
 }
 
 dependencies {
-  def composeBom = platform('androidx.compose:compose-bom:2024.12.01')
+  def composeBom = platform('androidx.compose:compose-bom:2025.06.00')
   implementation composeBom
 
   implementation 'androidx.core:core-ktx:1.15.0'
-  implementation 'androidx.activity:activity-compose:1.9.3'
+  implementation 'androidx.activity:activity-compose:1.10.1'
   implementation 'androidx.lifecycle:lifecycle-runtime-compose:2.8.7'
-  implementation 'androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7'
   implementation 'androidx.lifecycle:lifecycle-process:2.8.7'
 
-  // Compose for Wear OS
+  // Compose for Wear OS with Material 3 Expressive (EdgeButton, TransformingLazyColumn, dialogs)
   implementation 'androidx.compose.ui:ui'
-  implementation 'androidx.compose.ui:ui-tooling-preview'
+  implementation 'androidx.compose.foundation:foundation'
   implementation 'androidx.compose.material:material-icons-extended'
-  implementation 'androidx.wear.compose:compose-material:1.4.1'
-  implementation 'androidx.wear.compose:compose-foundation:1.4.1'
-  implementation 'androidx.wear.compose:compose-navigation:1.4.1'
+  implementation 'androidx.wear.compose:compose-material3:1.5.6'
+  implementation 'androidx.wear.compose:compose-foundation:1.5.6'
+  implementation 'androidx.wear.compose:compose-navigation:1.5.6'
+  // Full screen system keyboard / voice input instead of cramped inline text fields
   implementation 'androidx.wear:wear-input:1.2.0'
 
   // Playback

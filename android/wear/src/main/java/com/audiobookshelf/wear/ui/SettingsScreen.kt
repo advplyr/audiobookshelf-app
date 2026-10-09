@@ -1,8 +1,8 @@
 package com.audiobookshelf.wear.ui
 
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Logout
+import androidx.compose.material.icons.filled.CloudDone
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -12,14 +12,15 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.foundation.layout.size
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.style.TextAlign
-import androidx.wear.compose.material.Chip
-import androidx.wear.compose.material.ChipDefaults
-import androidx.wear.compose.material.Icon
-import androidx.wear.compose.material.ListHeader
-import androidx.wear.compose.material.MaterialTheme
-import androidx.wear.compose.material.Text
+import androidx.wear.compose.material3.AlertDialog
+import androidx.wear.compose.material3.AlertDialogDefaults
+import androidx.wear.compose.material3.ButtonDefaults
+import androidx.wear.compose.material3.Icon
+import androidx.wear.compose.material3.OutlinedButton
+import androidx.wear.compose.material3.SurfaceTransformation
+import androidx.wear.compose.material3.Text
 import kotlinx.coroutines.launch
 
 @Composable
@@ -32,41 +33,49 @@ fun SettingsScreen() {
   var confirmSignOut by remember { mutableStateOf(false) }
 
   ListScreen {
-    item { ListHeader { Text("Settings") } }
+    header("Settings")
+    caption(account?.username.orEmpty())
+    caption(account?.serverAddress?.removePrefix("https://")?.removePrefix("http://").orEmpty())
     item {
-      Text(
-        "${account?.username}\n${account?.serverAddress}",
-        style = MaterialTheme.typography.caption2,
-        textAlign = TextAlign.Center
-      )
+      MenuButton(
+        spec,
+        if (pending == 0) Icons.Default.CloudDone else Icons.Default.Sync,
+        if (syncing) "Syncing…" else "Sync progress",
+        if (pending == 0) "Everything is synced" else "$pending sessions waiting"
+      ) {
+        if (syncing) return@MenuButton
+        syncing = true
+        scope.launch {
+          app.sessionSync.flushPending()
+          app.phoneConfig.refreshFromPhone()
+          pending = app.progress.pendingSessions().size
+          syncing = false
+        }
+      }
     }
     item {
-      Chip(
-        label = { Text(if (syncing) "Syncing…" else "Sync progress now") },
-        secondaryLabel = { Text(if (pending == 0) "Everything synced" else "$pending sessions waiting") },
-        icon = { Icon(Icons.Default.Sync, contentDescription = null) },
-        onClick = {
-          syncing = true
-          scope.launch {
-            app.sessionSync.flushPending()
-            app.phoneConfig.refreshFromPhone()
-            pending = app.progress.pendingSessions().size
-            syncing = false
-          }
-        },
-        colors = ChipDefaults.secondaryChipColors(),
-        modifier = Modifier.fillMaxWidth()
-      )
-    }
-    item {
-      Chip(
-        label = { Text(if (confirmSignOut) "Tap again to sign out" else "Sign out") },
-        secondaryLabel = { Text("Downloads stay on the watch") },
-        icon = { Icon(Icons.AutoMirrored.Default.Logout, contentDescription = null) },
-        onClick = { if (confirmSignOut) app.auth.clear() else confirmSignOut = true },
-        colors = ChipDefaults.secondaryChipColors(),
-        modifier = Modifier.fillMaxWidth()
+      OutlinedButton(
+        onClick = { confirmSignOut = true },
+        modifier = itemModifier(spec),
+        transformation = SurfaceTransformation(spec),
+        icon = { Icon(Icons.AutoMirrored.Default.Logout, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize)) },
+        label = { Text("Sign out") }
       )
     }
   }
+
+  AlertDialog(
+    visible = confirmSignOut,
+    onDismissRequest = { confirmSignOut = false },
+    icon = { Icon(Icons.AutoMirrored.Default.Logout, contentDescription = null) },
+    title = { Text("Sign out?") },
+    text = { Text("Downloaded books stay on the watch.") },
+    confirmButton = {
+      AlertDialogDefaults.ConfirmButton(onClick = {
+        confirmSignOut = false
+        app.auth.clear()
+      })
+    },
+    dismissButton = { AlertDialogDefaults.DismissButton(onClick = { confirmSignOut = false }) }
+  )
 }

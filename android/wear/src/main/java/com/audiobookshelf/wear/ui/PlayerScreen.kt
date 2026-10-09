@@ -3,69 +3,85 @@ package com.audiobookshelf.wear.ui
 import android.content.Context
 import android.content.Intent
 import android.media.AudioManager
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Bluetooth
+import androidx.compose.material.icons.automirrored.filled.FormatListBulleted
 import androidx.compose.material.icons.filled.Bedtime
+import androidx.compose.material.icons.filled.Bluetooth
 import androidx.compose.material.icons.filled.Forward30
-import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Replay10
-import androidx.compose.material.icons.filled.SkipNext
-import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.Stop
+import androidx.compose.material.icons.filled.Timer
+import androidx.compose.material.icons.filled.TimerOff
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.State
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.input.rotary.onRotaryScrollEvent
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.media3.common.Player
 import androidx.media3.session.MediaController
 import androidx.navigation.NavHostController
-import androidx.wear.compose.foundation.lazy.itemsIndexed
-import androidx.wear.compose.material.Button
-import androidx.wear.compose.material.ButtonDefaults
-import androidx.wear.compose.material.Chip
-import androidx.wear.compose.material.ChipDefaults
-import androidx.wear.compose.material.CircularProgressIndicator
-import androidx.wear.compose.material.Icon
-import androidx.wear.compose.material.ListHeader
-import androidx.wear.compose.material.MaterialTheme
-import androidx.wear.compose.material.Scaffold
-import androidx.wear.compose.material.Text
-import androidx.wear.compose.material.TimeText
+import androidx.wear.compose.foundation.lazy.TransformingLazyColumnItemScope
+import androidx.wear.compose.foundation.lazy.rememberTransformingLazyColumnState
+import androidx.wear.compose.material3.ButtonDefaults
+import androidx.wear.compose.material3.CircularProgressIndicator
+import androidx.wear.compose.material3.FilledIconButton
+import androidx.wear.compose.material3.FilledTonalIconButton
+import androidx.wear.compose.material3.Icon
+import androidx.wear.compose.material3.IconButton
+import androidx.wear.compose.material3.IconButtonDefaults
+import androidx.wear.compose.material3.LevelIndicator
+import androidx.wear.compose.material3.MaterialTheme
+import androidx.wear.compose.material3.OutlinedButton
+import androidx.wear.compose.material3.RadioButton
+import androidx.wear.compose.material3.ScreenScaffold
+import androidx.wear.compose.material3.SurfaceTransformation
+import androidx.wear.compose.material3.Text
+import androidx.wear.compose.material3.lazy.TransformationSpec
 import com.audiobookshelf.wear.data.Chapter
 import com.audiobookshelf.wear.playback.NowPlaying
 import com.audiobookshelf.wear.playback.PlaybackService
 import com.audiobookshelf.wear.playback.PlayingBook
 import kotlinx.coroutines.delay
-import java.util.Locale
 import kotlin.math.abs
 
-private val SPEEDS = listOf(0.8f, 1.0f, 1.2f, 1.4f, 1.6f, 1.8f, 2.0f)
-private val SLEEP_MINUTES = listOf(10, 15, 30, 45, 60)
+private val SPEEDS = listOf(0.8f, 1.0f, 1.1f, 1.2f, 1.3f, 1.5f, 1.75f, 2.0f)
+private val SLEEP_MINUTES = listOf(5, 10, 15, 30, 45, 60)
 
 private data class PlayerState(
   val isPlaying: Boolean = false,
@@ -75,8 +91,8 @@ private data class PlayerState(
 )
 
 @Composable
-private fun rememberPlayerState(controller: MediaController?, playing: PlayingBook?): PlayerState {
-  val state by produceState(PlayerState(), controller, playing) {
+private fun rememberPlayerState(controller: MediaController?, playing: PlayingBook?): State<PlayerState> =
+  produceState(PlayerState(), controller, playing) {
     while (true) {
       value = if (controller == null || playing == null) PlayerState() else PlayerState(
         isPlaying = controller.playWhenReady,
@@ -87,135 +103,221 @@ private fun rememberPlayerState(controller: MediaController?, playing: PlayingBo
       delay(500)
     }
   }
-  return state
-}
 
 private fun MediaController.seekBook(playing: PlayingBook, time: Double) {
   val (index, positionMs) = playing.trackPosition(time)
   seekTo(index, positionMs)
 }
 
-private fun chapterBounds(playing: PlayingBook, time: Double): Chapter {
-  return playing.book.chapterAt(time) ?: Chapter(0.0, playing.book.duration, playing.book.title)
+private fun chapterBounds(playing: PlayingBook, time: Double): Chapter =
+  playing.book.chapterAt(time) ?: Chapter(0.0, playing.book.duration, "")
+
+private fun MediaController.skipChapter(playing: PlayingBook, time: Double, forward: Boolean) {
+  val chapters = playing.book.chapters
+  val chapter = chapterBounds(playing, time)
+  if (forward) {
+    chapters.firstOrNull { it.start > chapter.start }?.let { seekBook(playing, it.start) }
+  } else {
+    // Restart the chapter, or go to the previous one when already near its start
+    val previous = chapters.lastOrNull { it.start < chapter.start }
+    seekBook(playing, if (time - chapter.start > 3 || previous == null) chapter.start else previous.start)
+  }
 }
 
+/**
+ * Now playing screen. Sizes are fractions of the screen so the layout stays inside the round
+ * display on every watch size. The outer ring shows progress through the book, the ring around the
+ * play button shows progress through the chapter, and the crown/bezel controls the volume.
+ */
 @Composable
 fun PlayerScreen(nav: NavHostController) {
   val context = LocalContext.current
   val controller by LocalPlayer.current.controller.collectAsState()
   val playing by NowPlaying.book.collectAsState()
-  val state = rememberPlayerState(controller, playing)
+  val state by rememberPlayerState(controller, playing)
   val audioManager = remember { context.getSystemService(Context.AUDIO_SERVICE) as AudioManager }
   val focusRequester = remember { FocusRequester() }
-  val rotaryAccumulator = remember { floatArrayOf(0f) }
+  var rotaryAccumulator by remember { mutableFloatStateOf(0f) }
+  var volume by remember { mutableFloatStateOf(currentVolume(audioManager)) }
+  var volumeShownAt by remember { mutableLongStateOf(0L) }
+  val showVolume = volumeShownAt > 0
 
   LaunchedEffect(Unit) { focusRequester.requestFocus() }
+  LaunchedEffect(volumeShownAt) {
+    if (volumeShownAt > 0) {
+      delay(1500)
+      volumeShownAt = 0
+    }
+  }
 
-  Scaffold(
-    timeText = { TimeText() },
+  ScreenScaffold(
     modifier = Modifier
-      // Turning the crown or bezel changes the volume
       .onRotaryScrollEvent {
-        rotaryAccumulator[0] += it.verticalScrollPixels
-        if (abs(rotaryAccumulator[0]) > 40f) {
-          val direction = if (rotaryAccumulator[0] > 0) AudioManager.ADJUST_RAISE else AudioManager.ADJUST_LOWER
-          audioManager.adjustStreamVolume(AudioManager.STREAM_MUSIC, direction, AudioManager.FLAG_SHOW_UI)
-          rotaryAccumulator[0] = 0f
+        rotaryAccumulator += it.verticalScrollPixels
+        if (abs(rotaryAccumulator) > 40f) {
+          val direction = if (rotaryAccumulator > 0) AudioManager.ADJUST_RAISE else AudioManager.ADJUST_LOWER
+          audioManager.adjustStreamVolume(AudioManager.STREAM_MUSIC, direction, 0)
+          volume = currentVolume(audioManager)
+          volumeShownAt = System.currentTimeMillis()
+          rotaryAccumulator = 0f
         }
         true
       }
       .focusRequester(focusRequester)
       .focusable()
   ) {
-    val book = playing?.book
     val mc = controller
-    if (book == null || mc == null) {
-      Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("Nothing playing") }
-      return@Scaffold
+    val current = playing
+    if (current == null || mc == null) {
+      Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        Text("Nothing playing", style = MaterialTheme.typography.titleMedium)
+      }
+      return@ScreenScaffold
     }
-    val chapter = chapterBounds(playing!!, state.time)
-    val chapters = book.chapters
+    val book = current.book
+    val chapter = chapterBounds(current, state.time)
+    val chapterIndex = book.chapters.indexOf(chapter)
+    val chapterLength = (chapter.end - chapter.start).coerceAtLeast(1.0)
+    val ringAlpha by animateFloatAsState(if (showVolume) 0f else 1f, label = "ring")
 
-    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+    BoxWithConstraints(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+      val size = maxWidth
+
+      // Book progress around the edge, leaving a gap at the top for the clock
       CircularProgressIndicator(
-        progress = if (book.duration > 0) (state.time / book.duration).toFloat() else 0f,
+        progress = { if (book.duration > 0) (state.time / book.duration).toFloat() else 0f },
         startAngle = 300f,
         endAngle = 240f,
         strokeWidth = 4.dp,
-        modifier = Modifier.fillMaxSize().padding(3.dp)
+        modifier = Modifier.fillMaxSize().padding(2.dp).alpha(ringAlpha)
       )
+
       Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
-        modifier = Modifier.fillMaxSize().padding(horizontal = 26.dp, vertical = 30.dp)
+        modifier = Modifier.fillMaxSize().padding(horizontal = size * 0.14f)
       ) {
         Text(
-          chapter.title.ifEmpty { book.title },
+          book.title,
+          style = MaterialTheme.typography.titleSmall,
+          maxLines = 1,
+          modifier = Modifier.basicMarquee(iterations = Int.MAX_VALUE)
+        )
+        Text(
+          listOfNotNull(
+            if (chapterIndex >= 0) "Ch ${chapterIndex + 1}" else null,
+            "${formatClock((chapter.end - state.time) / state.speed)} left",
+            if (state.speed != 1f) formatSpeed(state.speed) else null
+          ).joinToString(" · "),
+          style = MaterialTheme.typography.bodySmall,
+          color = MaterialTheme.colorScheme.onSurfaceVariant,
           maxLines = 1,
           overflow = TextOverflow.Ellipsis,
-          style = MaterialTheme.typography.caption1,
           textAlign = TextAlign.Center
         )
-        Text(
-          "${formatClock(state.time - chapter.start)} / ${formatClock(chapter.end - chapter.start)}",
-          style = MaterialTheme.typography.caption3,
-          color = MaterialTheme.colors.onSurfaceVariant
-        )
-        Spacer(Modifier.height(6.dp))
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-          Button(
+        Spacer(Modifier.height(size * 0.03f))
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(size * 0.025f)) {
+          FilledTonalIconButton(
             onClick = { mc.seekBack() },
-            colors = ButtonDefaults.secondaryButtonColors(),
-            modifier = Modifier.size(ButtonDefaults.SmallButtonSize)
-          ) { Icon(Icons.Default.Replay10, contentDescription = "Back 10 seconds") }
-          Button(
-            onClick = { if (mc.playWhenReady) mc.pause() else mc.play() },
-            modifier = Modifier.size(ButtonDefaults.LargeButtonSize)
-          ) {
-            if (state.isBuffering && state.isPlaying) {
-              CircularProgressIndicator(modifier = Modifier.size(32.dp), indicatorColor = MaterialTheme.colors.onPrimary)
-            } else {
-              Icon(
-                if (state.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                contentDescription = if (state.isPlaying) "Pause" else "Play",
-                modifier = Modifier.size(32.dp)
-              )
-            }
-          }
-          Button(
+            onLongClick = { mc.skipChapter(current, state.time, forward = false) },
+            onLongClickLabel = "Previous chapter",
+            modifier = Modifier.size(size * 0.19f)
+          ) { Icon(Icons.Default.Replay10, contentDescription = "Back 10 seconds", modifier = Modifier.size(size * 0.1f)) }
+
+          PlayPauseButton(
+            size = size * 0.31f,
+            isPlaying = state.isPlaying,
+            isBuffering = state.isBuffering && state.isPlaying,
+            // Read state inside the lambda so the ring follows playback
+            chapterProgress = { ((state.time - chapter.start) / chapterLength).toFloat() },
+            onClick = { if (mc.playWhenReady) mc.pause() else mc.play() }
+          )
+
+          FilledTonalIconButton(
             onClick = { mc.seekForward() },
-            colors = ButtonDefaults.secondaryButtonColors(),
-            modifier = Modifier.size(ButtonDefaults.SmallButtonSize)
-          ) { Icon(Icons.Default.Forward30, contentDescription = "Forward 30 seconds") }
+            onLongClick = { mc.skipChapter(current, state.time, forward = true) },
+            onLongClickLabel = "Next chapter",
+            modifier = Modifier.size(size * 0.19f)
+          ) { Icon(Icons.Default.Forward30, contentDescription = "Forward 30 seconds", modifier = Modifier.size(size * 0.1f)) }
         }
-        Spacer(Modifier.height(4.dp))
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-          Button(
-            onClick = {
-              // Restart the chapter, or go to the previous one if near its start
-              val previous = chapters.lastOrNull { it.start < chapter.start }
-              val target = if (state.time - chapter.start > 3 || previous == null) chapter.start else previous.start
-              mc.seekBook(playing!!, target)
-            },
-            colors = ButtonDefaults.secondaryButtonColors(),
-            modifier = Modifier.size(ButtonDefaults.ExtraSmallButtonSize)
-          ) { Icon(Icons.Default.SkipPrevious, contentDescription = "Previous chapter") }
-          Button(
+        Spacer(Modifier.height(size * 0.02f))
+        Row(horizontalArrangement = Arrangement.spacedBy(size * 0.06f)) {
+          IconButton(
+            onClick = { nav.navigate(Routes.CHAPTERS) },
+            enabled = book.chapters.isNotEmpty(),
+            modifier = Modifier.size(IconButtonDefaults.SmallButtonSize)
+          ) { Icon(Icons.AutoMirrored.Default.FormatListBulleted, contentDescription = "Chapters") }
+          IconButton(
             onClick = { nav.navigate(Routes.PLAYER_OPTIONS) },
-            colors = ButtonDefaults.secondaryButtonColors(),
-            modifier = Modifier.size(ButtonDefaults.ExtraSmallButtonSize)
-          ) { Icon(Icons.Default.MoreHoriz, contentDescription = "More") }
-          Button(
-            onClick = { chapters.firstOrNull { it.start > chapter.start }?.let { mc.seekBook(playing!!, it.start) } },
-            enabled = chapters.any { it.start > chapter.start },
-            colors = ButtonDefaults.secondaryButtonColors(),
-            modifier = Modifier.size(ButtonDefaults.ExtraSmallButtonSize)
-          ) { Icon(Icons.Default.SkipNext, contentDescription = "Next chapter") }
+            modifier = Modifier.size(IconButtonDefaults.SmallButtonSize)
+          ) { Icon(Icons.Default.Tune, contentDescription = "Playback options") }
         }
-        Text(
-          "${formatSpeed(state.speed)} · ${formatDuration((book.duration - state.time) / state.speed)} left",
-          style = MaterialTheme.typography.caption3,
-          color = MaterialTheme.colors.onSurfaceVariant
+      }
+
+      // Volume appears along the edge while the crown is turned
+      AnimatedVisibility(visible = showVolume, enter = fadeIn(), exit = fadeOut(), modifier = Modifier.fillMaxSize()) {
+        LevelIndicator(value = { volume })
+      }
+    }
+  }
+}
+
+@Composable
+private fun PlayPauseButton(size: Dp, isPlaying: Boolean, isBuffering: Boolean, chapterProgress: () -> Float, onClick: () -> Unit) {
+  Box(Modifier.size(size), contentAlignment = Alignment.Center) {
+    if (isBuffering) {
+      CircularProgressIndicator(modifier = Modifier.fillMaxSize(), strokeWidth = 3.dp)
+    } else {
+      CircularProgressIndicator(
+        progress = { chapterProgress().coerceIn(0f, 1f) },
+        strokeWidth = 3.dp,
+        modifier = Modifier.fillMaxSize()
+      )
+    }
+    FilledIconButton(onClick = onClick, modifier = Modifier.size(size - 12.dp)) {
+      Icon(
+        if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+        contentDescription = if (isPlaying) "Pause" else "Play",
+        modifier = Modifier.size(size * 0.45f)
+      )
+    }
+  }
+}
+
+private fun currentVolume(audioManager: AudioManager): Float {
+  val max = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC).coerceAtLeast(1)
+  return audioManager.getStreamVolume(AudioManager.STREAM_MUSIC).toFloat() / max
+}
+
+@Composable
+fun PlayerOptionsScreen(nav: NavHostController) {
+  val context = LocalContext.current
+  val controller by LocalPlayer.current.controller.collectAsState()
+  val playing by NowPlaying.book.collectAsState()
+  val state by rememberPlayerState(controller, playing)
+  val sleepRemaining by PlaybackService.sleepRemainingMs.collectAsState()
+
+  ListScreen {
+    header("Playback")
+    item { MenuButton(spec, Icons.Default.Speed, "Speed", formatSpeed(state.speed)) { nav.navigate(Routes.SPEED) } }
+    item {
+      MenuButton(spec, Icons.Default.Bedtime, "Sleep timer", sleepRemaining?.let { "${formatClock(it / 1000.0)} left" } ?: "Off") {
+        nav.navigate(Routes.SLEEP)
+      }
+    }
+    item { MenuButton(spec, Icons.Default.Bluetooth, "Audio output", "Bluetooth headphones") { context.startActivity(bluetoothSettingsIntent()) } }
+    if (playing != null) {
+      item {
+        OutlinedButton(
+          onClick = {
+            PlaybackService.current?.unload()
+            nav.popBackStack(Routes.HOME, inclusive = false)
+          },
+          modifier = itemModifier(spec),
+          transformation = SurfaceTransformation(spec),
+          icon = { Icon(Icons.Default.Stop, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize)) },
+          secondaryLabel = { Text("Your place is saved") },
+          label = { Text("Stop playback") }
         )
       }
     }
@@ -223,93 +325,106 @@ fun PlayerScreen(nav: NavHostController) {
 }
 
 @Composable
-fun PlayerOptionsScreen() {
+fun SpeedScreen(nav: NavHostController) {
   val context = LocalContext.current
   val controller by LocalPlayer.current.controller.collectAsState()
   val playing by NowPlaying.book.collectAsState()
-  val state = rememberPlayerState(controller, playing)
-  val sleepRemaining by PlaybackService.sleepRemainingMs.collectAsState()
-  val mc = controller
+  val state by rememberPlayerState(controller, playing)
 
   ListScreen {
-    item { ListHeader { Text("Playback") } }
-    item {
-      Chip(
-        label = { Text("Speed ${formatSpeed(state.speed)}") },
-        secondaryLabel = { Text("Tap to change") },
-        icon = { Icon(Icons.Default.Speed, contentDescription = null) },
-        onClick = {
-          val next = SPEEDS.firstOrNull { it > state.speed + 0.01f } ?: SPEEDS.first()
-          mc?.setPlaybackSpeed(next)
-        },
-        colors = ChipDefaults.secondaryChipColors(),
-        modifier = Modifier.fillMaxWidth()
-      )
-    }
-    item {
-      Chip(
-        label = { Text("Audio output") },
-        secondaryLabel = { Text("Bluetooth headphones") },
-        icon = { Icon(Icons.Default.Bluetooth, contentDescription = null) },
-        onClick = { context.startActivity(bluetoothSettingsIntent()) },
-        colors = ChipDefaults.secondaryChipColors(),
-        modifier = Modifier.fillMaxWidth()
-      )
-    }
-
-    item { ListHeader { Text(sleepRemaining?.let { "Sleep in ${formatClock(it / 1000.0)}" } ?: "Sleep timer") } }
-    if (sleepRemaining != null) {
-      item {
-        Chip(
-          label = { Text("Cancel sleep timer") },
-          icon = { Icon(Icons.Default.Bedtime, contentDescription = null) },
-          onClick = { PlaybackService.current?.cancelSleepTimer() },
-          colors = ChipDefaults.secondaryChipColors(),
-          modifier = Modifier.fillMaxWidth()
-        )
-      }
-    }
-    SLEEP_MINUTES.forEach { minutes ->
-      item {
-        Chip(
-          label = { Text("$minutes minutes") },
-          onClick = { PlaybackService.current?.startSleepTimer(minutes) },
-          colors = ChipDefaults.childChipColors(),
-          modifier = Modifier.fillMaxWidth()
-        )
-      }
-    }
-
-    val book = playing?.book
-    if (book != null) {
-      item {
-        Chip(
-          label = { Text("Stop and close") },
-          icon = { Icon(Icons.Default.Stop, contentDescription = null) },
-          onClick = { PlaybackService.current?.unload() },
-          colors = ChipDefaults.secondaryChipColors(),
-          modifier = Modifier.fillMaxWidth()
-        )
-      }
-    }
-
-    if (book != null && book.chapters.isNotEmpty() && mc != null) {
-      item { ListHeader { Text("Chapters") } }
-      val current = book.chapterAt(state.time)
-      itemsIndexed(book.chapters) { _, chapter ->
-        Chip(
-          label = { Text(chapter.title, maxLines = 2, overflow = TextOverflow.Ellipsis) },
-          secondaryLabel = { Text(formatClock(chapter.start)) },
-          onClick = { mc.seekBook(playing!!, chapter.start) },
-          colors = if (chapter == current) ChipDefaults.primaryChipColors() else ChipDefaults.childChipColors(),
-          modifier = Modifier.fillMaxWidth()
-        )
+    header("Speed")
+    items(SPEEDS) { speed ->
+      SelectableButton(spec, formatSpeed(speed), selected = abs(speed - state.speed) < 0.01f) {
+        controller?.setPlaybackSpeed(speed)
+        PlaybackService.savePlaybackSpeed(context, speed)
+        nav.popBackStack()
       }
     }
   }
 }
 
-private fun formatSpeed(speed: Float) = String.format(Locale.US, "%.1fx", speed)
+@Composable
+fun SleepTimerScreen(nav: NavHostController) {
+  val controller by LocalPlayer.current.controller.collectAsState()
+  val playing by NowPlaying.book.collectAsState()
+  val state by rememberPlayerState(controller, playing)
+  val sleepRemaining by PlaybackService.sleepRemainingMs.collectAsState()
+
+  ListScreen {
+    header(sleepRemaining?.let { "Sleep in ${formatClock(it / 1000.0)}" } ?: "Sleep timer")
+    if (sleepRemaining != null) {
+      item {
+        MenuButton(spec, Icons.Default.TimerOff, "Turn off") {
+          PlaybackService.current?.cancelSleepTimer()
+          nav.popBackStack()
+        }
+      }
+    }
+    playing?.let { current ->
+      item {
+        MenuButton(spec, Icons.Default.Timer, "End of chapter") {
+          val remaining = (chapterBounds(current, state.time).end - state.time) / state.speed
+          PlaybackService.current?.startSleepTimer((remaining * 1000).toLong())
+          nav.popBackStack()
+        }
+      }
+    }
+    items(SLEEP_MINUTES) { minutes ->
+      MenuButton(spec, Icons.Default.Timer, "$minutes minutes") {
+        PlaybackService.current?.startSleepTimer(minutes * 60_000L)
+        nav.popBackStack()
+      }
+    }
+  }
+}
+
+@Composable
+fun ChaptersScreen(nav: NavHostController) {
+  val controller by LocalPlayer.current.controller.collectAsState()
+  val playing by NowPlaying.book.collectAsState()
+  val state by rememberPlayerState(controller, playing)
+  val listState = rememberTransformingLazyColumnState()
+  val current = playing
+  val chapters = current?.book?.chapters.orEmpty()
+
+  // Open with the current chapter in view (item 0 is the header)
+  LaunchedEffect(current) {
+    val time = controller?.let { mc -> current?.bookTime(mc) } ?: return@LaunchedEffect
+    val index = chapters.indexOf(current?.book?.chapterAt(time))
+    if (index > 0) listState.scrollToItem(index + 1)
+  }
+
+  ListScreen(state = listState) {
+    header("Chapters")
+    if (current == null) caption("Nothing playing")
+    val currentChapter = current?.book?.chapterAt(state.time)
+    items(chapters) { chapter ->
+      SelectableButton(spec, chapter.title.ifEmpty { "Chapter" }, selected = chapter == currentChapter, secondary = formatClock(chapter.start)) {
+        if (current != null) controller?.seekBook(current, chapter.start)
+        nav.popBackStack()
+      }
+    }
+  }
+}
+
+/** Single choice row; the radio control keeps labels aligned whether or not they're selected. */
+@Composable
+private fun TransformingLazyColumnItemScope.SelectableButton(
+  spec: TransformationSpec,
+  label: String,
+  selected: Boolean,
+  secondary: String? = null,
+  onClick: () -> Unit
+) {
+  RadioButton(
+    selected = selected,
+    onSelect = onClick,
+    modifier = itemModifier(spec),
+    transformation = SurfaceTransformation(spec),
+    secondaryLabel = secondary?.let { text -> { Text(text) } },
+    label = { Text(label, maxLines = 2, overflow = TextOverflow.Ellipsis) }
+  )
+}
 
 /** Wear OS output switcher that closes once headphones connect. */
 private fun bluetoothSettingsIntent() = Intent("android.settings.BLUETOOTH_SETTINGS").apply {

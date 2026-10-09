@@ -6,12 +6,11 @@ import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.graphics.Color
-import androidx.wear.compose.material.Colors
-import androidx.wear.compose.material.MaterialTheme
+import androidx.wear.compose.material3.AppScaffold
 import androidx.wear.compose.navigation.SwipeDismissableNavHost
 import androidx.wear.compose.navigation.composable
 import androidx.wear.compose.navigation.rememberSwipeDismissableNavController
@@ -35,9 +34,12 @@ class MainActivity : ComponentActivity() {
 
     setContent {
       CompositionLocalProvider(LocalApp provides app, LocalPlayer provides player) {
-        MaterialTheme(colors = absColors) {
-          val account by app.auth.account.collectAsState()
-          if (account == null) LoginScreen() else AppNavigation()
+        AbsTheme {
+          // AppScaffold keeps the curved time text in place while screens swipe in and out
+          AppScaffold {
+            val account by app.auth.account.collectAsState()
+            if (account == null) LoginScreen() else AppNavigation()
+          }
         }
       }
     }
@@ -49,35 +51,36 @@ class MainActivity : ComponentActivity() {
   }
 }
 
-private val absColors = Colors(
-  primary = Color(0xFF1AD691),
-  primaryVariant = Color(0xFF0E9E69),
-  secondary = Color(0xFFE5C07B),
-  onPrimary = Color.Black
-)
-
 object Routes {
   const val HOME = "home"
   const val DOWNLOADS = "downloads"
   const val PLAYER = "player"
   const val PLAYER_OPTIONS = "player_options"
+  const val SPEED = "speed"
+  const val SLEEP = "sleep"
+  const val CHAPTERS = "chapters"
   const val SETTINGS = "settings"
-  fun library(id: String) = "library/$id"
+  fun library(id: String, name: String) = "library/$id/${android.net.Uri.encode(name)}"
   fun search(libraryId: String) = "search/$libraryId"
   fun item(id: String) = "item/$id"
 }
 
-@androidx.compose.runtime.Composable
+@Composable
 private fun AppNavigation() {
   val nav = rememberSwipeDismissableNavController()
   SwipeDismissableNavHost(navController = nav, startDestination = Routes.HOME) {
     composable(Routes.HOME) { HomeScreen(nav) }
-    composable("library/{id}") { LibraryScreen(nav, it.arguments?.getString("id")!!) }
+    composable("library/{id}/{name}") {
+      LibraryScreen(nav, it.arguments?.getString("id")!!, it.arguments?.getString("name").orEmpty())
+    }
     composable("search/{id}") { SearchScreen(nav, it.arguments?.getString("id")!!) }
     composable("item/{id}") { ItemScreen(nav, it.arguments?.getString("id")!!) }
     composable(Routes.DOWNLOADS) { DownloadsScreen(nav) }
     composable(Routes.PLAYER) { PlayerScreen(nav) }
-    composable(Routes.PLAYER_OPTIONS) { PlayerOptionsScreen() }
+    composable(Routes.PLAYER_OPTIONS) { PlayerOptionsScreen(nav) }
+    composable(Routes.SPEED) { SpeedScreen(nav) }
+    composable(Routes.SLEEP) { SleepTimerScreen(nav) }
+    composable(Routes.CHAPTERS) { ChaptersScreen(nav) }
     composable(Routes.SETTINGS) { SettingsScreen() }
   }
 }

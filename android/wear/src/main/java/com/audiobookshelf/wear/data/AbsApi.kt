@@ -65,11 +65,12 @@ class AbsApi(private val auth: AuthStore) {
     )
   }
 
-  suspend fun libraries(): List<Library> {
-    val response = get("/api/libraries")
-    return response.getJSONArray("libraries").objects().map {
-      Library(it.getString("id"), it.optString("name"), it.optString("mediaType"))
-    }
+  /** Book libraries that contain audio. Ebook-only libraries have nothing to play on the watch. */
+  suspend fun audioLibraries(): List<Library> {
+    val response = get("/api/libraries?include=stats")
+    return response.getJSONArray("libraries").objects()
+      .filter { it.optString("mediaType") == "book" && (it.optJSONObject("stats")?.optInt("numAudioFiles", 1) ?: 1) > 0 }
+      .map { Library(it.getString("id"), it.optString("name"), it.optString("mediaType")) }
   }
 
   suspend fun libraryItems(libraryId: String, page: Int, limit: Int = 30): Pair<List<BookSummary>, Int> {

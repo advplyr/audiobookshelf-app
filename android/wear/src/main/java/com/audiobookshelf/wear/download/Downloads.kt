@@ -13,6 +13,8 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import java.util.concurrent.TimeUnit
 
+data class ActiveDownload(val itemId: String, val title: String, val percent: Int)
+
 sealed interface DownloadState {
   data object None : DownloadState
   data class Running(val percent: Int) : DownloadState
@@ -29,6 +31,7 @@ object Downloads {
       .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, TimeUnit.SECONDS)
       .addTag(TAG)
       .addTag(ITEM_TAG_PREFIX + itemId)
+      .addTag(TITLE_TAG_PREFIX + title)
       .build()
     WorkManager.getInstance(context).enqueueUniqueWork(workName(itemId), ExistingWorkPolicy.REPLACE, request)
   }
@@ -48,14 +51,17 @@ object Downloads {
       }
     }
 
-  /** Item ids with a download queued or in progress. */
-  fun active(context: Context): Flow<Set<String>> =
+  /** Downloads that are queued or in progress. */
+  fun active(context: Context): Flow<List<ActiveDownload>> =
     WorkManager.getInstance(context).getWorkInfosByTagFlow(TAG).map { infos ->
-      infos.filter { !it.state.isFinished }
-        .mapNotNull { info -> info.tags.firstOrNull { it.startsWith(ITEM_TAG_PREFIX) }?.removePrefix(ITEM_TAG_PREFIX) }
-        .toSet()
+      infos.filter { !it.state.isFinished }.mapNotNull { info ->
+        val itemId = info.tags.firstOrNull { it.startsWith(ITEM_TAG_PREFIX) }?.removePrefix(ITEM_TAG_PREFIX) ?: return@mapNotNull null
+        val title = info.tags.firstOrNull { it.startsWith(TITLE_TAG_PREFIX) }?.removePrefix(TITLE_TAG_PREFIX).orEmpty()
+        ActiveDownload(itemId, title, info.progress.getInt(DownloadWorker.KEY_PROGRESS, 0))
+      }
     }
 
   private const val TAG = "book_download"
   private const val ITEM_TAG_PREFIX = "item:"
+  private const val TITLE_TAG_PREFIX = "title:"
 }
