@@ -169,6 +169,13 @@ class AbsApi(private val auth: AuthStore, private val phoneLink: PhoneLink, rout
 
   suspend fun progress(key: MediaKey): ServerProgress? = progress(key.itemId, key.episodeId)
 
+  /** Marks a book or episode finished, or not finished (which also starts it over). */
+  suspend fun setFinished(key: MediaKey, finished: Boolean) {
+    val body = JSONObject().put("isFinished", finished)
+    if (!finished) body.put("currentTime", 0).put("progress", 0)
+    execute(client, Request.Builder().url(absoluteUrl("/api/me/progress/${progressPath(key)}")).patch(body.toString().toRequestBody(json)).build())
+  }
+
   private fun progressPath(key: MediaKey) = if (key.episodeId == null) key.itemId else "${key.itemId}/${key.episodeId}"
 
   suspend fun syncLocalSession(session: JSONObject) {

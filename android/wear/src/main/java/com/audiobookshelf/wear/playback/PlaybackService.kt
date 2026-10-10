@@ -8,6 +8,7 @@ import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
+import androidx.media3.common.Player
 import androidx.annotation.OptIn
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DefaultDataSource
@@ -17,6 +18,7 @@ import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
 import com.audiobookshelf.wear.WearApp
+import com.audiobookshelf.wear.data.MediaKey
 import com.audiobookshelf.wear.ui.MainActivity
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -28,6 +30,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /** Plays books from watch storage or streams them from the server, with a media session for system controls. */
 class PlaybackService : MediaSessionService() {
@@ -59,6 +62,11 @@ class PlaybackService : MediaSessionService() {
 
     tracker = ListeningTracker(app, player, scope)
     player.addListener(tracker)
+    player.addListener(object : Player.Listener {
+      override fun onPlaybackStateChanged(playbackState: Int) {
+        if (playbackState == Player.STATE_ENDED) onFinishedPlaying()
+      }
+    })
 
     // Used by the media notification and the "now playing" indicator on the watch face,
     // so it opens straight into the player rather than the app's home screen
@@ -103,6 +111,20 @@ class PlaybackService : MediaSessionService() {
     player.setPlaybackSpeed(playbackSpeed(this))
     player.prepare()
     player.play()
+  }
+
+  /** The book or episode played to the end: mark it finished and unload it. */
+  private fun onFinishedPlaying() {
+    val key = NowPlaying.book.value?.book?.mediaKey ?: return
+    unload()
+    scope.launch {
+      try {
+        markFinished(app, key)
+      } catch (e: Exception) {
+        // Offline: the final position is still saved and sent with the listening session later
+        android.util.Log.w(TAG, "Could not mark ${key.key} finished: ${e.message}")
+      }
+    }
   }
 
   /** Stops playback and unloads the book, saving its position first. */
@@ -153,6 +175,11 @@ class PlaybackService : MediaSessionService() {
   }
 
   companion object {
+    /** Marks a book or episode finished on the server. Throws when the server can't be reached. */
+    suspend fun markFinished(app: WearApp, key: MediaKey) {
+      withContext(Dispatchers.IO) { app.api.setFinished(key, true) }
+    }
+
     /** The listener's chosen speed, kept across books and app restarts. */
     fun playbackSpeed(context: android.content.Context): Float =
       context.getSharedPreferences("player", MODE_PRIVATE).getFloat("speed", 1f)
@@ -161,6 +188,7 @@ class PlaybackService : MediaSessionService() {
       context.getSharedPreferences("player", MODE_PRIVATE).edit().putFloat("speed", speed).apply()
     }
 
+    private const val TAG = "PlaybackService"
     private const val REQUEST_OPEN_PLAYER = 1
     const val SEEK_BACK_MS = 10_000L
     const val SEEK_FORWARD_MS = 30_000L

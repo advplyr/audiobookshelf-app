@@ -5,9 +5,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Restore
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -42,6 +44,7 @@ import com.audiobookshelf.wear.data.ServerProgress
 import com.audiobookshelf.wear.download.DownloadState
 import com.audiobookshelf.wear.download.Downloads
 import com.audiobookshelf.wear.playback.NowPlaying
+import com.audiobookshelf.wear.playback.PlaybackService
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
@@ -62,6 +65,7 @@ fun ItemScreen(nav: NavHostController, key: MediaKey) {
   var confirmRemove by remember { mutableStateOf(false) }
   var starting by remember { mutableStateOf(false) }
   var playError by remember { mutableStateOf<String?>(null) }
+  var updatingFinished by remember { mutableStateOf(false) }
   val coverSize = (LocalConfiguration.current.screenWidthDp * 0.34f).dp
 
   val (data, retry) = rememberLoad(key) {
@@ -74,7 +78,30 @@ fun ItemScreen(nav: NavHostController, key: MediaKey) {
   }
   val ready = data as? Load.Ready
   val isCurrent = nowPlaying?.book?.mediaKey == key
-  val hasProgress = (ready?.value?.progress?.currentTime ?: app.progress.get(key)?.currentTime ?: 0.0) > 0
+  val isFinished = ready?.value?.progress?.isFinished == true
+  val hasProgress = !isFinished && (ready?.value?.progress?.currentTime ?: app.progress.get(key)?.currentTime ?: 0.0) > 0
+
+  fun setFinished(finished: Boolean) {
+    updatingFinished = true
+    playError = null
+    scope.launch {
+      try {
+        if (finished) {
+          // Finished books aren't left in the player
+          if (isCurrent) PlaybackService.current?.unload()
+          PlaybackService.markFinished(app, key)
+        } else {
+          app.api.setFinished(key, false)
+          app.progress.save(key, 0.0, System.currentTimeMillis())
+        }
+        retry()
+      } catch (e: Exception) {
+        playError = if (e is java.io.IOException) "Needs a connection" else describeError(e)
+      } finally {
+        updatingFinished = false
+      }
+    }
+  }
 
   fun play() {
     val book = ready?.value?.book ?: return
@@ -184,6 +211,23 @@ fun ItemScreen(nav: NavHostController, key: MediaKey) {
               label = { Text(if (state is DownloadState.Failed) "Retry download" else "Download") }
             )
           }
+        }
+        item {
+          OutlinedButton(
+            onClick = { setFinished(!isFinished) },
+            enabled = !updatingFinished,
+            modifier = itemModifier(spec),
+            transformation = SurfaceTransformation(spec),
+            icon = {
+              if (updatingFinished) {
+                CircularProgressIndicator(modifier = Modifier.size(ButtonDefaults.IconSize))
+              } else {
+                Icon(if (isFinished) Icons.Default.Restore else Icons.Default.CheckCircle, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
+              }
+            },
+            secondaryLabel = if (isFinished) ({ Text("Starts over") }) else null,
+            label = { Text(if (isFinished) "Mark as not finished" else "Mark as finished") }
+          )
         }
       }
     }
