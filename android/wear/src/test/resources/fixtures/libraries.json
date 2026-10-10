@@ -1,0 +1,7 @@
+{
+  "libraries": [
+    { "id": "lib_books", "name": "Audiobooks", "mediaType": "book", "stats": { "numAudioFiles": 40 } },
+    { "id": "lib_ebooks", "name": "EBooks", "mediaType": "book", "stats": { "numAudioFiles": 0 } },
+    { "id": "lib_pods", "name": "Podcasts", "mediaType": "podcast", "stats": { "numAudioFiles": 12 } }
+  ]
+}

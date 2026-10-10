@@ -37,6 +37,16 @@ stream or download audiobooks to the watch and listen without the phone.
   on the server. With Settings → Delete finished downloads on (off by default), its download is
   removed, also for items finished on the phone (checked when the app starts).
 
+## Tests
+
+```sh
+cd android
+./gradlew :wear:testDebugUnitTest
+```
+
+JVM tests with Robolectric and MockWebServer, using saved server responses in
+`src/test/resources/fixtures`.
+
 ## Build and install
 
 Both apps use the same application id (`com.audiobookshelf.app`, `.debug` for debug builds) and

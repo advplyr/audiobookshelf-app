@@ -31,7 +31,7 @@ class PhoneSignedOutException : IOException("Sign in to Audiobookshelf on your p
  */
 class PhoneLink(context: Context) {
   private val appContext = context.applicationContext
-  private val channels = Wearable.getChannelClient(appContext)
+  private val channels by lazy { Wearable.getChannelClient(appContext) }
   private val watchdog = Executors.newSingleThreadScheduledExecutor()
 
   /** A response from the phone. [body] streams until the phone closes the channel; close it when done. */

@@ -21,7 +21,7 @@ import javax.crypto.spec.GCMParameterSpec
  * shared because the server rotates it, which would log one of the devices out.
  * Tokens are encrypted with a key kept in the Android Keystore.
  */
-class AuthStore(context: Context) {
+class AuthStore(context: Context, private val crypto: TokenCrypto = KeystoreTokenCrypto) {
   private val prefs = context.getSharedPreferences("auth", Context.MODE_PRIVATE)
   private val _account = MutableStateFlow(load())
   val account: StateFlow<Account?> = _account.asStateFlow()
@@ -30,7 +30,7 @@ class AuthStore(context: Context) {
 
   @Synchronized
   fun save(account: Account) {
-    prefs.edit().putString(KEY_ACCOUNT, encrypt(account.toJson().toString())).putBoolean(KEY_SIGNED_OUT, false).apply()
+    prefs.edit().putString(KEY_ACCOUNT, crypto.encrypt(account.toJson().toString())).putBoolean(KEY_SIGNED_OUT, false).apply()
     _account.value = account
   }
 
@@ -59,21 +59,41 @@ class AuthStore(context: Context) {
   private fun load(): Account? {
     val stored = prefs.getString(KEY_ACCOUNT, null) ?: return null
     return try {
-      Account.fromJson(JSONObject(decrypt(stored)))
+      Account.fromJson(JSONObject(crypto.decrypt(stored)))
     } catch (e: Exception) {
       Log.e(TAG, "Failed to load account", e)
       null
     }
   }
 
-  private fun encrypt(plain: String): String {
+  companion object {
+    private const val TAG = "AuthStore"
+    private const val KEY_ACCOUNT = "account"
+    private const val KEY_SIGNED_OUT = "signedOutByUser"
+  }
+}
+
+/** Encrypts the stored account. Replaceable so tests can run without the Android Keystore. */
+interface TokenCrypto {
+  fun encrypt(plain: String): String
+  fun decrypt(encoded: String): String
+}
+
+/** Tokens are encrypted with an AES key kept in the Android Keystore. */
+object KeystoreTokenCrypto : TokenCrypto {
+  private const val KEYSTORE = "AndroidKeyStore"
+  private const val KEY_ALIAS = "AbsWearAccount"
+  private const val TRANSFORMATION = "AES/GCM/NoPadding"
+  private const val IV_LENGTH = 12
+
+  override fun encrypt(plain: String): String {
     val cipher = Cipher.getInstance(TRANSFORMATION)
     cipher.init(Cipher.ENCRYPT_MODE, key())
     val combined = cipher.iv + cipher.doFinal(plain.toByteArray(Charsets.UTF_8))
     return Base64.encodeToString(combined, Base64.NO_WRAP)
   }
 
-  private fun decrypt(encoded: String): String {
+  override fun decrypt(encoded: String): String {
     val combined = Base64.decode(encoded, Base64.NO_WRAP)
     val cipher = Cipher.getInstance(TRANSFORMATION)
     cipher.init(Cipher.DECRYPT_MODE, key(), GCMParameterSpec(128, combined, 0, IV_LENGTH))
@@ -91,15 +111,5 @@ class AuthStore(context: Context) {
         .build()
     )
     return generator.generateKey()
-  }
-
-  companion object {
-    private const val TAG = "AuthStore"
-    private const val KEY_ACCOUNT = "account"
-    private const val KEY_SIGNED_OUT = "signedOutByUser"
-    private const val KEYSTORE = "AndroidKeyStore"
-    private const val KEY_ALIAS = "AbsWearAccount"
-    private const val TRANSFORMATION = "AES/GCM/NoPadding"
-    private const val IV_LENGTH = 12
   }
 }

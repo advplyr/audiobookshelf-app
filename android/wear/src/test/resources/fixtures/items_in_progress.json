@@ -1,0 +1,11 @@
+{
+  "libraryItems": [
+    { "id": "li_book1", "mediaType": "book", "media": { "metadata": { "title": "One Word Kill", "authorName": "Mark Lawrence" }, "duration": 360.5 } },
+    {
+      "id": "li_pod1", "mediaType": "podcast",
+      "media": { "metadata": { "title": "The Daily Show", "author": "Some Network" }, "numEpisodes": 2 },
+      "recentEpisode": { "id": "ep_new", "title": "Newest episode", "publishedAt": 1710000000000, "audioFile": { "ino": "902", "duration": 2400, "metadata": { "ext": ".m4a", "size": 45000 } } }
+    },
+    { "id": "li_pod2", "mediaType": "podcast", "media": { "metadata": { "title": "No episode info" } } }
+  ]
+}
