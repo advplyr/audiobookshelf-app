@@ -81,6 +81,7 @@ class PlaybackService : MediaSessionService() {
       PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
     )
     mediaSession = MediaSession.Builder(this, guard).setSessionActivity(openPlayer).build()
+    setMediaNotificationProvider(PlaybackNotificationProvider(this, openPlayer))
     current = this
   }
 

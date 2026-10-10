@@ -24,6 +24,8 @@ stream or download audiobooks to the watch and listen without the phone.
   newer: its own position or the server's (which includes listening on the phone).
 - **Playback**: Media3 ExoPlayer in a `MediaSessionService`, so the watch's media controls and
   Bluetooth headphone buttons work. Turn the crown or bezel on the player screen to change the volume.
+  The media notification is an Ongoing Activity, so a "now playing" icon on the watch face opens
+  the player.
 - **Audio output**: with no headphones connected, pressing play asks where to play (`HeadphoneGuard`):
   connected headphones, the watch speaker, or Connect device (the Bluetooth picker). The speaker
   choice is kept until headphones connect, and playback starts by itself when headphones connect

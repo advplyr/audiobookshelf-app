@@ -49,8 +49,11 @@ class WearApp : Application(), ImageLoaderFactory {
     sessionSync = SessionSync(this, api, auth, progress)
     autoDelete = AutoDelete(downloads, { contentSettings.autoDeleteFinished.value }, { NowPlaying.book.value?.book?.mediaKey })
 
-    getSystemService(NotificationManager::class.java).createNotificationChannel(
-      NotificationChannel(DOWNLOAD_CHANNEL, "Downloads", NotificationManager.IMPORTANCE_LOW)
+    getSystemService(NotificationManager::class.java).createNotificationChannels(
+      listOf(
+        NotificationChannel(DOWNLOAD_CHANNEL, "Downloads", NotificationManager.IMPORTANCE_LOW),
+        NotificationChannel(PLAYBACK_CHANNEL, "Playback", NotificationManager.IMPORTANCE_LOW)
+      )
     )
 
     serverRoute.start()
@@ -94,5 +97,6 @@ class WearApp : Application(), ImageLoaderFactory {
   companion object {
     private const val TAG = "WearApp"
     const val DOWNLOAD_CHANNEL = "downloads"
+    const val PLAYBACK_CHANNEL = "playback"
   }
 }
