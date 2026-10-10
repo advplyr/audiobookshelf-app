@@ -63,6 +63,47 @@
             </intent-filter>
         </service>
 
+        <!-- Tiles -->
+        <service
+            android:name=".tile.ContinueListeningTile"
+            android:exported="true"
+            android:icon="@drawable/ic_notification"
+            android:label="Continue listening"
+            android:permission="com.google.android.wearable.permission.BIND_TILE_PROVIDER">
+            <intent-filter>
+                <action android:name="androidx.wear.tiles.action.BIND_TILE_PROVIDER" />
+            </intent-filter>
+            <meta-data
+                android:name="androidx.wear.tiles.PREVIEW"
+                android:resource="@mipmap/ic_launcher" />
+        </service>
+        <service
+            android:name=".tile.DownloadsTile"
+            android:exported="true"
+            android:icon="@drawable/ic_notification"
+            android:label="On this watch"
+            android:permission="com.google.android.wearable.permission.BIND_TILE_PROVIDER">
+            <intent-filter>
+                <action android:name="androidx.wear.tiles.action.BIND_TILE_PROVIDER" />
+            </intent-filter>
+            <meta-data
+                android:name="androidx.wear.tiles.PREVIEW"
+                android:resource="@mipmap/ic_launcher" />
+        </service>
+        <service
+            android:name=".tile.StatsTile"
+            android:exported="true"
+            android:icon="@drawable/ic_notification"
+            android:label="Listening stats"
+            android:permission="com.google.android.wearable.permission.BIND_TILE_PROVIDER">
+            <intent-filter>
+                <action android:name="androidx.wear.tiles.action.BIND_TILE_PROVIDER" />
+            </intent-filter>
+            <meta-data
+                android:name="androidx.wear.tiles.PREVIEW"
+                android:resource="@mipmap/ic_launcher" />
+        </service>
+
         <!-- WorkManager runs downloads as a foreground data sync -->
         <service
             android:name="androidx.work.impl.foreground.SystemForegroundService"

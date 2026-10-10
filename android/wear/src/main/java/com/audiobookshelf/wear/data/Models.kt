@@ -180,6 +180,45 @@ data class Chapter(val start: Double, val end: Double, val title: String) {
   }
 }
 
+/**
+ * The user's listening time from `/api/me/listening-stats`, summed up for the stats tile. All
+ * times are in seconds; [last7Days] runs oldest first and ends with [today].
+ */
+data class ListeningStats(
+  val today: java.time.LocalDate,
+  val todaySeconds: Long,
+  val weekSeconds: Long,
+  val last7Days: List<Long>,
+  val streakDays: Int,
+  val totalSeconds: Long
+) {
+  companion object {
+    /** [today] is the watch's date; the server keys days by the date the listening happened. */
+    fun from(json: JSONObject, today: java.time.LocalDate): ListeningStats {
+      val days = json.optJSONObject("days") ?: JSONObject()
+      fun secondsOn(date: java.time.LocalDate) = days.optDouble(date.toString(), 0.0).toLong().coerceAtLeast(0)
+
+      val last7 = (6 downTo 0).map { secondsOn(today.minusDays(it.toLong())) }
+      // A streak is still alive today until the day is over, so count back from yesterday if needed
+      var day = if (secondsOn(today) > 0) today else today.minusDays(1)
+      var streak = 0
+      while (secondsOn(day) > 0) {
+        streak++
+        day = day.minusDays(1)
+      }
+      return ListeningStats(
+        today = today,
+        // The server's own "today" can be a different day than the watch's near midnight
+        todaySeconds = secondsOn(today),
+        weekSeconds = last7.sum(),
+        last7Days = last7,
+        streakDays = streak,
+        totalSeconds = json.optDouble("totalTime", 0.0).toLong()
+      )
+    }
+  }
+}
+
 /** One podcast episode in a podcast's episode list. */
 data class EpisodeSummary(
   val id: String,

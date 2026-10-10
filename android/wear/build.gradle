@@ -85,8 +85,13 @@ dependencies {
   implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.9.0'
   implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0'
   implementation 'com.google.guava:guava:33.3.1-android'
+  implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-guava:1.9.0'
 
-  // "Now playing" indicator on the watch face
+  // Tile and the "now playing" indicator on the watch face
+  implementation 'androidx.wear.tiles:tiles:1.4.1'
+  implementation 'androidx.wear.protolayout:protolayout:1.2.1'
+  implementation 'androidx.wear.protolayout:protolayout-material:1.2.1'
+  implementation 'androidx.wear.protolayout:protolayout-expression:1.2.1'
   implementation 'androidx.wear:wear-ongoing:1.0.0'
 
   testImplementation 'junit:junit:4.13.2'

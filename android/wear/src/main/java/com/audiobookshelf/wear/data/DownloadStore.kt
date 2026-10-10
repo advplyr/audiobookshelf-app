@@ -16,7 +16,7 @@ data class DownloadedBook(val book: BookDetail, val sizeBytes: Long)
  * `books/<itemId>__<episodeId>/`. The `book.json` file is written last, so its presence marks a
  * complete download.
  */
-class DownloadStore(context: Context) {
+class DownloadStore(context: Context, private val onChanged: () -> Unit = {}) {
   private val root = File(context.filesDir, "books").apply { mkdirs() }
   private val _books = MutableStateFlow(scan())
   val books: StateFlow<List<DownloadedBook>> = _books.asStateFlow()
@@ -57,6 +57,7 @@ class DownloadStore(context: Context) {
 
   fun refresh() {
     _books.value = scan()
+    onChanged()
   }
 
   private fun scan(): List<DownloadedBook> {

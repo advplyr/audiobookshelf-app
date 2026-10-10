@@ -18,6 +18,7 @@ import com.audiobookshelf.wear.data.BookDetail
 import com.audiobookshelf.wear.data.MediaKey
 import com.audiobookshelf.wear.data.Track
 import com.audiobookshelf.wear.sync.DirectFirst
+import com.audiobookshelf.wear.tile.TileRefresher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
@@ -63,6 +64,7 @@ class DownloadWorker(context: Context, params: WorkerParameters) : CoroutineWork
       return Result.failure(workDataOf(KEY_ERROR to "Not enough storage"))
     }
 
+    TileRefresher.downloadsChanged(applicationContext)
     val fastNetwork = FastNetwork.acquire(applicationContext)
     val client = fastNetwork?.bind(app.api.client) ?: app.api.client
     // With Wi-Fi or LTE brought up for this download, try it before relaying through the phone
@@ -96,6 +98,8 @@ class DownloadWorker(context: Context, params: WorkerParameters) : CoroutineWork
       downloadTrack(client, track, file) { trackBytes ->
         val percent = ((completedBytes + trackBytes) * 100 / totalBytes).toInt()
         if (percent != lastReported) {
+          // The tile shows progress in coarse steps
+          if (percent / 10 != lastReported / 10) TileRefresher.downloadsChanged(applicationContext)
           lastReported = percent
           setProgressAsync(workDataOf(KEY_PROGRESS to percent))
           notify(percent)

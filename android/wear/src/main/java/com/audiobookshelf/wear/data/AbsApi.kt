@@ -169,6 +169,9 @@ class AbsApi(private val auth: AuthStore, private val phoneLink: PhoneLink, rout
 
   suspend fun progress(key: MediaKey): ServerProgress? = progress(key.itemId, key.episodeId)
 
+  /** The raw `/api/me/listening-stats` response; see [ListeningStats.from]. */
+  suspend fun listeningStats(): JSONObject = get("/api/me/listening-stats")
+
   /** Marks a book or episode finished, or not finished (which also starts it over). */
   suspend fun setFinished(key: MediaKey, finished: Boolean) {
     val body = JSONObject().put("isFinished", finished)

@@ -36,6 +36,17 @@ stream or download audiobooks to the watch and listen without the phone.
 - **Finished**: an item that plays to the end, or is marked finished on its page, is marked finished
   on the server. With Settings → Delete finished downloads on (off by default), its download is
   removed, also for items finished on the phone (checked when the app starts).
+- **Tiles**:
+  - **Continue listening**: covers of the books and episodes in progress (what's playing first); tap
+    one to play it.
+  - **On this watch**: downloads, storage used and free, and running downloads. Works offline.
+  - **Listening stats**: time today, a 7-day chart, the week total and the streak, from
+    `/api/me/listening-stats`. The only place stats are shown on the watch; tap to refresh.
+
+  Server data is cached (`TileCache`) so tiles show instantly and work offline. Add one for
+  debugging with `adb shell am broadcast -a com.google.android.wearable.app.DEBUG_SURFACE --es
+  operation add-tile --ecn component com.audiobookshelf.app.debug/com.audiobookshelf.wear.tile.<Tile>`
+  (`ContinueListeningTile`, `DownloadsTile`, `StatsTile`).
 
 ## Tests
 

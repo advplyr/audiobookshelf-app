@@ -170,6 +170,16 @@ class AbsApiTest {
   }
 
   @Test
+  fun `loads listening stats`() = runBlocking {
+    server.enqueue(jsonResponse(fixture("listening_stats.json")))
+
+    val json = api.listeningStats()
+
+    assertEquals("/api/me/listening-stats", server.takeRequest().path)
+    assertEquals(3600, json.getInt("today"))
+  }
+
+  @Test
   fun `search returns books and podcasts`() = runBlocking {
     server.enqueue(
       jsonResponse(

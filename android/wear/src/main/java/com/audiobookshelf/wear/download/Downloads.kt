@@ -12,6 +12,7 @@ import androidx.work.workDataOf
 import com.audiobookshelf.wear.data.MediaKey
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.guava.await
 import java.util.concurrent.TimeUnit
 
 data class ActiveDownload(val key: MediaKey, val title: String, val percent: Int)
@@ -61,12 +62,17 @@ object Downloads {
 
   /** Downloads that are queued or in progress. */
   fun active(context: Context): Flow<List<ActiveDownload>> =
-    WorkManager.getInstance(context).getWorkInfosByTagFlow(TAG).map { infos ->
-      infos.filter { !it.state.isFinished }.mapNotNull { info ->
-        val key = info.tags.firstOrNull { it.startsWith(ITEM_TAG_PREFIX) }?.removePrefix(ITEM_TAG_PREFIX) ?: return@mapNotNull null
-        val title = info.tags.firstOrNull { it.startsWith(TITLE_TAG_PREFIX) }?.removePrefix(TITLE_TAG_PREFIX).orEmpty()
-        ActiveDownload(MediaKey.parse(key), title, info.progress.getInt(DownloadWorker.KEY_PROGRESS, 0))
-      }
+    WorkManager.getInstance(context).getWorkInfosByTagFlow(TAG).map(::toActive)
+
+  /** [active] read once, e.g. for a tile. */
+  suspend fun activeNow(context: Context): List<ActiveDownload> =
+    toActive(WorkManager.getInstance(context).getWorkInfosByTag(TAG).await())
+
+  private fun toActive(infos: List<WorkInfo>): List<ActiveDownload> =
+    infos.filter { !it.state.isFinished }.mapNotNull { info ->
+      val key = info.tags.firstOrNull { it.startsWith(ITEM_TAG_PREFIX) }?.removePrefix(ITEM_TAG_PREFIX) ?: return@mapNotNull null
+      val title = info.tags.firstOrNull { it.startsWith(TITLE_TAG_PREFIX) }?.removePrefix(TITLE_TAG_PREFIX).orEmpty()
+      ActiveDownload(MediaKey.parse(key), title, info.progress.getInt(DownloadWorker.KEY_PROGRESS, 0))
     }
 
   private const val TAG = "book_download"

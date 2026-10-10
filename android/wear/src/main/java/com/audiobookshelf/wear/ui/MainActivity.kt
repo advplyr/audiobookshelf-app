@@ -18,12 +18,16 @@ import androidx.wear.compose.material3.AppScaffold
 import androidx.wear.compose.navigation.SwipeDismissableNavHost
 import androidx.wear.compose.navigation.composable
 import androidx.wear.compose.navigation.rememberSwipeDismissableNavController
+import android.util.Log
 import com.audiobookshelf.wear.WearApp
 import com.audiobookshelf.wear.data.BookSummary
 import com.audiobookshelf.wear.data.MediaKey
 import com.audiobookshelf.wear.playback.NowPlaying
+import com.audiobookshelf.wear.playback.PlaybackService
 import com.audiobookshelf.wear.playback.PlayerConnection
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.MutableStateFlow
 
 class MainActivity : ComponentActivity() {
@@ -31,6 +35,12 @@ class MainActivity : ComponentActivity() {
 
   /** Set when launched from the media notification / now playing indicator. */
   private val openPlayerRequest = MutableStateFlow(false)
+
+  /** Set by a tile when a book or episode that isn't loaded should play. */
+  private val resumeRequest = MutableStateFlow<MediaKey?>(null)
+
+  /** Set by a tile to open one of its screens. */
+  private val routeRequest = MutableStateFlow<String?>(null)
 
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
@@ -51,7 +61,7 @@ class MainActivity : ComponentActivity() {
           // AppScaffold keeps the curved time text in place while screens swipe in and out
           AppScaffold {
             val account by app.auth.account.collectAsState()
-            if (account == null) LoginScreen() else AppNavigation(openPlayerRequest)
+            if (account == null) LoginScreen() else AppNavigation(openPlayerRequest, resumeRequest, routeRequest)
           }
         }
       }
@@ -69,10 +79,33 @@ class MainActivity : ComponentActivity() {
       // Consume it so recreating the activity doesn't jump to the player again
       intent.removeExtra(EXTRA_OPEN_PLAYER)
     }
+    val arg = intent?.getStringExtra(EXTRA_TILE_ARG)
+    when (intent?.getStringExtra(EXTRA_TILE_ACTION)) {
+      TILE_PLAY -> arg?.let(MediaKey::parse)?.let { key ->
+        if (NowPlaying.book.value?.book?.mediaKey == key) {
+          PlaybackService.current?.guard?.play()
+          openPlayerRequest.value = true
+        } else {
+          resumeRequest.value = key
+        }
+      }
+      TILE_ROUTE -> routeRequest.value = arg
+    }
+    intent?.removeExtra(EXTRA_TILE_ACTION)
+    intent?.removeExtra(EXTRA_TILE_ARG)
   }
 
   companion object {
     const val EXTRA_OPEN_PLAYER = "open_player"
+    /** What a tile asks for: [TILE_PLAY] a book or episode, or open a [TILE_ROUTE]. */
+    const val EXTRA_TILE_ACTION = "tile_action"
+    /** The [com.audiobookshelf.wear.data.MediaKey.key] to play, or one of the ROUTE_ names */
+    const val EXTRA_TILE_ARG = "tile_arg"
+    const val TILE_PLAY = "play"
+    const val TILE_ROUTE = "route"
+    const val ROUTE_CONTINUE = "continue"
+    const val ROUTE_DOWNLOADS = "downloads"
+    const val ROUTE_LIBRARIES = "libraries"
   }
 
   override fun onDestroy() {
@@ -106,8 +139,41 @@ object Routes {
 }
 
 @Composable
-private fun AppNavigation(openPlayerRequest: MutableStateFlow<Boolean>) {
+private fun AppNavigation(
+  openPlayerRequest: MutableStateFlow<Boolean>,
+  resumeRequest: MutableStateFlow<MediaKey?>,
+  routeRequest: MutableStateFlow<String?>
+) {
   val nav = rememberSwipeDismissableNavController()
+  val app = LocalApp.current
+  val player = LocalPlayer.current
+  // Requests from tiles. Collected once, so clearing a request doesn't cancel the work it started.
+  LaunchedEffect(Unit) {
+    routeRequest.filterNotNull().collect { route ->
+      routeRequest.value = null
+      val target = when (route) {
+        MainActivity.ROUTE_CONTINUE -> Routes.CONTINUE
+        MainActivity.ROUTE_DOWNLOADS -> Routes.DOWNLOADS
+        MainActivity.ROUTE_LIBRARIES -> Routes.LIBRARIES
+        else -> return@collect
+      }
+      nav.navigate(target) { launchSingleTop = true }
+    }
+  }
+  LaunchedEffect(Unit) {
+    resumeRequest.filterNotNull().collect { key ->
+      resumeRequest.value = null
+      try {
+        startBook(app, player, nav, key)
+      } catch (e: CancellationException) {
+        throw e
+      } catch (e: Exception) {
+        // e.g. offline and not downloaded: show the item so the problem is visible
+        Log.w("MainActivity", "Could not play ${key.key}: ${e.message}")
+        nav.navigate(Routes.item(key.itemId, key.episodeId))
+      }
+    }
+  }
   val openPlayer by openPlayerRequest.collectAsState()
   val nowPlaying by NowPlaying.book.collectAsState()
   LaunchedEffect(openPlayer, nowPlaying) {

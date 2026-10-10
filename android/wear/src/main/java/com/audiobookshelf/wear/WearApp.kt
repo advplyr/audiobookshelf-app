@@ -17,9 +17,16 @@ import com.audiobookshelf.wear.sync.PhoneConfig
 import com.audiobookshelf.wear.sync.PhoneLink
 import com.audiobookshelf.wear.sync.ServerRoute
 import com.audiobookshelf.wear.sync.SessionSync
+import com.audiobookshelf.wear.tile.ContinueListeningTile
+import com.audiobookshelf.wear.tile.StatsTile
+import com.audiobookshelf.wear.tile.TileCache
+import com.audiobookshelf.wear.tile.TileRefresher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
 class WearApp : Application(), ImageLoaderFactory {
@@ -35,6 +42,7 @@ class WearApp : Application(), ImageLoaderFactory {
   lateinit var contentSettings: ContentSettings
   lateinit var sessionSync: SessionSync
   lateinit var autoDelete: AutoDelete
+  lateinit var tileCache: TileCache
 
   override fun onCreate() {
     super.onCreate()
@@ -42,11 +50,12 @@ class WearApp : Application(), ImageLoaderFactory {
     phoneLink = PhoneLink(this)
     serverRoute = ServerRoute(this, auth, phoneLink, appScope)
     api = AbsApi(auth, phoneLink, serverRoute)
-    downloads = DownloadStore(this)
+    downloads = DownloadStore(this) { TileRefresher.downloadsChanged(this) }
     progress = ProgressStore(this)
     phoneConfig = PhoneConfig(this)
     contentSettings = ContentSettings(this)
-    sessionSync = SessionSync(this, api, auth, progress)
+    sessionSync = SessionSync(this, api, auth, progress) { TileRefresher.statsChanged(this) }
+    tileCache = TileCache(this)
     autoDelete = AutoDelete(downloads, { contentSettings.autoDeleteFinished.value }, { NowPlaying.book.value?.book?.mediaKey })
 
     getSystemService(NotificationManager::class.java).createNotificationChannels(
@@ -57,6 +66,13 @@ class WearApp : Application(), ImageLoaderFactory {
     )
 
     serverRoute.start()
+    appScope.launch {
+      // Tiles show the signed in user's books and stats; start over when the user or server changes
+      auth.account.map { it?.serverAddress to it?.userId }.distinctUntilChanged().drop(1).collect {
+        tileCache.clear()
+        TileRefresher.request(this@WearApp, ContinueListeningTile::class.java, StatsTile::class.java)
+      }
+    }
     appScope.launch {
       syncSignInFromPhone()
       phoneConfig.refreshFromPhone()

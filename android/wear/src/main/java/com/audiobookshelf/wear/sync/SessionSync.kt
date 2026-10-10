@@ -22,7 +22,9 @@ class SessionSync(
   context: Context,
   private val api: AbsApi,
   private val auth: AuthStore,
-  private val progressStore: ProgressStore
+  private val progressStore: ProgressStore,
+  /** Called after listening time reached the server. */
+  private val onSent: () -> Unit = {}
 ) {
   private val sendMutex = Mutex()
 
@@ -59,7 +61,10 @@ class SessionSync(
         false
       }
     }
-    if (sent) flushPending()
+    if (sent) {
+      onSent()
+      flushPending()
+    }
   }
 
   suspend fun flushPending() {
@@ -75,6 +80,7 @@ class SessionSync(
         pending.forEach { lastSent[it.getString("id")] = maxOf(lastSent[it.getString("id")] ?: 0L, it.optLong("updatedAt")) }
         progressStore.removePendingSessions(pending)
         Log.i(TAG, "Synced ${pending.size} queued sessions")
+        onSent()
       } catch (e: Exception) {
         Log.w(TAG, "Could not sync queued sessions: ${e.message}")
       }

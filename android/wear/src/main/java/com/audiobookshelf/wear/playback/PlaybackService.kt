@@ -19,6 +19,7 @@ import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
 import com.audiobookshelf.wear.WearApp
 import com.audiobookshelf.wear.data.MediaKey
+import com.audiobookshelf.wear.tile.TileRefresher
 import com.audiobookshelf.wear.ui.MainActivity
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -66,6 +67,8 @@ class PlaybackService : MediaSessionService() {
     tracker = ListeningTracker(app, player, scope)
     player.addListener(tracker)
     player.addListener(object : Player.Listener {
+      override fun onIsPlayingChanged(isPlaying: Boolean) = TileRefresher.playbackChanged(this@PlaybackService)
+
       override fun onPlaybackStateChanged(playbackState: Int) {
         if (playbackState == Player.STATE_ENDED) onFinishedPlaying()
       }
@@ -116,6 +119,7 @@ class PlaybackService : MediaSessionService() {
     player.setPlaybackSpeed(playbackSpeed(this))
     player.prepare()
     guard.play()
+    TileRefresher.playbackChanged(this)
   }
 
   /**
@@ -144,6 +148,7 @@ class PlaybackService : MediaSessionService() {
     player.stop()
     player.clearMediaItems()
     NowPlaying.book.value = null
+    TileRefresher.playbackChanged(this)
   }
 
   fun startSleepTimer(durationMs: Long) {
@@ -192,6 +197,7 @@ class PlaybackService : MediaSessionService() {
     suspend fun markFinished(app: WearApp, key: MediaKey) {
       withContext(Dispatchers.IO) { app.api.setFinished(key, true) }
       app.autoDelete.onFinished(key)
+      TileRefresher.playbackChanged(app)
     }
 
     /** The listener's chosen speed, kept across books and app restarts. */
