@@ -90,6 +90,7 @@ object Routes {
   const val SLEEP = "sleep"
   const val CHAPTERS = "chapters"
   const val SETTINGS = "settings"
+  const val AUDIO_OUTPUT = "audio_output"
   const val CONTINUE = "continue"
   const val LIBRARIES = "libraries"
   const val SERIES_LIBRARIES = "series_libraries"
@@ -152,5 +153,6 @@ private fun AppNavigation(openPlayerRequest: MutableStateFlow<Boolean>) {
     composable(Routes.SLEEP) { SleepTimerScreen(nav) }
     composable(Routes.CHAPTERS) { ChaptersScreen(nav) }
     composable(Routes.SETTINGS) { SettingsScreen() }
+    composable(Routes.AUDIO_OUTPUT) { AudioOutputScreen(nav) }
   }
 }

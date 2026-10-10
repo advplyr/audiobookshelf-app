@@ -1,7 +1,7 @@
 package com.audiobookshelf.wear.ui
 
 import android.content.Context
-import android.content.Intent
+import android.media.AudioDeviceInfo
 import android.media.AudioManager
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -24,7 +25,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.FormatListBulleted
 import androidx.compose.material.icons.filled.Bedtime
 import androidx.compose.material.icons.filled.Bluetooth
+import androidx.compose.material.icons.automirrored.filled.BluetoothSearching
 import androidx.compose.material.icons.filled.Forward30
+import androidx.compose.material.icons.filled.Headphones
+import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Replay10
@@ -59,6 +63,7 @@ import androidx.media3.session.MediaController
 import androidx.navigation.NavHostController
 import androidx.wear.compose.foundation.lazy.TransformingLazyColumnItemScope
 import androidx.wear.compose.foundation.lazy.rememberTransformingLazyColumnState
+import androidx.wear.compose.material3.Button
 import androidx.wear.compose.material3.ButtonDefaults
 import androidx.wear.compose.material3.CircularProgressIndicator
 import androidx.wear.compose.material3.FilledIconButton
@@ -75,10 +80,12 @@ import androidx.wear.compose.material3.SurfaceTransformation
 import androidx.wear.compose.material3.Text
 import androidx.wear.compose.material3.lazy.TransformationSpec
 import com.audiobookshelf.wear.data.Chapter
+import com.audiobookshelf.wear.playback.HeadphoneGuard
 import com.audiobookshelf.wear.playback.NowPlaying
 import com.audiobookshelf.wear.playback.PlaybackService
 import com.audiobookshelf.wear.playback.PlayingBook
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlin.math.abs
 
 private val SPEEDS = listOf(0.8f, 1.0f, 1.1f, 1.2f, 1.3f, 1.5f, 1.75f, 2.0f)
@@ -144,6 +151,11 @@ fun PlayerScreen(nav: NavHostController) {
   val showVolume = volumeShownAt > 0
 
   LaunchedEffect(Unit) { focusRequester.requestFocus() }
+  // No headphones: ask where to play
+  val waitingForHeadphones by NowPlaying.waitingForHeadphones.collectAsState()
+  LaunchedEffect(waitingForHeadphones) {
+    if (waitingForHeadphones) nav.navigate(Routes.AUDIO_OUTPUT) { launchSingleTop = true }
+  }
   LaunchedEffect(volumeShownAt) {
     if (volumeShownAt > 0) {
       delay(1500)
@@ -314,7 +326,11 @@ fun PlayerOptionsScreen(nav: NavHostController) {
         nav.navigate(Routes.SLEEP)
       }
     }
-    item { MenuButton(spec, Icons.Default.Bluetooth, "Audio output", "Bluetooth headphones") { context.startActivity(bluetoothSettingsIntent()) } }
+    item {
+      val output by remember { PlaybackService.current?.guard?.chosen ?: MutableStateFlow(null) }.collectAsState()
+      val outputs by remember { PlaybackService.current?.guard?.outputs ?: MutableStateFlow(emptyList()) }.collectAsState()
+      MenuButton(spec, Icons.Default.Bluetooth, "Audio output", (output ?: outputs.firstOrNull())?.let(::outputName)) { nav.navigate(Routes.AUDIO_OUTPUT) }
+    }
     if (playing != null) {
       item {
         OutlinedButton(
@@ -435,9 +451,55 @@ private fun TransformingLazyColumnItemScope.SelectableButton(
   )
 }
 
-/** Wear OS output switcher that closes once headphones connect. */
-private fun bluetoothSettingsIntent() = Intent("android.settings.BLUETOOTH_SETTINGS").apply {
-  putExtra("EXTRA_CONNECTION_ONLY", true)
-  putExtra("EXTRA_CLOSE_ON_CONNECT", true)
-  putExtra("android.bluetooth.devicepicker.extra.FILTER_TYPE", 1)
+fun outputName(device: AudioDeviceInfo): String = when (device.type) {
+  AudioDeviceInfo.TYPE_BUILTIN_SPEAKER -> "Watch speaker"
+  AudioDeviceInfo.TYPE_WIRED_HEADPHONES, AudioDeviceInfo.TYPE_WIRED_HEADSET -> "Wired headphones"
+  else -> device.productName?.toString()?.takeIf { it.isNotBlank() } ?: "Headphones"
+}
+
+/**
+ * Where to play: connected headphones, the watch speaker, or connecting a device. Opens by itself
+ * when play is pressed without headphones, and goes back once an output is picked or connects.
+ */
+@Composable
+fun AudioOutputScreen(nav: NavHostController) {
+  val guard = PlaybackService.current?.guard
+  val outputs by remember { guard?.outputs ?: MutableStateFlow(emptyList()) }.collectAsState()
+  val chosen by remember { guard?.chosen ?: MutableStateFlow(null) }.collectAsState()
+  val waiting by NowPlaying.waitingForHeadphones.collectAsState()
+  // Opened because play was pressed without headphones
+  val openedToPlay = remember { waiting }
+
+  LaunchedEffect(waiting) {
+    if (openedToPlay && !waiting) nav.popBackStack()
+  }
+
+  ListScreen {
+    header("Play on")
+    if (openedToPlay) caption("No headphones connected")
+    // Without a choice the system plays on the first one: headphones if connected, else the speaker
+    val current = chosen ?: outputs.firstOrNull().takeUnless { waiting }
+    items(outputs, key = { it.id }) { device ->
+      val speaker = device.type == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER
+      Button(
+        onClick = {
+          guard?.useOutput(device)
+          if (!openedToPlay) nav.popBackStack()
+        },
+        modifier = itemModifier(spec),
+        transformation = SurfaceTransformation(spec),
+        colors = if (device.id == current?.id) ButtonDefaults.buttonColors() else ButtonDefaults.filledTonalButtonColors(),
+        icon = {
+          Icon(
+            if (speaker) Icons.AutoMirrored.Default.VolumeUp else Icons.Default.Headphones,
+            contentDescription = null,
+            modifier = Modifier.size(ButtonDefaults.IconSize)
+          )
+        },
+        secondaryLabel = if (device.id == current?.id) ({ Text("Playing here") }) else null,
+        label = { Text(outputName(device), maxLines = 2, overflow = TextOverflow.Ellipsis) }
+      )
+    }
+    item { MenuButton(spec, Icons.AutoMirrored.Default.BluetoothSearching, "Connect device", "Bluetooth headphones") { guard?.openBluetoothPicker() ?: nav.context.startActivity(HeadphoneGuard.bluetoothSettingsIntent()) } }
+  }
 }

@@ -26,4 +26,7 @@ data class PlayingBook(
 
 object NowPlaying {
   val book = MutableStateFlow<PlayingBook?>(null)
+
+  /** True while a play request waits for headphones (see [HeadphoneGuard]). */
+  val waitingForHeadphones = MutableStateFlow(false)
 }

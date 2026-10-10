@@ -37,6 +37,9 @@ class PlaybackService : MediaSessionService() {
   private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
   private lateinit var app: WearApp
   private lateinit var player: ExoPlayer
+  /** What the media session, and so every controller, plays through. */
+  lateinit var guard: HeadphoneGuard
+    private set
   private lateinit var mediaSession: MediaSession
   private lateinit var tracker: ListeningTracker
   private var sleepJob: Job? = null
@@ -67,6 +70,7 @@ class PlaybackService : MediaSessionService() {
         if (playbackState == Player.STATE_ENDED) onFinishedPlaying()
       }
     })
+    guard = HeadphoneGuard(this, player, player::setPreferredAudioDevice, _waiting = NowPlaying.waitingForHeadphones)
 
     // Used by the media notification and the "now playing" indicator on the watch face,
     // so it opens straight into the player rather than the app's home screen
@@ -76,7 +80,7 @@ class PlaybackService : MediaSessionService() {
       Intent(this, MainActivity::class.java).putExtra(MainActivity.EXTRA_OPEN_PLAYER, true),
       PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
     )
-    mediaSession = MediaSession.Builder(this, player).setSessionActivity(openPlayer).build()
+    mediaSession = MediaSession.Builder(this, guard).setSessionActivity(openPlayer).build()
     current = this
   }
 
@@ -110,7 +114,7 @@ class PlaybackService : MediaSessionService() {
     player.setMediaItems(items, index, positionMs)
     player.setPlaybackSpeed(playbackSpeed(this))
     player.prepare()
-    player.play()
+    guard.play()
   }
 
   /**
@@ -172,6 +176,7 @@ class PlaybackService : MediaSessionService() {
     tracker.finish()
     cancelSleepTimer()
     scope.cancel()
+    guard.unregister()
     mediaSession.release()
     player.release()
     NowPlaying.book.value = null
