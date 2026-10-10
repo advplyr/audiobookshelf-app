@@ -113,7 +113,10 @@ class PlaybackService : MediaSessionService() {
     player.play()
   }
 
-  /** The book or episode played to the end: mark it finished and unload it. */
+  /**
+   * The book or episode played to the end: mark it finished, unload it and, when "Delete finished
+   * downloads" is on, remove its download.
+   */
   private fun onFinishedPlaying() {
     val key = NowPlaying.book.value?.book?.mediaKey ?: return
     unload()
@@ -123,6 +126,7 @@ class PlaybackService : MediaSessionService() {
       } catch (e: Exception) {
         // Offline: the final position is still saved and sent with the listening session later
         android.util.Log.w(TAG, "Could not mark ${key.key} finished: ${e.message}")
+        app.autoDelete.onFinished(key)
       }
     }
   }
@@ -175,9 +179,13 @@ class PlaybackService : MediaSessionService() {
   }
 
   companion object {
-    /** Marks a book or episode finished on the server. Throws when the server can't be reached. */
+    /**
+     * Marks a book or episode finished on the server and removes its download if the user wants
+     * that. Throws when the server can't be reached.
+     */
     suspend fun markFinished(app: WearApp, key: MediaKey) {
       withContext(Dispatchers.IO) { app.api.setFinished(key, true) }
+      app.autoDelete.onFinished(key)
     }
 
     /** The listener's chosen speed, kept across books and app restarts. */

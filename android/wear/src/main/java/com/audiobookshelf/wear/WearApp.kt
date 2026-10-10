@@ -10,6 +10,8 @@ import com.audiobookshelf.wear.data.AbsApi
 import com.audiobookshelf.wear.data.AuthStore
 import com.audiobookshelf.wear.data.DownloadStore
 import com.audiobookshelf.wear.data.ProgressStore
+import com.audiobookshelf.wear.download.AutoDelete
+import com.audiobookshelf.wear.playback.NowPlaying
 import com.audiobookshelf.wear.sync.ContentSettings
 import com.audiobookshelf.wear.sync.PhoneConfig
 import com.audiobookshelf.wear.sync.PhoneLink
@@ -32,6 +34,7 @@ class WearApp : Application(), ImageLoaderFactory {
   lateinit var phoneConfig: PhoneConfig
   lateinit var contentSettings: ContentSettings
   lateinit var sessionSync: SessionSync
+  lateinit var autoDelete: AutoDelete
 
   override fun onCreate() {
     super.onCreate()
@@ -44,6 +47,7 @@ class WearApp : Application(), ImageLoaderFactory {
     phoneConfig = PhoneConfig(this)
     contentSettings = ContentSettings(this)
     sessionSync = SessionSync(this, api, auth, progress)
+    autoDelete = AutoDelete(downloads, { contentSettings.autoDeleteFinished.value }, { NowPlaying.book.value?.book?.mediaKey })
 
     getSystemService(NotificationManager::class.java).createNotificationChannel(
       NotificationChannel(DOWNLOAD_CHANNEL, "Downloads", NotificationManager.IMPORTANCE_LOW)
@@ -54,6 +58,18 @@ class WearApp : Application(), ImageLoaderFactory {
       syncSignInFromPhone()
       phoneConfig.refreshFromPhone()
       sessionSync.flushPending()
+      removeFinishedDownloads()
+    }
+  }
+
+  /** With "Delete finished downloads" on, removes downloads finished elsewhere (e.g. on the phone). */
+  private suspend fun removeFinishedDownloads() {
+    if (!contentSettings.autoDeleteFinished.value || downloads.books.value.isEmpty() || auth.current == null) return
+    try {
+      val removed = autoDelete.sweep(api.allProgress())
+      if (removed > 0) Log.i(TAG, "Removed $removed finished downloads")
+    } catch (e: Exception) {
+      Log.d(TAG, "Could not check for finished downloads: ${e.message}")
     }
   }
 

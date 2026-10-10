@@ -5,6 +5,7 @@ import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.automirrored.filled.ViewList
 import androidx.compose.material.icons.filled.CloudDone
 import androidx.compose.material.icons.filled.CloudOff
+import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.Smartphone
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material.icons.filled.Wifi
@@ -44,6 +45,7 @@ fun SettingsScreen() {
   var syncing by remember { mutableStateOf(false) }
   var confirmSignOut by remember { mutableStateOf(false) }
   val classicHome by app.contentSettings.classicHome.collectAsState()
+  val autoDeleteFinished by app.contentSettings.autoDeleteFinished.collectAsState()
   val route by app.serverRoute.route.collectAsState()
 
   ListScreen(
@@ -104,6 +106,17 @@ fun SettingsScreen() {
         transformation = SurfaceTransformation(spec),
         icon = { Icon(Icons.AutoMirrored.Default.ViewList, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize)) },
         label = { Text("Scrollable homepage") }
+      )
+    }
+    item {
+      SwitchButton(
+        checked = autoDeleteFinished,
+        onCheckedChange = { app.contentSettings.setAutoDeleteFinished(it) },
+        modifier = itemModifier(spec),
+        transformation = SurfaceTransformation(spec),
+        icon = { Icon(Icons.Default.DeleteSweep, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize)) },
+        secondaryLabel = { Text("When a book or episode ends") },
+        label = { Text("Delete finished downloads") }
       )
     }
   }

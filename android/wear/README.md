@@ -28,7 +28,8 @@ stream or download audiobooks to the watch and listen without the phone.
   and can be marked finished like a book. Episodes are keyed as `itemId/episodeId` (`MediaKey`) and
   downloaded to `files/books/<itemId>__<episodeId>/`.
 - **Finished**: an item that plays to the end, or is marked finished on its page, is marked finished
-  on the server.
+  on the server. With Settings → Delete finished downloads on (off by default), its download is
+  removed, also for items finished on the phone (checked when the app starts).
 
 ## Build and install
 
