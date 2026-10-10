@@ -49,12 +49,12 @@ class PlayerConnection(private val context: Context) {
    */
   suspend fun play(book: BookDetail) {
     val current = NowPlaying.book.value
-    if (current?.book?.id == book.id) {
+    if (current?.book?.mediaKey == book.mediaKey) {
       controller.value?.play()
       return
     }
 
-    val local = app.downloads.get(book.id)
+    val local = app.downloads.get(book.mediaKey)
     val startTime = resumeTime(book)
     val playing = PlayingBook(local ?: book, isLocal = local != null, sessionId = UUID.randomUUID().toString())
     connect()
@@ -66,9 +66,9 @@ class PlayerConnection(private val context: Context) {
   private suspend fun resumeTime(book: BookDetail): Double {
     // Send listening done offline first so the server's progress is current
     app.sessionSync.flushPending()
-    val local = app.progress.get(book.id)
+    val local = app.progress.get(book.mediaKey)
     val server = try {
-      app.api.progress(book.id)
+      app.api.progress(book.mediaKey)
     } catch (e: Exception) {
       Log.i(TAG, "Server progress unavailable, using watch progress: ${e.message}")
       null

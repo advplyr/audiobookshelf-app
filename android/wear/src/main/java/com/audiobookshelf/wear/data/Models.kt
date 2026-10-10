@@ -45,7 +45,27 @@ data class PhoneServerConfig(
   val customHeaders: Map<String, String>
 )
 
-data class Library(val id: String, val name: String, val mediaType: String)
+data class Library(val id: String, val name: String, val mediaType: String) {
+  val isPodcast get() = mediaType == MEDIA_PODCAST
+}
+
+const val MEDIA_BOOK = "book"
+const val MEDIA_PODCAST = "podcast"
+
+/**
+ * Identifies something playable: a book, or one episode of a podcast. [key] is used for progress
+ * and downloads on the watch; for books it is just the item id, so older saved data still matches.
+ */
+data class MediaKey(val itemId: String, val episodeId: String? = null) {
+  val key: String get() = if (episodeId == null) itemId else "$itemId/$episodeId"
+
+  companion object {
+    fun parse(key: String): MediaKey {
+      val slash = key.indexOf('/')
+      return if (slash < 0) MediaKey(key) else MediaKey(key.substring(0, slash), key.substring(slash + 1))
+    }
+  }
+}
 
 data class BookSummary(
   val id: String,
@@ -53,8 +73,17 @@ data class BookSummary(
   val author: String,
   val duration: Double,
   /** e.g. "Defiance of the Fall #3" for books in a series */
-  val seriesName: String = ""
+  val seriesName: String = "",
+  /** [MEDIA_BOOK], or [MEDIA_PODCAST] for a podcast or one of its episodes */
+  val mediaType: String = MEDIA_BOOK,
+  /** Set when this is a single podcast episode; [title] is then the episode and [author] the podcast */
+  val episodeId: String? = null
 ) {
+  val mediaKey get() = MediaKey(id, episodeId)
+
+  /** A whole podcast (opens its episode list) rather than something playable. */
+  val isPodcast get() = mediaType == MEDIA_PODCAST && episodeId == null
+
   /** The book's number within a series, e.g. "3", parsed from [seriesName]. */
   val seriesSequence: String? get() = seriesName.substringAfterLast(" #", "").takeIf { it.isNotEmpty() }
 }
@@ -70,14 +99,20 @@ data class ServerProgress(
   val currentTime: Double,
   val progress: Double,
   val isFinished: Boolean,
-  val lastUpdate: Long
+  val lastUpdate: Long,
+  val itemId: String = "",
+  val episodeId: String? = null
 ) {
+  val mediaKey get() = MediaKey(itemId, episodeId)
+
   companion object {
     fun fromJson(json: JSONObject) = ServerProgress(
       currentTime = json.optDouble("currentTime", 0.0),
       progress = json.optDouble("progress", 0.0),
       isFinished = json.optBoolean("isFinished", false),
-      lastUpdate = json.optLong("lastUpdate", 0L)
+      lastUpdate = json.optLong("lastUpdate", 0L),
+      itemId = json.optString("libraryItemId"),
+      episodeId = json.optStringOrNull("episodeId")
     )
   }
 }
@@ -145,6 +180,59 @@ data class Chapter(val start: Double, val end: Double, val title: String) {
   }
 }
 
+/** One podcast episode in a podcast's episode list. */
+data class EpisodeSummary(
+  val id: String,
+  val title: String,
+  /** Milliseconds since the epoch, or 0 when unknown */
+  val publishedAt: Long,
+  val duration: Double,
+  val size: Long
+) {
+  companion object {
+    fun fromServerJson(json: JSONObject): EpisodeSummary {
+      val audioFile = json.optJSONObject("audioFile")
+      return EpisodeSummary(
+        id = json.getString("id"),
+        title = json.optString("title"),
+        publishedAt = json.optLong("publishedAt", 0L),
+        duration = json.optDouble("duration", audioFile?.optDouble("duration", 0.0) ?: 0.0).takeUnless { it.isNaN() } ?: 0.0,
+        size = json.optLong("size", audioFile?.optJSONObject("metadata")?.optLong("size", 0L) ?: 0L)
+      )
+    }
+  }
+}
+
+/** A podcast with its episodes, newest first. */
+data class PodcastDetail(
+  val id: String,
+  val libraryId: String,
+  val title: String,
+  val author: String,
+  val episodes: List<EpisodeSummary>
+) {
+  companion object {
+    /** Parses the server's expanded podcast library item JSON (/api/items/:id?expanded=1). */
+    fun fromServerJson(json: JSONObject): PodcastDetail {
+      val media = json.getJSONObject("media")
+      val metadata = media.optJSONObject("metadata") ?: JSONObject()
+      return PodcastDetail(
+        id = json.getString("id"),
+        libraryId = json.optString("libraryId"),
+        title = metadata.optString("title"),
+        author = metadata.optString("author"),
+        episodes = (media.optJSONArray("episodes") ?: JSONArray()).objects()
+          .map(EpisodeSummary::fromServerJson)
+          .sortedByDescending { it.publishedAt }
+      )
+    }
+  }
+}
+
+/**
+ * Something the player can play: a book, or a single podcast episode ([episodeId] set, one track,
+ * [title] is the episode and [author] the podcast).
+ */
 data class BookDetail(
   val id: String,
   val libraryId: String,
@@ -152,8 +240,11 @@ data class BookDetail(
   val author: String,
   val duration: Double,
   val tracks: List<Track>,
-  val chapters: List<Chapter>
+  val chapters: List<Chapter>,
+  val episodeId: String? = null
 ) {
+  val mediaKey get() = MediaKey(id, episodeId)
+  val mediaType get() = if (episodeId == null) MEDIA_BOOK else MEDIA_PODCAST
   val totalSize get() = tracks.sumOf { it.size }
 
   fun chapterAt(time: Double): Chapter? = chapters.lastOrNull { time >= it.start }
@@ -166,6 +257,7 @@ data class BookDetail(
     .put("duration", duration)
     .put("tracks", JSONArray(tracks.map { it.toJson() }))
     .put("chapters", JSONArray(chapters.map { it.toJson() }))
+    .put("episodeId", episodeId ?: JSONObject.NULL)
 
   companion object {
     fun fromJson(json: JSONObject) = BookDetail(
@@ -175,8 +267,44 @@ data class BookDetail(
       author = json.optString("author"),
       duration = json.optDouble("duration", 0.0),
       tracks = json.getJSONArray("tracks").objects().map(Track::fromJson),
-      chapters = json.optJSONArray("chapters")?.objects()?.map(Chapter::fromJson) ?: emptyList()
+      chapters = json.optJSONArray("chapters")?.objects()?.map(Chapter::fromJson) ?: emptyList(),
+      episodeId = json.optStringOrNull("episodeId")
     )
+
+    /**
+     * Builds a playable episode from the server's expanded podcast item JSON and one entry of its
+     * `media.episodes`. The episode's single audio file becomes the only track.
+     */
+    fun fromEpisodeJson(item: JSONObject, episode: JSONObject): BookDetail {
+      val podcastMetadata = item.optJSONObject("media")?.optJSONObject("metadata") ?: JSONObject()
+      val audioFile = episode.optJSONObject("audioFile") ?: throw IllegalArgumentException("Episode has no audio file")
+      val fileMetadata = audioFile.optJSONObject("metadata") ?: JSONObject()
+      val audioTrack = episode.optJSONObject("audioTrack")
+      val itemId = item.getString("id")
+      val ino = audioFile.getString("ino")
+      val duration = audioTrack?.optDouble("duration", Double.NaN)?.takeUnless { it.isNaN() }
+        ?: audioFile.optDouble("duration", 0.0)
+      val track = Track(
+        index = 1,
+        ino = ino,
+        duration = duration,
+        startOffset = 0.0,
+        contentUrl = audioTrack?.optStringOrNull("contentUrl") ?: "/api/items/$itemId/file/$ino",
+        mimeType = audioTrack?.optStringOrNull("mimeType") ?: audioFile.optString("mimeType", "audio/mpeg"),
+        ext = fileMetadata.optString("ext"),
+        size = fileMetadata.optLong("size", episode.optLong("size", 0L))
+      )
+      return BookDetail(
+        id = itemId,
+        libraryId = item.optString("libraryId"),
+        title = episode.optString("title"),
+        author = podcastMetadata.optString("title"),
+        duration = duration,
+        tracks = listOf(track),
+        chapters = (episode.optJSONArray("chapters") ?: audioFile.optJSONArray("chapters"))?.objects()?.map(Chapter::fromJson) ?: emptyList(),
+        episodeId = episode.getString("id")
+      )
+    }
 
     /** Parses the server's expanded library item JSON (/api/items/:id?expanded=1). */
     fun fromServerJson(json: JSONObject): BookDetail {

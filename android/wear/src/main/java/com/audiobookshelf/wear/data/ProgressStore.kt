@@ -13,15 +13,15 @@ class ProgressStore(context: Context) {
   private val prefs = context.getSharedPreferences("progress", Context.MODE_PRIVATE)
   private val pendingPrefs = context.getSharedPreferences("pending_sessions", Context.MODE_PRIVATE)
 
-  fun get(itemId: String): LocalProgress? {
-    val stored = prefs.getString(itemId, null) ?: return null
+  fun get(key: MediaKey): LocalProgress? {
+    val stored = prefs.getString(key.key, null) ?: return null
     val json = JSONObject(stored)
     return LocalProgress(json.optDouble("currentTime", 0.0), json.optLong("updatedAt"))
   }
 
-  fun save(itemId: String, currentTime: Double, updatedAt: Long) {
+  fun save(key: MediaKey, currentTime: Double, updatedAt: Long) {
     prefs.edit()
-      .putString(itemId, JSONObject().put("currentTime", currentTime).put("updatedAt", updatedAt).toString())
+      .putString(key.key, JSONObject().put("currentTime", currentTime).put("updatedAt", updatedAt).toString())
       .apply()
   }
 

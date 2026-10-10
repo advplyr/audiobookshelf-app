@@ -6,6 +6,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.LibraryBooks
 import androidx.compose.material.icons.filled.CollectionsBookmark
 import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.Podcasts
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -36,7 +37,7 @@ import com.audiobookshelf.wear.data.ServerProgress
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
-/** Every in-progress book, latest first. */
+/** Every in-progress book and podcast episode, latest first. */
 @Composable
 fun ContinueListeningScreen(nav: NavHostController) {
   val app = LocalApp.current
@@ -50,19 +51,22 @@ fun ContinueListeningScreen(nav: NavHostController) {
       is Load.Ready -> {
         val (books, progress) = data.value
         if (books.isEmpty()) caption("Nothing in progress")
-        items(books, key = { it.id }) { book ->
-          BookButton(spec, book.title, progressLabel(book, progress[book.id]), coverModel(app, book.id), { nav.navigate(Routes.item(book.id)) })
+        items(books, key = { it.mediaKey.key }) { book ->
+          BookButton(spec, book.title, progressLabel(book, progress.of(book)), coverModel(app, book.id), { nav.navigate(Routes.open(book)) })
         }
       }
     }
   }
 }
 
-/** Picks a library for browsing books or series. With a single library it goes straight there. */
+/**
+ * Picks a library for browsing books and podcasts, or series (book libraries only). With a single
+ * library it goes straight there.
+ */
 @Composable
 fun LibraryPickerScreen(nav: NavHostController, forSeries: Boolean) {
   val app = LocalApp.current
-  val (libraries, retry) = rememberLoad { app.api.audioLibraries() }
+  val (libraries, retry) = rememberLoad { app.api.audioLibraries().filter { !forSeries || !it.isPodcast } }
   val ownRoute = if (forSeries) Routes.SERIES_LIBRARIES else Routes.LIBRARIES
 
   fun open(id: String, name: String) = if (forSeries) Routes.series(id, name) else Routes.library(id, name)
@@ -86,7 +90,11 @@ fun LibraryPickerScreen(nav: NavHostController, forSeries: Boolean) {
       is Load.Ready -> items(libraries.value, key = { it.id }) { library ->
         MenuButton(
           spec,
-          if (forSeries) Icons.Default.CollectionsBookmark else Icons.AutoMirrored.Default.LibraryBooks,
+          when {
+            forSeries -> Icons.Default.CollectionsBookmark
+            library.isPodcast -> Icons.Default.Podcasts
+            else -> Icons.AutoMirrored.Default.LibraryBooks
+          },
           library.name
         ) { nav.navigate(open(library.id, library.name)) }
       }
@@ -188,7 +196,7 @@ fun SeriesDetailScreen(nav: NavHostController, libraryId: String, seriesId: Stri
           playError = null
           scope.launch {
             try {
-              startBook(app, player, nav, book.id)
+              startBook(app, player, nav, book.mediaKey)
             } catch (e: Exception) {
               playError = describeError(e)
             } finally {

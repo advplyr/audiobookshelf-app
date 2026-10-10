@@ -15,6 +15,7 @@ import androidx.work.workDataOf
 import com.audiobookshelf.wear.R
 import com.audiobookshelf.wear.WearApp
 import com.audiobookshelf.wear.data.BookDetail
+import com.audiobookshelf.wear.data.MediaKey
 import com.audiobookshelf.wear.data.Track
 import com.audiobookshelf.wear.sync.DirectFirst
 import kotlinx.coroutines.Dispatchers
@@ -26,12 +27,13 @@ import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
 
-/** Downloads every audio file of a book (plus its cover) to watch storage for offline listening. */
+/** Downloads every audio file of a book or podcast episode (plus its cover) to watch storage for offline listening. */
 class DownloadWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
   private val app = context.applicationContext as WearApp
   private val itemId = params.inputData.getString(KEY_ITEM_ID)!!
+  private val key = MediaKey(itemId, params.inputData.getString(KEY_EPISODE_ID))
   private val title = params.inputData.getString(KEY_TITLE).orEmpty()
-  private val notificationId = itemId.hashCode()
+  private val notificationId = key.key.hashCode()
 
   override suspend fun getForegroundInfo() = foregroundInfo(0)
 
@@ -44,17 +46,17 @@ class DownloadWorker(context: Context, params: WorkerParameters) : CoroutineWork
     }
 
     val book = try {
-      app.api.item(itemId)
+      app.api.playable(key)
     } catch (e: Exception) {
-      Log.e(TAG, "Could not load book $itemId", e)
+      Log.e(TAG, "Could not load ${key.key}", e)
       return retryOrFail("Could not reach server")
     }
     if (book.tracks.isEmpty()) return Result.failure(workDataOf(KEY_ERROR to "No audio files"))
 
     val store = app.downloads
-    val dir = store.bookDir(itemId).apply { mkdirs() }
+    val dir = store.bookDir(key).apply { mkdirs() }
     val remainingBytes = book.tracks.sumOf { track ->
-      val file = store.trackFile(itemId, track)
+      val file = store.trackFile(key, track)
       if (file.length() == track.size) 0L else track.size - partFile(file).length()
     }
     if (remainingBytes > store.freeBytes() - FREE_SPACE_MARGIN) {
@@ -66,17 +68,17 @@ class DownloadWorker(context: Context, params: WorkerParameters) : CoroutineWork
     // With Wi-Fi or LTE brought up for this download, try it before relaying through the phone
     directFirst = fastNetwork != null
     try {
-      downloadCover(client, store.coverFile(itemId))
+      downloadCover(client, store.coverFile(key))
       downloadTracks(client, book)
       store.markComplete(book)
       return Result.success()
     } catch (e: IOException) {
-      Log.e(TAG, "Download failed for $itemId", e)
+      Log.e(TAG, "Download failed for ${key.key}", e)
       return retryOrFail(e.message ?: "Download failed")
     } finally {
       fastNetwork?.release()
       // Keep partial files when the system pauses the download so it can resume, but not when the user cancels
-      if (isStopped && wasCancelled() && !store.isDownloaded(itemId)) dir.deleteRecursively()
+      if (isStopped && wasCancelled() && !store.isDownloaded(key)) dir.deleteRecursively()
     }
   }
 
@@ -86,7 +88,7 @@ class DownloadWorker(context: Context, params: WorkerParameters) : CoroutineWork
     var lastReported = -1
 
     for (track in book.tracks) {
-      val file = app.downloads.trackFile(itemId, track)
+      val file = app.downloads.trackFile(key, track)
       if (file.exists() && file.length() == track.size) {
         completedBytes += track.size
         continue
@@ -179,6 +181,7 @@ class DownloadWorker(context: Context, params: WorkerParameters) : CoroutineWork
     private const val MAX_ATTEMPTS = 3
     private const val FREE_SPACE_MARGIN = 200L * 1024 * 1024
     const val KEY_ITEM_ID = "itemId"
+    const val KEY_EPISODE_ID = "episodeId"
     const val KEY_TITLE = "title"
     const val KEY_PROGRESS = "progress"
     const val KEY_ERROR = "error"

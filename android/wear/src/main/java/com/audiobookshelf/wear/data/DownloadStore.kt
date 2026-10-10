@@ -12,29 +12,42 @@ import java.io.File
 data class DownloadedBook(val book: BookDetail, val sizeBytes: Long)
 
 /**
- * Downloaded books live in app storage as `books/<itemId>/`. The `book.json` file is written last,
- * so its presence marks a complete download.
+ * Downloaded books live in app storage as `books/<itemId>/` and podcast episodes as
+ * `books/<itemId>__<episodeId>/`. The `book.json` file is written last, so its presence marks a
+ * complete download.
  */
 class DownloadStore(context: Context) {
   private val root = File(context.filesDir, "books").apply { mkdirs() }
   private val _books = MutableStateFlow(scan())
   val books: StateFlow<List<DownloadedBook>> = _books.asStateFlow()
 
-  fun bookDir(itemId: String) = File(root, itemId)
-  fun trackFile(itemId: String, track: Track) = File(bookDir(itemId), track.fileName)
-  fun coverFile(itemId: String) = File(bookDir(itemId), "cover.jpg")
+  fun bookDir(key: MediaKey) = File(root, if (key.episodeId == null) key.itemId else "${key.itemId}$EPISODE_SEPARATOR${key.episodeId}")
+  fun trackFile(key: MediaKey, track: Track) = File(bookDir(key), track.fileName)
+  fun coverFile(key: MediaKey) = File(bookDir(key), COVER_FILE)
 
-  fun get(itemId: String): BookDetail? = _books.value.firstOrNull { it.book.id == itemId }?.book
+  /**
+   * A downloaded cover for the item: the book's own, or the one saved with any downloaded episode of
+   * the podcast. The returned file may not exist.
+   */
+  fun coverFile(itemId: String): File {
+    val own = coverFile(MediaKey(itemId))
+    if (own.exists()) return own
+    return root.listFiles { file -> file.name.startsWith(itemId + EPISODE_SEPARATOR) }.orEmpty()
+      .map { File(it, COVER_FILE) }
+      .firstOrNull { it.exists() } ?: own
+  }
 
-  fun isDownloaded(itemId: String) = get(itemId) != null
+  fun get(key: MediaKey): BookDetail? = _books.value.firstOrNull { it.book.mediaKey == key }?.book
+
+  fun isDownloaded(key: MediaKey) = get(key) != null
 
   fun markComplete(book: BookDetail) {
-    File(bookDir(book.id), META_FILE).writeText(book.toJson().toString())
+    File(bookDir(book.mediaKey), META_FILE).writeText(book.toJson().toString())
     refresh()
   }
 
-  fun delete(itemId: String) {
-    bookDir(itemId).deleteRecursively()
+  fun delete(key: MediaKey) {
+    bookDir(key).deleteRecursively()
     refresh()
   }
 
@@ -61,5 +74,7 @@ class DownloadStore(context: Context) {
 
   companion object {
     private const val META_FILE = "book.json"
+    private const val COVER_FILE = "cover.jpg"
+    private const val EPISODE_SEPARATOR = "__"
   }
 }

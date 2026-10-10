@@ -24,6 +24,9 @@ stream or download audiobooks to the watch and listen without the phone.
   newer: its own position or the server's (which includes listening on the phone).
 - **Playback**: Media3 ExoPlayer in a `MediaSessionService`, so the watch's media controls and
   Bluetooth headphone buttons work. Turn the crown or bezel on the player screen to change the volume.
+- **Podcasts**: podcast libraries list their podcasts; each episode plays, downloads, syncs progress
+  and can be marked finished like a book. Episodes are keyed as `itemId/episodeId` (`MediaKey`) and
+  downloaded to `files/books/<itemId>__<episodeId>/`.
 
 ## Build and install
 

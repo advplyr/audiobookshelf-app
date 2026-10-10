@@ -81,12 +81,12 @@ class PlaybackService : MediaSessionService() {
 
     NowPlaying.book.value = playing
     val book = playing.book
-    val coverFile = app.downloads.coverFile(book.id)
+    val coverFile = app.downloads.coverFile(book.mediaKey)
     val artwork = if (playing.isLocal && coverFile.exists()) Uri.fromFile(coverFile) else null
     val items = book.tracks.map { track ->
-      val uri = if (playing.isLocal) Uri.fromFile(app.downloads.trackFile(book.id, track)) else Uri.parse(app.api.absoluteUrl(track.contentUrl))
+      val uri = if (playing.isLocal) Uri.fromFile(app.downloads.trackFile(book.mediaKey, track)) else Uri.parse(app.api.absoluteUrl(track.contentUrl))
       MediaItem.Builder()
-        .setMediaId("${book.id}/${track.index}")
+        .setMediaId("${book.mediaKey.key}/${track.index}")
         .setUri(uri)
         .setMediaMetadata(
           MediaMetadata.Builder()

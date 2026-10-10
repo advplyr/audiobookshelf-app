@@ -75,18 +75,42 @@ class AbsApi(private val auth: AuthStore, private val phoneLink: PhoneLink, rout
     )
   }
 
-  /** Book libraries that contain audio. Ebook-only libraries have nothing to play on the watch. */
+  /**
+   * Book libraries that contain audio, and podcast libraries. Ebook-only libraries have nothing to
+   * play on the watch.
+   */
   suspend fun audioLibraries(): List<Library> {
     val response = get("/api/libraries?include=stats")
     return response.getJSONArray("libraries").objects()
-      .filter { it.optString("mediaType") == "book" && (it.optJSONObject("stats")?.optInt("numAudioFiles", 1) ?: 1) > 0 }
+      .filter {
+        when (it.optString("mediaType")) {
+          MEDIA_BOOK -> (it.optJSONObject("stats")?.optInt("numAudioFiles", 1) ?: 1) > 0
+          MEDIA_PODCAST -> true
+          else -> false
+        }
+      }
       .map { Library(it.getString("id"), it.optString("name"), it.optString("mediaType")) }
   }
 
+  /** Books, or podcasts in a podcast library. */
   suspend fun libraryItems(libraryId: String, page: Int, limit: Int = 30): Pair<List<BookSummary>, Int> {
     val response = get("/api/libraries/$libraryId/items?limit=$limit&page=$page&minified=1&sort=media.metadata.title")
     return response.getJSONArray("results").objects().map(::summary) to response.optInt("total")
   }
+
+  suspend fun podcast(itemId: String): PodcastDetail = PodcastDetail.fromServerJson(get("/api/items/$itemId?expanded=1"))
+
+  /** A single episode, ready to play or download. */
+  suspend fun episode(itemId: String, episodeId: String): BookDetail {
+    val item = get("/api/items/$itemId?expanded=1")
+    val episode = item.optJSONObject("media")?.optJSONArray("episodes")?.objects()?.firstOrNull { it.optString("id") == episodeId }
+      ?: throw ApiException(404, "Episode not found")
+    return BookDetail.fromEpisodeJson(item, episode)
+  }
+
+  /** A book, or a podcast episode when [key] has an episode id. */
+  suspend fun playable(key: MediaKey): BookDetail =
+    if (key.episodeId == null) item(key.itemId) else episode(key.itemId, key.episodeId)
 
   suspend fun librarySeries(libraryId: String, page: Int, limit: Int = 30): Pair<List<SeriesSummary>, Int> {
     val response = get("/api/libraries/$libraryId/series?minified=1&sort=name&limit=$limit&page=$page")
@@ -106,34 +130,46 @@ class AbsApi(private val auth: AuthStore, private val phoneLink: PhoneLink, rout
   suspend fun search(libraryId: String, query: String): List<BookSummary> {
     val q = URLEncoder.encode(query, "UTF-8")
     val response = get("/api/libraries/$libraryId/search?q=$q&limit=20")
-    return response.optJSONArray("book")?.objects()?.mapNotNull { it.optJSONObject("libraryItem") }?.map(::summary) ?: emptyList()
+    return listOf("book", "podcast").flatMap { kind ->
+      response.optJSONArray(kind)?.objects()?.mapNotNull { it.optJSONObject("libraryItem") }?.map(::summary) ?: emptyList()
+    }
   }
 
+  /** Books and podcast episodes the user is partway through, latest first. */
   suspend fun itemsInProgress(): List<BookSummary> {
     val response = get("/api/me/items-in-progress")
-    return response.getJSONArray("libraryItems").objects()
-      .filter { it.optString("mediaType") == "book" }
-      .map(::summary)
+    return response.getJSONArray("libraryItems").objects().mapNotNull { item ->
+      when (item.optString("mediaType")) {
+        MEDIA_BOOK -> summary(item)
+        // Podcasts come with the episode in progress
+        MEDIA_PODCAST -> item.optJSONObject("recentEpisode")?.let { episode -> episodeSummary(item, episode) }
+        else -> null
+      }
+    }
   }
 
-  /** Progress for every item the user has started, keyed by library item id. */
+  /** Progress for every book and episode the user has started, keyed by [MediaKey.key]. */
   suspend fun allProgress(): Map<String, ServerProgress> {
     val response = get("/api/me")
     return (response.optJSONArray("mediaProgress") ?: JSONArray()).objects()
-      .filter { it.isNull("episodeId") }
-      .associate { it.optString("libraryItemId") to ServerProgress.fromJson(it) }
+      .map(ServerProgress::fromJson)
+      .associateBy { it.mediaKey.key }
   }
 
   suspend fun item(itemId: String): BookDetail = BookDetail.fromServerJson(get("/api/items/$itemId?expanded=1"))
 
   /** Returns null when the user has no progress for the item; throws when the server can't be reached. */
-  suspend fun progress(itemId: String): ServerProgress? {
+  suspend fun progress(itemId: String, episodeId: String? = null): ServerProgress? {
     return try {
-      ServerProgress.fromJson(get("/api/me/progress/$itemId", shortClient))
+      ServerProgress.fromJson(get("/api/me/progress/${progressPath(MediaKey(itemId, episodeId))}", shortClient))
     } catch (e: ApiException) {
       if (e.code == 404) null else throw e
     }
   }
+
+  suspend fun progress(key: MediaKey): ServerProgress? = progress(key.itemId, key.episodeId)
+
+  private fun progressPath(key: MediaKey) = if (key.episodeId == null) key.itemId else "${key.itemId}/${key.episodeId}"
 
   suspend fun syncLocalSession(session: JSONObject) {
     post("/api/session/local", session)
@@ -151,7 +187,20 @@ class AbsApi(private val auth: AuthStore, private val phoneLink: PhoneLink, rout
       title = metadata.optString("title"),
       author = metadata.optString("authorName"),
       duration = media.optDouble("duration", 0.0),
-      seriesName = metadata.optString("seriesName")
+      seriesName = metadata.optString("seriesName"),
+      mediaType = item.optString("mediaType", MEDIA_BOOK)
+    )
+  }
+
+  private fun episodeSummary(item: JSONObject, episode: JSONObject): BookSummary {
+    val podcastMetadata = item.optJSONObject("media")?.optJSONObject("metadata") ?: JSONObject()
+    return BookSummary(
+      id = item.getString("id"),
+      title = episode.optString("title"),
+      author = podcastMetadata.optString("title"),
+      duration = EpisodeSummary.fromServerJson(episode).duration,
+      mediaType = MEDIA_PODCAST,
+      episodeId = episode.getString("id")
     )
   }
 

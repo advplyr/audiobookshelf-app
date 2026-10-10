@@ -49,10 +49,10 @@ fun DownloadsScreen(nav: NavHostController) {
       }
     }
 
-    val downloading = active.filter { a -> books.none { it.book.id == a.itemId } }
-    items(downloading, key = { "active-${it.itemId}" }) { download ->
+    val downloading = active.filter { a -> books.none { it.book.mediaKey == a.key } }
+    items(downloading, key = { "active-${it.key.key}" }) { download ->
       FilledTonalButton(
-        onClick = { nav.navigate(Routes.item(download.itemId)) },
+        onClick = { nav.navigate(Routes.item(download.key.itemId, download.key.episodeId)) },
         modifier = itemModifier(spec),
         transformation = SurfaceTransformation(spec),
         icon = { ProgressRing(download.percent / 100f, ButtonDefaults.LargeIconSize) },
@@ -62,15 +62,17 @@ fun DownloadsScreen(nav: NavHostController) {
     }
 
     if (books.isEmpty() && downloading.isEmpty()) {
-      caption("Open a book and tap Download to listen without your phone.")
+      caption("Open a book or episode and tap Download to listen without your phone.")
     }
-    items(books, key = { it.book.id }) { downloaded ->
+    items(books, key = { it.book.mediaKey.key }) { downloaded ->
+      val book = downloaded.book
       BookButton(
         spec = spec,
-        title = downloaded.book.title,
-        subtitle = formatBytes(downloaded.sizeBytes),
-        cover = app.downloads.coverFile(downloaded.book.id).takeIf { it.exists() },
-        onClick = { nav.navigate(Routes.item(downloaded.book.id)) }
+        title = book.title,
+        // Episodes show which podcast they're from
+        subtitle = listOfNotNull(book.author.takeIf { book.episodeId != null }, formatBytes(downloaded.sizeBytes)).joinToString(" · "),
+        cover = app.downloads.coverFile(book.mediaKey).takeIf { it.exists() },
+        onClick = { nav.navigate(Routes.item(book.id, book.episodeId)) }
       )
     }
   }

@@ -12,11 +12,15 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.navigation.NavType
+import androidx.navigation.navArgument
 import androidx.wear.compose.material3.AppScaffold
 import androidx.wear.compose.navigation.SwipeDismissableNavHost
 import androidx.wear.compose.navigation.composable
 import androidx.wear.compose.navigation.rememberSwipeDismissableNavController
 import com.audiobookshelf.wear.WearApp
+import com.audiobookshelf.wear.data.BookSummary
+import com.audiobookshelf.wear.data.MediaKey
 import com.audiobookshelf.wear.playback.NowPlaying
 import com.audiobookshelf.wear.playback.PlayerConnection
 import kotlinx.coroutines.delay
@@ -93,7 +97,11 @@ object Routes {
   fun seriesDetail(libraryId: String, seriesId: String, name: String) = "seriesDetail/$libraryId/$seriesId/${android.net.Uri.encode(name)}"
   fun library(id: String, name: String) = "library/$id/${android.net.Uri.encode(name)}"
   fun search(libraryId: String) = "search/$libraryId"
-  fun item(id: String) = "item/$id"
+  fun item(id: String, episodeId: String? = null) = if (episodeId == null) "item/$id" else "item/$id?episode=$episodeId"
+  fun podcast(id: String) = "podcast/$id"
+
+  /** Where tapping a list entry goes: a podcast's episode list, or the book or episode itself. */
+  fun open(summary: BookSummary) = if (summary.isPodcast) podcast(summary.id) else item(summary.id, summary.episodeId)
 }
 
 @Composable
@@ -130,7 +138,13 @@ private fun AppNavigation(openPlayerRequest: MutableStateFlow<Boolean>) {
       LibraryScreen(nav, it.arguments?.getString("id")!!, it.arguments?.getString("name").orEmpty())
     }
     composable("search/{id}") { SearchScreen(nav, it.arguments?.getString("id")!!) }
-    composable("item/{id}") { ItemScreen(nav, it.arguments?.getString("id")!!) }
+    composable(
+      "item/{id}?episode={episode}",
+      arguments = listOf(navArgument("episode") { type = NavType.StringType; nullable = true; defaultValue = null })
+    ) {
+      ItemScreen(nav, MediaKey(it.arguments?.getString("id")!!, it.arguments?.getString("episode")))
+    }
+    composable("podcast/{id}") { PodcastScreen(nav, it.arguments?.getString("id")!!) }
     composable(Routes.DOWNLOADS) { DownloadsScreen(nav) }
     composable(Routes.PLAYER) { PlayerScreen(nav) }
     composable(Routes.PLAYER_OPTIONS) { PlayerOptionsScreen(nav) }

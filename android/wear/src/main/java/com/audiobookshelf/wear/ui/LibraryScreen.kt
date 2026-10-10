@@ -65,9 +65,9 @@ fun LibraryScreen(nav: NavHostController, libraryId: String, name: String) {
     }
   ) {
     header(name.ifEmpty { "Library" })
-    if (total > 0) caption("$total books")
+    if (total > 0) caption(if (books.firstOrNull()?.isPodcast == true) "$total podcasts" else "$total books")
     items(books.toList(), key = { it.id }) { book ->
-      BookButton(spec, book.title, progressLabel(book, progress[book.id]), app.api.coverUrl(book.id, 120), { nav.navigate(Routes.item(book.id)) })
+      BookButton(spec, book.title, progressLabel(book, progress.of(book)), app.api.coverUrl(book.id, 120), { nav.navigate(Routes.open(book)) })
     }
     when {
       loading -> loadingItem()
@@ -118,9 +118,9 @@ fun SearchScreen(nav: NavHostController, libraryId: String) {
       is Load.Loading -> loadingItem()
       is Load.Failed -> errorItem(r.message) { search(query) }
       is Load.Ready -> {
-        if (r.value.isEmpty()) caption("No books found")
+        if (r.value.isEmpty()) caption("Nothing found")
         items(r.value, key = { it.id }) { book ->
-          BookButton(spec, book.title, book.author, app.api.coverUrl(book.id, 120), { nav.navigate(Routes.item(book.id)) })
+          BookButton(spec, book.title, book.author, app.api.coverUrl(book.id, 120), { nav.navigate(Routes.open(book)) })
         }
       }
     }

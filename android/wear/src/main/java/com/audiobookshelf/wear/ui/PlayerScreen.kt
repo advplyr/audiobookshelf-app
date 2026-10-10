@@ -204,7 +204,7 @@ fun PlayerScreen(nav: NavHostController) {
           modifier = Modifier.basicMarquee(iterations = Int.MAX_VALUE)
         ) {
           val app = LocalApp.current
-          val coverFile = app.downloads.coverFile(book.id)
+          val coverFile = app.downloads.coverFile(book.mediaKey)
           Cover(
             model = if (current.isLocal && coverFile.exists()) coverFile else app.api.coverUrl(book.id, 64),
             size = 18.dp

@@ -37,6 +37,7 @@ import androidx.wear.compose.material3.OutlinedButton
 import androidx.wear.compose.material3.SurfaceTransformation
 import androidx.wear.compose.material3.Text
 import com.audiobookshelf.wear.data.BookDetail
+import com.audiobookshelf.wear.data.MediaKey
 import com.audiobookshelf.wear.data.ServerProgress
 import com.audiobookshelf.wear.download.DownloadState
 import com.audiobookshelf.wear.download.Downloads
@@ -46,32 +47,34 @@ import kotlin.math.roundToInt
 
 private data class ItemData(val book: BookDetail, val progress: ServerProgress?)
 
+/** A book, or a single podcast episode when [key] has an episode id. */
 @Composable
-fun ItemScreen(nav: NavHostController, itemId: String) {
+fun ItemScreen(nav: NavHostController, key: MediaKey) {
+  val itemId = key.itemId
   val app = LocalApp.current
   val player = LocalPlayer.current
   val context = LocalContext.current
   val scope = rememberCoroutineScope()
   val downloadedBooks by app.downloads.books.collectAsState()
-  val downloaded = downloadedBooks.firstOrNull { it.book.id == itemId }
-  val downloadState by remember(itemId) { Downloads.state(context, itemId) }.collectAsState(DownloadState.None)
+  val downloaded = downloadedBooks.firstOrNull { it.book.mediaKey == key }
+  val downloadState by remember(key) { Downloads.state(context, key) }.collectAsState(DownloadState.None)
   val nowPlaying by NowPlaying.book.collectAsState()
   var confirmRemove by remember { mutableStateOf(false) }
   var starting by remember { mutableStateOf(false) }
   var playError by remember { mutableStateOf<String?>(null) }
   val coverSize = (LocalConfiguration.current.screenWidthDp * 0.34f).dp
 
-  val (data, retry) = rememberLoad(itemId) {
+  val (data, retry) = rememberLoad(key) {
     try {
-      ItemData(app.api.item(itemId), runCatching { app.api.progress(itemId) }.getOrNull())
+      ItemData(app.api.playable(key), runCatching { app.api.progress(key) }.getOrNull())
     } catch (e: Exception) {
       // Offline: fall back to the downloaded copy
-      ItemData(app.downloads.get(itemId) ?: throw e, null)
+      ItemData(app.downloads.get(key) ?: throw e, null)
     }
   }
   val ready = data as? Load.Ready
-  val isCurrent = nowPlaying?.book?.id == itemId
-  val hasProgress = (ready?.value?.progress?.currentTime ?: app.progress.get(itemId)?.currentTime ?: 0.0) > 0
+  val isCurrent = nowPlaying?.book?.mediaKey == key
+  val hasProgress = (ready?.value?.progress?.currentTime ?: app.progress.get(key)?.currentTime ?: 0.0) > 0
 
   fun play() {
     val book = ready?.value?.book ?: return
@@ -113,7 +116,7 @@ fun ItemScreen(nav: NavHostController, itemId: String) {
     }
   ) {
     item {
-      val cover = app.downloads.coverFile(itemId).takeIf { downloaded != null && it.exists() } ?: app.api.coverUrl(itemId, 300)
+      val cover = app.downloads.coverFile(itemId).takeIf { it.exists() } ?: app.api.coverUrl(itemId, 300)
       // Not morphed: a shrinking cover would slide under the title while scrolling
       Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) { Cover(cover, coverSize) }
     }
@@ -133,6 +136,7 @@ fun ItemScreen(nav: NavHostController, itemId: String) {
             modifier = contentModifier(spec).padding(horizontal = 8.dp)
           )
         }
+        // For an episode this is the podcast
         if (book.author.isNotEmpty()) caption(book.author)
         caption(
           listOfNotNull(
@@ -159,7 +163,7 @@ fun ItemScreen(nav: NavHostController, itemId: String) {
               label = { Text("Remove download") }
             )
             state is DownloadState.Running -> FilledTonalButton(
-              onClick = { Downloads.cancel(context, itemId) },
+              onClick = { Downloads.cancel(context, key) },
               modifier = itemModifier(spec),
               transformation = SurfaceTransformation(spec),
               icon = { ProgressRing(state.percent / 100f, ButtonDefaults.IconSize) },
@@ -167,7 +171,7 @@ fun ItemScreen(nav: NavHostController, itemId: String) {
               label = { Text("Downloading ${state.percent}%") }
             )
             else -> FilledTonalButton(
-              onClick = { Downloads.start(context, book.id, book.title) },
+              onClick = { Downloads.start(context, key, book.title) },
               modifier = itemModifier(spec),
               transformation = SurfaceTransformation(spec),
               icon = { Icon(Icons.Default.Download, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize)) },
@@ -193,7 +197,7 @@ fun ItemScreen(nav: NavHostController, itemId: String) {
     text = { Text("Your progress is kept. You can still stream this book.") },
     confirmButton = {
       AlertDialogDefaults.ConfirmButton(onClick = {
-        app.downloads.delete(itemId)
+        app.downloads.delete(key)
         confirmRemove = false
       })
     },

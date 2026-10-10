@@ -6,6 +6,7 @@ import androidx.compose.material.icons.automirrored.filled.LibraryBooks
 import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material.icons.filled.DownloadDone
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Podcasts
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -62,7 +63,7 @@ fun ClassicHomeScreen(nav: NavHostController) {
           spec = spec,
           title = playing.book.title,
           subtitle = "Now playing",
-          cover = if (playing.isLocal) app.downloads.coverFile(playing.book.id) else app.api.coverUrl(playing.book.id, 120),
+          cover = if (playing.isLocal) app.downloads.coverFile(playing.book.mediaKey) else app.api.coverUrl(playing.book.id, 120),
           onClick = { nav.navigate(Routes.PLAYER) },
           primary = true
         )
@@ -73,8 +74,8 @@ fun ClassicHomeScreen(nav: NavHostController) {
       val subtitle = when {
         active.isNotEmpty() -> "Downloading ${active.size}…"
         downloads.isEmpty() -> "No downloads yet"
-        downloads.size == 1 -> "1 book"
-        else -> "${downloads.size} books"
+        downloads.size == 1 -> "1 download"
+        else -> "${downloads.size} downloads"
       }
       MenuButton(spec, Icons.Default.DownloadDone, "On this watch", subtitle) { nav.navigate(Routes.DOWNLOADS) }
     }
@@ -88,13 +89,15 @@ fun ClassicHomeScreen(nav: NavHostController) {
         val data = home.value
         if (data.continueListening.isNotEmpty()) {
           header("Continue listening")
-          items(data.continueListening, key = { it.id }) { book ->
-            BookButton(spec, book.title, progressLabel(book, data.progress[book.id]), app.api.coverUrl(book.id, 120), { nav.navigate(Routes.item(book.id)) })
+          items(data.continueListening, key = { it.mediaKey.key }) { book ->
+            BookButton(spec, book.title, progressLabel(book, data.progress.of(book)), app.api.coverUrl(book.id, 120), { nav.navigate(Routes.open(book)) })
           }
         }
         header("Libraries")
         items(data.libraries, key = { it.id }) { library ->
-          MenuButton(spec, Icons.AutoMirrored.Default.LibraryBooks, library.name) { nav.navigate(Routes.library(library.id, library.name)) }
+          MenuButton(spec, if (library.isPodcast) Icons.Default.Podcasts else Icons.AutoMirrored.Default.LibraryBooks, library.name) {
+            nav.navigate(Routes.library(library.id, library.name))
+          }
         }
       }
     }
@@ -102,6 +105,9 @@ fun ClassicHomeScreen(nav: NavHostController) {
     item { MenuButton(spec, Icons.Default.Settings, "Settings") { nav.navigate(Routes.SETTINGS) } }
   }
 }
+
+/** Progress for a book or episode from a map keyed by [com.audiobookshelf.wear.data.MediaKey.key], as returned by allProgress(). */
+fun Map<String, ServerProgress>.of(book: BookSummary): ServerProgress? = this[book.mediaKey.key]
 
 fun progressLabel(book: BookSummary, progress: ServerProgress?): String = when {
   progress?.isFinished == true -> "Finished"

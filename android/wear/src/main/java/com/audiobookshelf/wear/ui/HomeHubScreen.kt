@@ -62,6 +62,9 @@ import kotlin.math.roundToInt
 /** A book on the hub card: what to show and how far along it is. */
 private data class HubBook(val book: BookSummary, val progress: Float, val subtitle: String)
 
+fun com.audiobookshelf.wear.data.BookDetail.toSummary() =
+  BookSummary(id, title, author, duration, mediaType = mediaType, episodeId = episodeId)
+
 /** Downloaded book covers are on the watch; others come from the server. */
 fun coverModel(app: WearApp, itemId: String): Any =
   app.downloads.coverFile(itemId).takeIf { it.exists() } ?: app.api.coverUrl(itemId, 160)
@@ -80,9 +83,9 @@ fun HomeHubScreen(nav: NavHostController) {
   // The book in the player always comes first, so the card opens on what you're listening to
   val books = (load as? Load.Ready)?.value?.let { list ->
     val playing = nowPlaying ?: return@let list
-    val current = list.firstOrNull { it.book.id == playing.book.id }
-      ?: HubBook(BookSummary(playing.book.id, playing.book.title, playing.book.author, playing.book.duration), 0f, "")
-    listOf(current.copy(subtitle = "Now playing")) + list.filterNot { it.book.id == playing.book.id }
+    val current = list.firstOrNull { it.book.mediaKey == playing.book.mediaKey }
+      ?: HubBook(playing.book.toSummary(), 0f, "")
+    listOf(current.copy(subtitle = "Now playing")) + list.filterNot { it.book.mediaKey == playing.book.mediaKey }
   }
 
   val pagerState = rememberPagerState(pageCount = { books?.size?.coerceAtLeast(1) ?: 1 })
@@ -148,16 +151,16 @@ private suspend fun loadHubBooks(app: WearApp): List<HubBook> {
   return try {
     val progress = runCatching { app.api.allProgress() }.getOrDefault(emptyMap())
     app.api.itemsInProgress().map { book ->
-      HubBook(book, progress[book.id]?.progress?.toFloat() ?: 0f, progressLabel(book, progress[book.id]))
+      HubBook(book, progress.of(book)?.progress?.toFloat() ?: 0f, progressLabel(book, progress.of(book)))
     }
   } catch (e: Exception) {
     app.downloads.books.value
-      .mapNotNull { downloaded -> app.progress.get(downloaded.book.id)?.let { downloaded.book to it } }
+      .mapNotNull { downloaded -> app.progress.get(downloaded.book.mediaKey)?.let { downloaded.book to it } }
       .sortedByDescending { (_, local) -> local.updatedAt }
       .map { (book, local) ->
         val fraction = if (book.duration > 0) (local.currentTime / book.duration).toFloat() else 0f
         HubBook(
-          BookSummary(book.id, book.title, book.author, book.duration),
+          book.toSummary(),
           fraction,
           "${(fraction * 100).roundToInt()}% · On watch"
         )
@@ -187,7 +190,7 @@ private fun BookCard(item: HubBook, nav: NavHostController) {
       starting = true
       scope.launch {
         try {
-          startBook(app, player, nav, item.book.id)
+          startBook(app, player, nav, item.book.mediaKey)
         } catch (e: Exception) {
           error = describeError(e)
         } finally {

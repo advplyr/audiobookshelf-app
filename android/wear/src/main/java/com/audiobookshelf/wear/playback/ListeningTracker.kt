@@ -63,7 +63,7 @@ class ListeningTracker(
     scope.launch {
       try {
         val server = withTimeoutOrNull(SERVER_CHECK_TIMEOUT_MS) {
-          runCatching { app.api.progress(playing.book.id) }.getOrNull()
+          runCatching { app.api.progress(playing.book.mediaKey) }.getOrNull()
         }
         val stillSameSession = NowPlaying.book.value?.sessionId == playing.sessionId
         if (server != null && stillSameSession && !server.isFinished && server.lastUpdate > since) {
@@ -103,7 +103,7 @@ class ListeningTracker(
     lastTickAt = if (player.isPlaying) SystemClock.elapsedRealtime() else 0L
 
     val currentTime = if (player.playbackState == Player.STATE_ENDED) playing.book.duration else playing.bookTime(player)
-    app.progress.save(playing.book.id, currentTime, now)
+    app.progress.save(playing.book.mediaKey, currentTime, now)
 
     val sessionJson = currentSession(playing, now)
       .put("currentTime", currentTime)
@@ -120,8 +120,8 @@ class ListeningTracker(
     return JSONObject()
       .put("id", playing.sessionId)
       .put("libraryItemId", playing.book.id)
-      .put("episodeId", JSONObject.NULL)
-      .put("mediaType", "book")
+      .put("episodeId", playing.book.episodeId ?: JSONObject.NULL)
+      .put("mediaType", playing.book.mediaType)
       .put("displayTitle", playing.book.title)
       .put("displayAuthor", playing.book.author)
       .put("duration", playing.book.duration)
