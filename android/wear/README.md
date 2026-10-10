@@ -5,10 +5,16 @@ stream or download audiobooks to the watch and listen without the phone.
 
 ## How it works
 
-- **Sign in**: the phone app shares the server address and username with the watch over the
-  Wearable Data Layer (`WatchSync` in the phone app, `PhoneConfig` here), so only the password has to
-  be typed on the watch. The watch keeps its own server session because the server rotates refresh
-  tokens, so sharing the phone's tokens would sign one of the devices out.
+- **Sign in**: the watch asks the phone app for its server and a current access token over a
+  Wearable channel (`WatchBridge` in the phone app, `PhoneLink` here), so signing in on the phone
+  signs in the watch. The phone's refresh token is never shared, because the server rotates it;
+  when the watch's access token expires it asks the phone again and the phone refreshes its own
+  session. Signing in with a password on the watch still works for using the watch without a phone.
+- **Through the phone**: when the watch can't reach the server directly (for example a server only
+  reachable on the home network while the watch is on Bluetooth), every request goes through the
+  phone app instead: browsing, covers, streaming and downloads (`ServerRoute` and
+  `PhoneRelayInterceptor`). The phone only forwards requests to servers it is signed in to.
+  Settings → Connection shows which way the watch is connected.
 - **Downloads**: books are saved to app storage (`files/books/<itemId>/`). Downloads run in
   WorkManager and ask Wear OS for Wi-Fi or LTE instead of the slow Bluetooth link through the
   phone. Interrupted downloads resume where they stopped.

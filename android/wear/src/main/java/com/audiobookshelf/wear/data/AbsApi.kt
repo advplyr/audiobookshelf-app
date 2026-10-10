@@ -4,14 +4,16 @@ import android.util.Base64
 import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import okhttp3.Authenticator
+import com.audiobookshelf.wear.sync.PhoneLink
+import com.audiobookshelf.wear.sync.PhoneRelayInterceptor
+import com.audiobookshelf.wear.sync.PhoneSignedOutException
+import com.audiobookshelf.wear.sync.ServerRoute
 import okhttp3.Interceptor
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
-import okhttp3.Route
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.IOException
@@ -20,16 +22,23 @@ import java.util.concurrent.TimeUnit
 
 class ApiException(val code: Int, message: String) : IOException(message)
 
-/** Talks to the Audiobookshelf server directly from the watch (Wi-Fi, LTE or phone proxy). */
-class AbsApi(private val auth: AuthStore) {
+/**
+ * Talks to the Audiobookshelf server, directly from the watch (Wi-Fi, LTE, Bluetooth) or through
+ * the phone app when the watch can't reach it.
+ */
+class AbsApi(private val auth: AuthStore, private val phoneLink: PhoneLink, route: ServerRoute) {
   private val json = "application/json; charset=utf-8".toMediaType()
 
-  /** Shared client that adds auth headers and refreshes expired access tokens. Also used by the player and downloader. */
-  val client: OkHttpClient = OkHttpClient.Builder()
-    .connectTimeout(20, TimeUnit.SECONDS)
+  /** No credentials, but goes through the phone when needed. Used to sign in and refresh tokens. */
+  private val baseClient: OkHttpClient = OkHttpClient.Builder()
+    .connectTimeout(8, TimeUnit.SECONDS)
     .readTimeout(60, TimeUnit.SECONDS)
-    .addInterceptor(AuthInterceptor())
-    .authenticator(TokenRefreshAuthenticator())
+    .addInterceptor(PhoneRelayInterceptor(route, phoneLink))
+    .build()
+
+  /** Shared client that adds auth headers and renews expired access tokens. Also used by the player and downloader. */
+  val client: OkHttpClient = baseClient.newBuilder()
+    .apply { interceptors().add(0, AuthInterceptor()) }
     .build()
 
   private val shortClient = client.newBuilder()
@@ -52,7 +61,7 @@ class AbsApi(private val auth: AuthStore) {
       .apply { customHeaders.forEach { (k, v) -> header(k, v) } }
       .post(body.toString().toRequestBody(json))
       .build()
-    val response = execute(OkHttpClient(), request)
+    val response = execute(baseClient, request)
     val user = response.getJSONObject("user")
     return Account(
       serverAddress = serverAddress,
@@ -172,50 +181,63 @@ class AbsApi(private val auth: AuthStore) {
       }
       val builder = request.newBuilder()
       account.customHeaders.forEach { (k, v) -> builder.header(k, v) }
-      if (request.header("Authorization") == null) {
-        builder.header("Authorization", "Bearer ${account.accessToken}")
-      }
-      return chain.proceed(builder.build())
+      if (request.header("Authorization") != null) return chain.proceed(builder.build())
+
+      val response = chain.proceed(builder.header("Authorization", "Bearer ${account.accessToken}").build())
+      // Handled here rather than with an Authenticator so requests relayed through the phone are covered too
+      if (response.code != 401) return response
+      val newToken = renewAccessToken(account.accessToken) ?: return response
+      response.close()
+      return chain.proceed(builder.header("Authorization", "Bearer $newToken").build())
     }
   }
 
-  private inner class TokenRefreshAuthenticator : Authenticator {
-    override fun authenticate(route: Route?, response: Response): Request? {
-      // Give up if a request with refreshed credentials still fails
-      if (response.priorResponse != null) return null
-      val failedToken = response.request.header("Authorization")?.removePrefix("Bearer ")
+  /** Gets a new access token after the server rejected [failedToken], or null if that's not possible. */
+  @Synchronized
+  private fun renewAccessToken(failedToken: String): String? {
+    val account = auth.current ?: return null
+    // Another request already renewed the token while this one was in flight
+    if (account.accessToken != failedToken) return account.accessToken
+    return if (account.linkedToPhone) renewFromPhone(account) else refreshWithServer(account)
+  }
 
-      synchronized(this) {
-        val account = auth.current ?: return null
-        // Another request already refreshed the token while this one was in flight
-        if (account.accessToken != failedToken) {
-          return response.request.newBuilder().header("Authorization", "Bearer ${account.accessToken}").build()
-        }
-        val refreshToken = account.refreshToken ?: return null
-        val refreshRequest = Request.Builder()
-          .url("${account.serverAddress}/auth/refresh")
-          .header("x-refresh-token", refreshToken)
-          .apply { account.customHeaders.forEach { (k, v) -> header(k, v) } }
-          .post(ByteArray(0).toRequestBody(null))
-          .build()
-        try {
-          OkHttpClient().newCall(refreshRequest).execute().use { refreshResponse ->
-            if (refreshResponse.code == 401 || refreshResponse.code == 403) {
-              Log.w(TAG, "Refresh token rejected, signing out")
-              auth.clear()
-              return null
-            }
-            if (!refreshResponse.isSuccessful) return null
-            val user = JSONObject(refreshResponse.body?.string().orEmpty()).getJSONObject("user")
-            val newAccessToken = user.getString("accessToken")
-            auth.updateTokens(newAccessToken, user.optStringOrNull("refreshToken"))
-            return response.request.newBuilder().header("Authorization", "Bearer $newAccessToken").build()
-          }
-        } catch (e: Exception) {
-          Log.e(TAG, "Token refresh failed", e)
+  private fun renewFromPhone(account: Account): String? = try {
+    val fresh = phoneLink.requestAccountBlocking(staleToken = account.accessToken)
+    auth.save(fresh)
+    fresh.accessToken.takeIf { fresh.serverAddress == account.serverAddress }
+  } catch (e: PhoneSignedOutException) {
+    Log.w(TAG, "Phone app is signed out, signing out")
+    auth.clear()
+    null
+  } catch (e: Exception) {
+    Log.w(TAG, "Could not get a new token from the phone: ${e.message}")
+    null
+  }
+
+  private fun refreshWithServer(account: Account): String? {
+    val refreshToken = account.refreshToken ?: return null
+    val refreshRequest = Request.Builder()
+      .url("${account.serverAddress}/auth/refresh")
+      .header("x-refresh-token", refreshToken)
+      .apply { account.customHeaders.forEach { (k, v) -> header(k, v) } }
+      .post(ByteArray(0).toRequestBody(null))
+      .build()
+    return try {
+      baseClient.newCall(refreshRequest).execute().use { refreshResponse ->
+        if (refreshResponse.code == 401 || refreshResponse.code == 403) {
+          Log.w(TAG, "Refresh token rejected, signing out")
+          auth.clear()
           return null
         }
+        if (!refreshResponse.isSuccessful) return null
+        val user = JSONObject(refreshResponse.body?.string().orEmpty()).getJSONObject("user")
+        val newAccessToken = user.getString("accessToken")
+        auth.updateTokens(newAccessToken, user.optStringOrNull("refreshToken"))
+        newAccessToken
       }
+    } catch (e: Exception) {
+      Log.e(TAG, "Token refresh failed", e)
+      null
     }
   }
 

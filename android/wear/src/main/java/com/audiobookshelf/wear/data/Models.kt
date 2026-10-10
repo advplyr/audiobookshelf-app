@@ -10,7 +10,9 @@ data class Account(
   val accessToken: String,
   val refreshToken: String?,
   val customHeaders: Map<String, String>,
-  val serverVersion: String?
+  val serverVersion: String?,
+  /** Signed in through the phone app: new access tokens come from the phone instead of a refresh token. */
+  val linkedToPhone: Boolean = false
 ) {
   fun toJson(): JSONObject = JSONObject()
     .put("serverAddress", serverAddress)
@@ -20,6 +22,7 @@ data class Account(
     .put("refreshToken", refreshToken)
     .put("customHeaders", JSONObject(customHeaders))
     .put("serverVersion", serverVersion)
+    .put("linkedToPhone", linkedToPhone)
 
   companion object {
     fun fromJson(json: JSONObject) = Account(
@@ -29,7 +32,8 @@ data class Account(
       accessToken = json.getString("accessToken"),
       refreshToken = json.optStringOrNull("refreshToken"),
       customHeaders = json.optJSONObject("customHeaders")?.toStringMap() ?: emptyMap(),
-      serverVersion = json.optStringOrNull("serverVersion")
+      serverVersion = json.optStringOrNull("serverVersion"),
+      linkedToPhone = json.optBoolean("linkedToPhone", false)
     )
   }
 }

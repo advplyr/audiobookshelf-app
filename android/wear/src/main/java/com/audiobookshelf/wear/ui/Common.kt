@@ -4,6 +4,8 @@ import android.app.RemoteInput
 import android.content.Intent
 import android.util.Log
 import com.audiobookshelf.wear.data.ApiException
+import com.audiobookshelf.wear.sync.PhoneSignedOutException
+import com.audiobookshelf.wear.sync.PhoneUnavailableException
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.BoxScope
@@ -86,6 +88,8 @@ fun <T> rememberLoad(vararg keys: Any?, block: suspend () -> T): Pair<Load<T>, (
 fun describeError(e: Exception): String = when {
   e is ApiException && e.code == 401 -> "Session expired"
   e is ApiException -> "Server error (${e.code})"
+  // Already written for the user, e.g. "Phone not connected"
+  e is PhoneUnavailableException || e is PhoneSignedOutException -> e.message.orEmpty()
   e is java.io.IOException -> "Can't reach the server"
   else -> e.message?.take(60) ?: "Something went wrong"
 }

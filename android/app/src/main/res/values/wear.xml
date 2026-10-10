@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools" tools:keep="@array/android_wear_capabilities">
+    <!-- Lets the Wear OS app find this phone app to sign in and relay requests through it -->
+    <string-array name="android_wear_capabilities" translatable="false">
+        <item>abs_phone_app</item>
+    </string-array>
+</resources>

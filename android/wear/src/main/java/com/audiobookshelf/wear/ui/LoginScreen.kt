@@ -1,6 +1,7 @@
 package com.audiobookshelf.wear.ui
 
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Login
 import androidx.compose.material.icons.filled.Dns
 import androidx.compose.material.icons.filled.Password
 import androidx.compose.material.icons.filled.Person
@@ -17,6 +18,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.wear.compose.material3.Button
 import androidx.wear.compose.material3.ButtonDefaults
 import androidx.wear.compose.material3.CircularProgressIndicator
 import androidx.wear.compose.material3.EdgeButton
@@ -33,8 +35,8 @@ import kotlinx.coroutines.launch
 private enum class Field { SERVER, USERNAME, PASSWORD }
 
 /**
- * The watch keeps its own session with the server so it keeps working away from the phone.
- * The server address and username come from the phone app, so usually only the password is needed.
+ * Signs in through the phone app when it's signed in, with no typing. Otherwise the watch can
+ * sign in on its own; the server address and username are prefilled from the phone when known.
  */
 @Composable
 fun LoginScreen() {
@@ -48,6 +50,8 @@ fun LoginScreen() {
   var editing by rememberSaveable { mutableStateOf(Field.SERVER) }
   var busy by remember { mutableStateOf(false) }
   var error by remember { mutableStateOf<String?>(null) }
+  var phoneBusy by remember { mutableStateOf(false) }
+  var phoneError by remember { mutableStateOf<String?>(null) }
 
   val input = rememberTextInput { text ->
     when (editing) {
@@ -58,7 +62,26 @@ fun LoginScreen() {
     error = null
   }
 
-  LaunchedEffect(Unit) { app.phoneConfig.refreshFromPhone() }
+  fun signInWithPhone() {
+    if (phoneBusy) return
+    phoneBusy = true
+    phoneError = null
+    scope.launch {
+      try {
+        app.auth.save(app.phoneLink.requestAccount())
+      } catch (e: Exception) {
+        phoneError = describeError(e)
+      } finally {
+        phoneBusy = false
+      }
+    }
+  }
+
+  LaunchedEffect(Unit) {
+    // Not right after the user signed out on the watch, or it would sign straight back in
+    if (!app.auth.signedOutByUser) signInWithPhone()
+    app.phoneConfig.refreshFromPhone()
+  }
   LaunchedEffect(phoneConfig) {
     phoneConfig?.let {
       if (address.isEmpty()) address = it.serverAddress
@@ -79,7 +102,7 @@ fun LoginScreen() {
       } catch (e: ApiException) {
         error = if (e.code == 401) "Wrong username or password" else "Server error (${e.code})"
       } catch (e: Exception) {
-        error = "Can't reach the server"
+        error = describeError(e)
       } finally {
         busy = false
       }
@@ -88,13 +111,23 @@ fun LoginScreen() {
 
   ListScreen(
     edgeButton = {
-      EdgeButton(onClick = ::signIn, enabled = canSignIn, buttonSize = EdgeButtonSize.Medium) {
-        if (busy) CircularProgressIndicator(modifier = androidx.compose.ui.Modifier.size(24.dp)) else Text("Sign in")
+      EdgeButton(
+        onClick = ::signInWithPhone,
+        enabled = !phoneBusy,
+        buttonSize = EdgeButtonSize.Medium,
+        colors = ButtonDefaults.filledTonalButtonColors()
+      ) {
+        if (phoneBusy) CircularProgressIndicator(modifier = Modifier.size(24.dp)) else Text("Use phone", maxLines = 1, softWrap = false)
       }
     }
   ) {
     header("Sign in")
-    caption(if (phoneConfig != null) "Server details from your phone" else "Open Audiobookshelf on your phone to fill these in")
+    when {
+      phoneBusy -> caption("Signing in with your phone…")
+      phoneError != null -> caption(phoneError!!) { MaterialTheme.colorScheme.error }
+      else -> caption("Sign in on your phone, then tap Use phone")
+    }
+    caption("Or sign in on the watch")
     item {
       FieldButton(spec, Icons.Default.Dns, "Server", address.removePrefix("https://").removePrefix("http://")) {
         editing = Field.SERVER
@@ -112,6 +145,19 @@ fun LoginScreen() {
         editing = Field.PASSWORD
         input("Password")
       }
+    }
+    item {
+      Button(
+        onClick = ::signIn,
+        enabled = canSignIn,
+        modifier = itemModifier(spec),
+        transformation = SurfaceTransformation(spec),
+        icon = {
+          if (busy) CircularProgressIndicator(modifier = Modifier.size(ButtonDefaults.IconSize))
+          else Icon(Icons.AutoMirrored.Default.Login, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
+        },
+        label = { Text("Sign in") }
+      )
     }
     error?.let { message -> caption(message) { MaterialTheme.colorScheme.error } }
   }

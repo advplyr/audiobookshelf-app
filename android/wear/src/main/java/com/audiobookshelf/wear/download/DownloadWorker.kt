@@ -16,6 +16,7 @@ import com.audiobookshelf.wear.R
 import com.audiobookshelf.wear.WearApp
 import com.audiobookshelf.wear.data.BookDetail
 import com.audiobookshelf.wear.data.Track
+import com.audiobookshelf.wear.sync.DirectFirst
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
@@ -62,6 +63,8 @@ class DownloadWorker(context: Context, params: WorkerParameters) : CoroutineWork
 
     val fastNetwork = FastNetwork.acquire(applicationContext)
     val client = fastNetwork?.bind(app.api.client) ?: app.api.client
+    // With Wi-Fi or LTE brought up for this download, try it before relaying through the phone
+    directFirst = fastNetwork != null
     try {
       downloadCover(client, store.coverFile(itemId))
       downloadTracks(client, book)
@@ -106,6 +109,7 @@ class DownloadWorker(context: Context, params: WorkerParameters) : CoroutineWork
     val request = Request.Builder()
       .url(app.api.absoluteUrl(track.contentUrl))
       .apply { if (resumeFrom > 0) header("Range", "bytes=$resumeFrom-") }
+      .tag(DirectFirst::class.java, if (directFirst) DirectFirst else null)
       .build()
 
     withContext(Dispatchers.IO) {
@@ -135,7 +139,7 @@ class DownloadWorker(context: Context, params: WorkerParameters) : CoroutineWork
 
   private suspend fun downloadCover(client: OkHttpClient, file: File) = withContext(Dispatchers.IO) {
     try {
-      client.newCall(Request.Builder().url(app.api.coverUrl(itemId, 400)).build()).execute().use { response ->
+      client.newCall(Request.Builder().url(app.api.coverUrl(itemId, 400)).tag(DirectFirst::class.java, if (directFirst) DirectFirst else null).build()).execute().use { response ->
         if (response.isSuccessful) response.body?.byteStream()?.use { input -> file.outputStream().use { input.copyTo(it) } }
       }
     } catch (e: IOException) {
@@ -145,6 +149,8 @@ class DownloadWorker(context: Context, params: WorkerParameters) : CoroutineWork
 
   private fun wasCancelled() =
     Build.VERSION.SDK_INT < Build.VERSION_CODES.S || stopReason == WorkInfo.STOP_REASON_CANCELLED_BY_APP
+
+  private var directFirst = false
 
   private fun partFile(file: File) = File(file.path + ".part")
 

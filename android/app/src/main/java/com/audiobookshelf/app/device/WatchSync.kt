@@ -8,9 +8,8 @@ import com.google.android.gms.wearable.Wearable
 import org.json.JSONObject
 
 /**
- * Shares the connected server with the Audiobookshelf Wear OS app so the watch can prefill its
- * sign in. Tokens are not shared: the watch keeps its own session because the server rotates
- * refresh tokens. Path and keys must match `PhoneConfig` in the wear module.
+ * Tells the Audiobookshelf Wear OS app when the phone's server or user changes (the watch then
+ * asks [WatchBridge] for a sign in). Path and keys must match `PhoneConfig` in the wear module.
  */
 object WatchSync {
   private const val tag = "WatchSync"

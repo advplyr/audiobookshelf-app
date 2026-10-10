@@ -16,8 +16,9 @@ import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
 
 /**
- * Holds the watch's own server session. The watch signs in separately from the phone because the
- * server rotates refresh tokens, so sharing the phone's tokens would log one of the devices out.
+ * Holds the watch's server session: either borrowed from the phone app (an access token only,
+ * renewed by asking the phone) or the watch's own sign in. The phone's refresh token is never
+ * shared because the server rotates it, which would log one of the devices out.
  * Tokens are encrypted with a key kept in the Android Keystore.
  */
 class AuthStore(context: Context) {
@@ -29,7 +30,7 @@ class AuthStore(context: Context) {
 
   @Synchronized
   fun save(account: Account) {
-    prefs.edit().putString(KEY_ACCOUNT, encrypt(account.toJson().toString())).apply()
+    prefs.edit().putString(KEY_ACCOUNT, encrypt(account.toJson().toString())).putBoolean(KEY_SIGNED_OUT, false).apply()
     _account.value = account
   }
 
@@ -44,6 +45,16 @@ class AuthStore(context: Context) {
     prefs.edit().remove(KEY_ACCOUNT).apply()
     _account.value = null
   }
+
+  /** Signs out at the user's request; the watch then waits for them before signing in through the phone again. */
+  @Synchronized
+  fun signOut() {
+    clear()
+    prefs.edit().putBoolean(KEY_SIGNED_OUT, true).apply()
+  }
+
+  /** True after the user signed out on the watch. */
+  val signedOutByUser get() = prefs.getBoolean(KEY_SIGNED_OUT, false)
 
   private fun load(): Account? {
     val stored = prefs.getString(KEY_ACCOUNT, null) ?: return null
@@ -85,6 +96,7 @@ class AuthStore(context: Context) {
   companion object {
     private const val TAG = "AuthStore"
     private const val KEY_ACCOUNT = "account"
+    private const val KEY_SIGNED_OUT = "signedOutByUser"
     private const val KEYSTORE = "AndroidKeyStore"
     private const val KEY_ALIAS = "AbsWearAccount"
     private const val TRANSFORMATION = "AES/GCM/NoPadding"
