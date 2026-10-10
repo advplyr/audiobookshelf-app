@@ -28,8 +28,9 @@ class ListeningTracker(
   private var ticker: Job? = null
   private var pausedAt = 0L
   private var lastRecordedAt = 0L
-  /** While true, reports are held back so a stale position is never sent. */
+  /** While true, periodic reports are held back so a stale position is never sent. */
   private var checkingServer = false
+  private var serverCheck: Job? = null
 
   override fun onIsPlayingChanged(isPlaying: Boolean) {
     if (isPlaying) {
@@ -59,14 +60,15 @@ class ListeningTracker(
   private fun checkServerProgress() {
     val playing = NowPlaying.book.value ?: return
     val since = lastRecordedAt
+    serverCheck?.cancel()
     checkingServer = true
-    scope.launch {
+    serverCheck = scope.launch {
       try {
         val server = withTimeoutOrNull(SERVER_CHECK_TIMEOUT_MS) {
           runCatching { app.api.progress(playing.book.mediaKey) }.getOrNull()
         }
         val stillSameSession = NowPlaying.book.value?.sessionId == playing.sessionId
-        if (server != null && stillSameSession && !server.isFinished && server.lastUpdate > since) {
+        if (isActive && server != null && stillSameSession && !server.isFinished && server.lastUpdate > since) {
           if (abs(server.currentTime - playing.bookTime(player)) > 2) {
             Log.i(TAG, "Server progress is newer, moving to ${server.currentTime}s")
             val (index, positionMs) = playing.trackPosition(server.currentTime)
@@ -74,9 +76,12 @@ class ListeningTracker(
           }
         }
       } finally {
-        checkingServer = false
-        // Save a pause that happened while we were checking
-        if (!player.isPlaying) record()
+        // A cancelled check was superseded by finish() or a newer check, which own the state now
+        if (isActive) {
+          checkingServer = false
+          // Save a pause that happened while we were checking
+          if (!player.isPlaying) record()
+        }
       }
     }
   }
@@ -86,9 +91,13 @@ class ListeningTracker(
     if (reason == Player.DISCONTINUITY_REASON_SEEK && !player.isPlaying) record()
   }
 
-  /** Called when the service shuts down. */
+  /** Called when the book is replaced or unloaded, or the service shuts down. */
   fun finish() {
     ticker?.cancel()
+    // The final save must not be skipped by a server check still running; that check is moot now
+    serverCheck?.cancel()
+    serverCheck = null
+    checkingServer = false
     record()
   }
 
@@ -97,6 +106,9 @@ class ListeningTracker(
     val playing = NowPlaying.book.value ?: return
     val now = System.currentTimeMillis()
     lastRecordedAt = now
+    // Look up the session first: starting a new one resets timeListening, which must not discard
+    // the interval being added below
+    val sessionJson = currentSession(playing, now)
     if (lastTickAt > 0) {
       timeListening += (SystemClock.elapsedRealtime() - lastTickAt) / 1000.0
     }
@@ -105,7 +117,7 @@ class ListeningTracker(
     val currentTime = if (player.playbackState == Player.STATE_ENDED) playing.book.duration else playing.bookTime(player)
     app.progress.save(playing.book.mediaKey, currentTime, now)
 
-    val sessionJson = currentSession(playing, now)
+    sessionJson
       .put("currentTime", currentTime)
       .put("timeListening", timeListening.toLong())
       .put("updatedAt", now)

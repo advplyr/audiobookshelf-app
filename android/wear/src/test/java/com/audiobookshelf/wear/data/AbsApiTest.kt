@@ -194,4 +194,15 @@ class AbsApiTest {
     assertEquals(listOf("li_b", "li_p"), results.map { it.id })
     assertTrue(results[1].isPodcast)
   }
+
+  @Test
+  fun `credentials only go to the signed in server`() {
+    fun url(s: String) = okhttp3.HttpUrl.Companion.run { s.toHttpUrl() }
+    assertTrue(AbsApi.isForServer(url("https://abs.example.com/api/me"), "https://abs.example.com"))
+    assertFalse(AbsApi.isForServer(url("https://abs.example.com.evil.net/x"), "https://abs.example.com"))
+    assertFalse(AbsApi.isForServer(url("http://host:13378/api"), "http://host:1337"))
+    assertFalse(AbsApi.isForServer(url("http://abs.example.com/api"), "https://abs.example.com"))
+    assertTrue(AbsApi.isForServer(url("https://host/abs/api/me"), "https://host/abs"))
+    assertFalse(AbsApi.isForServer(url("https://host/absolute/x"), "https://host/abs"))
+  }
 }

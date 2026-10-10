@@ -21,7 +21,8 @@ class DownloadStore(context: Context, private val onChanged: () -> Unit = {}) {
   private val _books = MutableStateFlow(scan())
   val books: StateFlow<List<DownloadedBook>> = _books.asStateFlow()
 
-  fun bookDir(key: MediaKey) = File(root, if (key.episodeId == null) key.itemId else "${key.itemId}$EPISODE_SEPARATOR${key.episodeId}")
+  // Ids come from the server, so they're cleaned to keep every download inside [root]
+  fun bookDir(key: MediaKey) = File(root, if (key.episodeId == null) safeFileName(key.itemId) else "${safeFileName(key.itemId)}$EPISODE_SEPARATOR${safeFileName(key.episodeId)}")
   fun trackFile(key: MediaKey, track: Track) = File(bookDir(key), track.fileName)
   fun coverFile(key: MediaKey) = File(bookDir(key), COVER_FILE)
 
@@ -32,7 +33,7 @@ class DownloadStore(context: Context, private val onChanged: () -> Unit = {}) {
   fun coverFile(itemId: String): File {
     val own = coverFile(MediaKey(itemId))
     if (own.exists()) return own
-    return root.listFiles { file -> file.name.startsWith(itemId + EPISODE_SEPARATOR) }.orEmpty()
+    return root.listFiles { file -> file.name.startsWith(safeFileName(itemId) + EPISODE_SEPARATOR) }.orEmpty()
       .map { File(it, COVER_FILE) }
       .firstOrNull { it.exists() } ?: own
   }

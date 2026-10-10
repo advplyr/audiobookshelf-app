@@ -41,10 +41,20 @@ class MediaProgressSyncer(
   var currentPlaybackSession: PlaybackSession? = null // copy of pb session currently syncing
 
   /**
-   * True while checking whether another device (e.g. the watch) made newer progress. Syncs are held
-   * back meanwhile so this phone's older position can't overwrite it; listening time still accumulates.
+   * True while checking whether another device (e.g. the watch) made newer progress. Periodic syncs
+   * are held back meanwhile so this phone's older position can't overwrite it; listening time still
+   * accumulates. Pause/stop/finish cancel the check instead so their final position is never dropped.
    */
   @Volatile var freshnessCheckPending = false
+  /** Bumped whenever a pending freshness check is cancelled, so its late answer is ignored */
+  @Volatile var freshnessCheckToken = 0
+    private set
+
+  // Positions (seconds) this phone recently sent to the server, used to tell our own progress apart
+  // from progress made on another device. Attempts are kept too, as a sync that timed out may still
+  // have reached the server, and the last confirmed one in case later syncs failed while offline.
+  private val reportedTimes = ArrayDeque<Double>()
+  @Volatile private var lastConfirmedTime: Double? = null
   var currentLocalMediaProgress: LocalMediaProgress? = null
 
   private val currentDisplayTitle
@@ -57,6 +67,10 @@ class MediaProgressSyncer(
     get() = currentPlaybackSession?.duration ?: 0.0
 
   fun start(playbackSession: PlaybackSession) {
+    if (playbackSession.id != currentSessionId) {
+      synchronized(reportedTimes) { reportedTimes.clear() }
+      lastConfirmedTime = playbackSession.currentTime
+    }
     if (listeningTimerRunning) {
       Log.d(tag, "start: Timer already running for $currentDisplayTitle")
       if (playbackSession.id != currentSessionId) {
@@ -126,6 +140,7 @@ class MediaProgressSyncer(
     listeningTimerTask?.cancel()
     listeningTimerTask = null
     listeningTimerRunning = false
+    cancelFreshnessCheck()
     Log.d(tag, "stop: Stopping listening for $currentDisplayTitle")
 
     val currentTime =
@@ -155,6 +170,7 @@ class MediaProgressSyncer(
     listeningTimerTask?.cancel()
     listeningTimerTask = null
     listeningTimerRunning = false
+    cancelFreshnessCheck()
     Log.d(tag, "pause: Pausing progress syncer for $currentDisplayTitle")
     Log.d(tag, "pause: Last sync time $lastSyncTime")
 
@@ -190,6 +206,7 @@ class MediaProgressSyncer(
     listeningTimerTask?.cancel()
     listeningTimerTask = null
     listeningTimerRunning = false
+    cancelFreshnessCheck()
     Log.d(tag, "finished: Stopping listening for $currentDisplayTitle")
 
     sync(true, currentPlaybackSession?.duration ?: 0.0) { syncResult ->
@@ -213,6 +230,32 @@ class MediaProgressSyncer(
     }
 
     MediaEventManager.seekEvent(currentPlaybackSession!!, null)
+  }
+
+  /** Stops holding syncs back for a pending freshness check; the check's answer will be ignored */
+  fun cancelFreshnessCheck() {
+    if (!freshnessCheckPending) return
+    freshnessCheckPending = false
+    freshnessCheckToken++
+  }
+
+  fun noteReportedTime(currentTime: Double) {
+    synchronized(reportedTimes) {
+      reportedTimes.addLast(currentTime)
+      while (reportedTimes.size > 10) reportedTimes.removeFirst()
+    }
+  }
+
+  /** The server holds [currentTime] (e.g. after adopting another device's progress) */
+  fun noteServerTime(currentTime: Double) {
+    lastConfirmedTime = currentTime
+  }
+
+  /** True if [currentTime] matches a position this phone itself recently reported */
+  fun wasReportedByThisDevice(currentTime: Double): Boolean {
+    val confirmed = lastConfirmedTime
+    if (confirmed != null && kotlin.math.abs(confirmed - currentTime) <= 2) return true
+    return synchronized(reportedTimes) { reportedTimes.any { kotlin.math.abs(it - currentTime) <= 2 } }
   }
 
   // Currently unused
@@ -283,8 +326,10 @@ class MediaProgressSyncer(
                         !it.libraryItemId.isNullOrEmpty() &&
                         isConnectedToSameServer
         ) {
+          noteReportedTime(currentTime)
           apiHandler.sendLocalProgressSync(it) { syncSuccess, errorMsg ->
             if (syncSuccess) {
+              lastConfirmedTime = currentTime
               failedSyncs = 0
               playerNotificationService.alertSyncSuccess()
               DeviceManager.dbManager.removePlaybackSession(it.id) // Remove session from db
@@ -308,10 +353,12 @@ class MediaProgressSyncer(
     } else if (hasNetworkConnection && shouldSyncServer) {
       AbsLogger.info("MediaProgressSyncer", "sync: Sending progress sync to server (title: \"$currentDisplayTitle\") (currentTime: $currentTime) (session id: ${currentSessionId}) (${DeviceManager.serverConnectionConfigName})")
 
+      noteReportedTime(currentTime)
       apiHandler.sendProgressSync(currentSessionId, syncData) { syncSuccess, errorMsg ->
         if (syncSuccess) {
           AbsLogger.info("MediaProgressSyncer", "sync: Successfully synced progress (title: \"$currentDisplayTitle\") (currentTime: $currentTime) (session id: ${currentSessionId}) (${DeviceManager.serverConnectionConfigName})")
 
+          lastConfirmedTime = currentTime
           failedSyncs = 0
           playerNotificationService.alertSyncSuccess()
           lastSyncTime = System.currentTimeMillis()
@@ -362,6 +409,8 @@ class MediaProgressSyncer(
 
   fun reset() {
     currentPlaybackSession = null
+    synchronized(reportedTimes) { reportedTimes.clear() }
+    lastConfirmedTime = null
     currentLocalMediaProgress = null
     lastSyncTime = 0L
     Log.d(tag, "reset: Set last sync time 0 $lastSyncTime")

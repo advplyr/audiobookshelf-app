@@ -199,6 +199,7 @@ class AbsDatabase : Plugin() {
       DeviceManager.dbManager.saveDeviceData(DeviceManager.deviceData)
       if (DeviceManager.serverConnectionConfig?.id == serverConnectionConfigId) {
         DeviceManager.serverConnectionConfig = null
+        WatchSync.publishSignedOut(context)
       }
       call.resolve()
     }
@@ -246,6 +247,7 @@ class AbsDatabase : Plugin() {
       DeviceManager.serverConnectionConfig = null
       DeviceManager.deviceData.lastServerConnectionConfigId = null
       DeviceManager.dbManager.saveDeviceData(DeviceManager.deviceData)
+      WatchSync.publishSignedOut(context)
       call.resolve()
     }
   }

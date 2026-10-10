@@ -851,20 +851,30 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
     if (libraryItemId.isNullOrEmpty() || !DeviceManager.isConnectedToServer || !DeviceManager.checkConnectivity(ctx)) return
     if (session.isLocal && session.serverConnectionConfigId != DeviceManager.serverConnectionConfig?.id) return
 
-    val lastReportedAt = session.updatedAt
     val mainHandler = Handler(Looper.getMainLooper())
+    mediaProgressSyncer.cancelFreshnessCheck() // supersede any earlier check still in flight
     mediaProgressSyncer.freshnessCheckPending = true
+    val token = mediaProgressSyncer.freshnessCheckToken
     // Never hold syncs back for long, even if the server doesn't answer
-    val release = Runnable { mediaProgressSyncer.freshnessCheckPending = false }
+    val release = Runnable { if (mediaProgressSyncer.freshnessCheckToken == token) mediaProgressSyncer.cancelFreshnessCheck() }
     mainHandler.postDelayed(release, 5000L)
 
     apiHandler.getMediaProgress(libraryItemId, session.episodeId, null) { serverProgress ->
       mainHandler.post {
+        // Cancelled by pause/stop or timed out: this phone's position has already been reported
+        if (mediaProgressSyncer.freshnessCheckToken != token || !mediaProgressSyncer.freshnessCheckPending) return@post
         mainHandler.removeCallbacks(release)
+        mediaProgressSyncer.freshnessCheckPending = false
         val stillSameSession = (mediaProgressSyncer.currentPlaybackSession ?: currentPlaybackSession)?.id == session.id
-        if (serverProgress != null && stillSameSession && !serverProgress.isFinished && serverProgress.lastUpdate > lastReportedAt &&
+        // Timestamps from the server and this phone aren't comparable (different clocks, receipt vs send
+        // time), so identify another device's progress by position: it must differ from every position this
+        // phone recently reported, and have been saved after this session started (not older stale progress)
+        val isFromOtherDevice = serverProgress != null && !mediaProgressSyncer.wasReportedByThisDevice(serverProgress.currentTime) &&
+          serverProgress.lastUpdate > session.startedAt
+        if (serverProgress != null && stillSameSession && !serverProgress.isFinished && isFromOtherDevice &&
           kotlin.math.abs(serverProgress.currentTime - getCurrentTimeSeconds()) > 2) {
-          AbsLogger.info(tag, "checkServerProgressOnResume: Server progress is newer, seeking to ${serverProgress.currentTime}s (${session.displayTitle})")
+          AbsLogger.info(tag, "checkServerProgressOnResume: Server has progress from another device, seeking to ${serverProgress.currentTime}s (${session.displayTitle})")
+          mediaProgressSyncer.noteServerTime(serverProgress.currentTime)
           seekPlayer((serverProgress.currentTime * 1000).toLong())
           if (session.isLocal) {
             DeviceManager.dbManager.getLocalMediaProgress(session.localMediaProgressId)?.let { localProgress ->
@@ -873,7 +883,6 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
             }
           }
         }
-        mediaProgressSyncer.freshnessCheckPending = false
       }
     }
   }

@@ -16,13 +16,25 @@ object WatchSync {
   private const val PATH_SERVER = "/abs/server"
 
   fun publishServerConfig(context: Context, config: ServerConnectionConfig?) {
-    if (config == null) return
-    val request = PutDataMapRequest.create(PATH_SERVER).apply {
+    if (config == null) return publishSignedOut(context)
+    put(context, PutDataMapRequest.create(PATH_SERVER).apply {
       dataMap.putString("address", config.address)
       dataMap.putString("username", config.username)
       dataMap.putString("customHeaders", JSONObject(config.customHeaders ?: emptyMap<String, String>()).toString())
-    }.asPutDataRequest().setUrgent()
+    })
+  }
 
+  /** Tells the watch the phone signed out, so a watch signed in through the phone signs out too. */
+  fun publishSignedOut(context: Context) {
+    put(context, PutDataMapRequest.create(PATH_SERVER).apply {
+      dataMap.putString("address", "")
+      // Makes the item change even if the phone was already signed out
+      dataMap.putLong("signedOutAt", System.currentTimeMillis())
+    })
+  }
+
+  private fun put(context: Context, data: PutDataMapRequest) {
+    val request = data.asPutDataRequest().setUrgent()
     Wearable.getDataClient(context.applicationContext).putDataItem(request)
       .addOnFailureListener { e ->
         // Expected on phones without a paired watch or the Wear OS companion

@@ -128,4 +128,14 @@ class ModelsTest {
     assertEquals(MediaKey("li_pod1", "ep_new"), progress.mediaKey)
     assertTrue(progress.isFinished)
   }
+
+  @Test
+  fun `server supplied file names can't leave the book folder`() {
+    val track = Track(1, "../../shared_prefs", 1.0, 0.0, "/x", "audio/mpeg", "/../auth.xml", 10)
+    assertFalse(track.fileName.contains('/'))
+    assertEquals("1_123.mp3", track.copy(ino = "123", ext = ".mp3").fileName)
+    assertEquals("__", safeFileName(".."))
+    assertEquals("_", safeFileName(""))
+    assertEquals("li_book1", safeFileName("li_book1"))
+  }
 }

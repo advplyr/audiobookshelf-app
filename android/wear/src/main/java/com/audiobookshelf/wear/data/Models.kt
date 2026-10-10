@@ -117,6 +117,15 @@ data class ServerProgress(
   }
 }
 
+/**
+ * Makes a server-supplied value safe to use as a single file name: path separators and anything
+ * unusual become "_", and "." or ".." can't result.
+ */
+fun safeFileName(name: String): String {
+  val cleaned = name.replace(Regex("[^A-Za-z0-9._-]"), "_")
+  return if (cleaned.isEmpty() || cleaned.all { it == '.' }) cleaned.replace('.', '_').ifEmpty { "_" } else cleaned
+}
+
 data class Track(
   val index: Int,
   val ino: String,
@@ -127,7 +136,8 @@ data class Track(
   val ext: String,
   val size: Long
 ) {
-  val fileName get() = "${index}_$ino$ext"
+  // ino and ext come from the server, so they're cleaned to keep the file inside the book's folder
+  val fileName get() = safeFileName("${index}_$ino$ext")
 
   fun toJson(): JSONObject = JSONObject()
     .put("index", index)

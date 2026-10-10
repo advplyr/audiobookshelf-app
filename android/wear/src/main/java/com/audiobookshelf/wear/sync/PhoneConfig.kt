@@ -20,14 +20,21 @@ import org.json.JSONObject
  * The server the phone app is connected to, shared over the Wearable Data Layer.
  * Data item path and keys must match `WatchSync` in the phone app.
  */
-class PhoneConfig(private val context: Context) {
+class PhoneConfig(private val context: Context, private val onPhoneSignedOut: () -> Unit = {}) {
   private val prefs = context.getSharedPreferences("phone_config", Context.MODE_PRIVATE)
   private val _config = MutableStateFlow(load())
   val config: StateFlow<PhoneServerConfig?> = _config.asStateFlow()
 
   fun update(dataMap: DataMap) {
     val address = dataMap.getString(KEY_ADDRESS).orEmpty()
-    if (address.isEmpty()) return
+    if (address.isEmpty()) {
+      if (dataMap.containsKey(KEY_SIGNED_OUT_AT)) {
+        prefs.edit().clear().apply()
+        _config.value = null
+        onPhoneSignedOut()
+      }
+      return
+    }
     prefs.edit()
       .putString(KEY_ADDRESS, address)
       .putString(KEY_USERNAME, dataMap.getString(KEY_USERNAME).orEmpty())
@@ -66,5 +73,6 @@ class PhoneConfig(private val context: Context) {
     const val KEY_ADDRESS = "address"
     const val KEY_USERNAME = "username"
     const val KEY_HEADERS = "customHeaders"
+    const val KEY_SIGNED_OUT_AT = "signedOutAt"
   }
 }

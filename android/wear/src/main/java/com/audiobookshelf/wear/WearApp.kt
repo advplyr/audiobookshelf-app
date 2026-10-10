@@ -52,7 +52,8 @@ class WearApp : Application(), ImageLoaderFactory {
     api = AbsApi(auth, phoneLink, serverRoute)
     downloads = DownloadStore(this) { TileRefresher.downloadsChanged(this) }
     progress = ProgressStore(this)
-    phoneConfig = PhoneConfig(this)
+    // A sign in borrowed from the phone ends when the phone signs out; a watch-only sign in is kept
+    phoneConfig = PhoneConfig(this) { if (auth.current?.linkedToPhone == true) auth.clear() }
     contentSettings = ContentSettings(this)
     sessionSync = SessionSync(this, api, auth, progress) { TileRefresher.statsChanged(this) }
     tileCache = TileCache(this)

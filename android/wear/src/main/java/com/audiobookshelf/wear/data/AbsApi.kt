@@ -8,6 +8,8 @@ import com.audiobookshelf.wear.sync.PhoneLink
 import com.audiobookshelf.wear.sync.PhoneRelayInterceptor
 import com.audiobookshelf.wear.sync.PhoneSignedOutException
 import com.audiobookshelf.wear.sync.ServerRoute
+import okhttp3.HttpUrl
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.Interceptor
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
@@ -235,7 +237,7 @@ class AbsApi(private val auth: AuthStore, private val phoneLink: PhoneLink, rout
       val account = auth.current
       val request = chain.request()
       // Only attach credentials to requests for the signed in server
-      if (account == null || !request.url.toString().startsWith(account.serverAddress)) {
+      if (account == null || !isForServer(request.url, account.serverAddress)) {
         return chain.proceed(request)
       }
       val builder = request.newBuilder()
@@ -309,6 +311,17 @@ class AbsApi(private val auth: AuthStore, private val phoneLink: PhoneLink, rout
         normalized = "https://$normalized"
       }
       return normalized
+    }
+
+    /**
+     * True if [url] is on the signed in server: same scheme, host and port, and under its path. A plain
+     * prefix check would also match e.g. "https://abs.example.com.evil.net" or port 13378 for 1337.
+     */
+    fun isForServer(url: HttpUrl, serverAddress: String): Boolean {
+      val server = serverAddress.toHttpUrlOrNull() ?: return false
+      if (url.scheme != server.scheme || url.host != server.host || url.port != server.port) return false
+      val basePath = server.encodedPath.trimEnd('/')
+      return basePath.isEmpty() || url.encodedPath == basePath || url.encodedPath.startsWith("$basePath/")
     }
   }
 }

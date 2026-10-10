@@ -15,7 +15,7 @@ class PhoneListenerService : WearableListenerService() {
       if (event.type == DataEvent.TYPE_CHANGED && event.dataItem.uri.path == PhoneConfig.PATH_SERVER) {
         app.phoneConfig.update(DataMapItem.fromDataItem(event.dataItem).dataMap)
         // The phone signed in, or switched server or user
-        app.appScope.launch { app.syncSignInFromPhone() }
+        if (app.phoneConfig.config.value != null) app.appScope.launch { app.syncSignInFromPhone() }
       }
     }
   }

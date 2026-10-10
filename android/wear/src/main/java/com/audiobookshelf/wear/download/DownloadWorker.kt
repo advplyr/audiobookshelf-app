@@ -111,6 +111,11 @@ class DownloadWorker(context: Context, params: WorkerParameters) : CoroutineWork
 
   private suspend fun downloadTrack(client: OkHttpClient, track: Track, file: File, onBytes: (Long) -> Unit) {
     val part = partFile(file)
+    if (track.size > 0 && part.length() >= track.size) {
+      // Stopped after the last byte was written but before the rename: nothing left to fetch
+      if (part.length() == track.size && part.renameTo(file)) return onBytes(track.size)
+      part.delete()
+    }
     val resumeFrom = part.length()
     val request = Request.Builder()
       .url(app.api.absoluteUrl(track.contentUrl))
@@ -120,6 +125,11 @@ class DownloadWorker(context: Context, params: WorkerParameters) : CoroutineWork
 
     withContext(Dispatchers.IO) {
       client.newCall(request).execute().use { response ->
+        if (response.code == 416 && resumeFrom > 0) {
+          // The partial file doesn't match what the server has; start this track over on the retry
+          part.delete()
+          throw IOException("Server rejected resuming ${file.name}")
+        }
         if (!response.isSuccessful) throw IOException("Server returned ${response.code}")
         // Server ignored the range request, so start over
         val append = resumeFrom > 0 && response.code == 206

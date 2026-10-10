@@ -13,6 +13,10 @@ import okio.source
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.IOException
+import java.net.ConnectException
+import java.net.NoRouteToHostException
+import java.net.SocketTimeoutException
+import java.net.UnknownHostException
 
 /** Tag for requests that should try the direct connection first, e.g. downloads on Wi-Fi brought up for them. */
 object DirectFirst
@@ -30,19 +34,32 @@ class PhoneRelayInterceptor(private val route: ServerRoute, private val phoneLin
     if (route.current == ServerRoute.Route.PHONE && !directFirst) {
       try {
         return relay(request)
-      } catch (e: PhoneUnavailableException) {
-        // The phone went away; maybe the server is reachable directly again
+      } catch (e: IOException) {
+        // The phone went away or the link broke; maybe the server is reachable directly again
         route.probeSoon()
+        // A broken link may have already delivered the request, so only resend what's safe to repeat
+        if (chain.call().isCanceled() || (e !is PhoneUnavailableException && !isIdempotent(request))) throw e
       }
     }
 
     return try {
       chain.proceed(request)
     } catch (e: IOException) {
-      if (chain.call().isCanceled() || !route.directFailed()) throw e
+      if (chain.call().isCanceled() || !canResendViaPhone(request, e) || !route.directFailed()) throw e
       relay(request)
     }
   }
+
+  /**
+   * A request that may have reached the server (e.g. the response timed out) is only resent when
+   * repeating it is harmless, so writes like a listening session sync aren't applied twice.
+   */
+  private fun canResendViaPhone(request: Request, e: IOException): Boolean = isIdempotent(request) || neverSent(e)
+
+  private fun neverSent(e: IOException): Boolean = e is ConnectException || e is UnknownHostException ||
+    e is NoRouteToHostException || (e is SocketTimeoutException && e.message?.contains("connect", ignoreCase = true) == true)
+
+  private fun isIdempotent(request: Request): Boolean = request.method in IDEMPOTENT_METHODS
 
   private fun relay(request: Request): Response {
     val body = request.body?.let { requestBody -> Buffer().also { requestBody.writeTo(it) }.readByteArray() }
@@ -95,5 +112,9 @@ class PhoneRelayInterceptor(private val route: ServerRoute, private val phoneLin
       .sentRequestAtMillis(System.currentTimeMillis())
       .receivedResponseAtMillis(System.currentTimeMillis())
       .build()
+  }
+
+  private companion object {
+    val IDEMPOTENT_METHODS = setOf("GET", "HEAD", "OPTIONS", "PUT", "DELETE")
   }
 }

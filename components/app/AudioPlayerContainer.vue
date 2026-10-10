@@ -16,8 +16,6 @@ import CellularPermissionHelpers from '@/mixins/cellularPermissionHelpers'
 export default {
   data() {
     return {
-      // When this phone last paused; server progress older than this must not move the player back
-      lastPausedAt: 0,
       isReady: false,
       settingsLoaded: false,
       audioPlayerReady: false,
@@ -43,11 +41,6 @@ export default {
     }
   },
   mixins: [CellularPermissionHelpers],
-  watch: {
-    '$store.state.playerIsPlaying'(isPlaying) {
-      if (!isPlaying) this.lastPausedAt = Date.now()
-    }
-  },
   computed: {
     bookmarks() {
       if (!this.serverLibraryItemId) return []
@@ -431,9 +424,6 @@ export default {
         console.log('[AudioPlayerContainer] device visibility: checking server media progress for server media item open in player')
         const data = await this.getServerMediaProgressForCurrentSession()
         if (!data) return
-        // Only follow progress that is newer than our own pause, e.g. listening on the watch.
-        // Older server progress (e.g. our last sync failed offline) must not move us back.
-        if (data.lastUpdate && this.lastPausedAt && data.lastUpdate <= this.lastPausedAt) return
         if (!this.$refs.audioPlayer?.isPlaying) {
           console.log('[AudioPlayerContainer] device visibility: got server media progress', data.currentTime, 'last time in player is', this.currentTime)
           // Only seek if the difference is greater than 1 second
