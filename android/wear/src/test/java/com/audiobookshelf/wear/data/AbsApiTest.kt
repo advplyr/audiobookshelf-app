@@ -47,6 +47,15 @@ class AbsApiTest {
   }
 
   @Test
+  fun `reads each library's icon, empty when the server sends none`() = runBlocking {
+    server.enqueue(jsonResponse(fixture("libraries.json")))
+
+    val libraries = api.audioLibraries()
+
+    assertEquals(listOf("books-2", ""), libraries.map { it.icon })
+  }
+
+  @Test
   fun `in progress includes podcast episodes`() = runBlocking {
     server.enqueue(jsonResponse(fixture("items_in_progress.json")))
 

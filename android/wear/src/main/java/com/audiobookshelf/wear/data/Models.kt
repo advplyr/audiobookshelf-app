@@ -45,7 +45,8 @@ data class PhoneServerConfig(
   val customHeaders: Map<String, String>
 )
 
-data class Library(val id: String, val name: String, val mediaType: String) {
+/** [icon] is the icon chosen for the library on the server, e.g. "database" (see [com.audiobookshelf.wear.ui.LibraryIcons]). */
+data class Library(val id: String, val name: String, val mediaType: String, val icon: String) {
   val isPodcast get() = mediaType == MEDIA_PODCAST
 }
 

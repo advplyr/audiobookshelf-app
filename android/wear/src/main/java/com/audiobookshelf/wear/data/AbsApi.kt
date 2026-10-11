@@ -91,7 +91,7 @@ class AbsApi(private val auth: AuthStore, private val phoneLink: PhoneLink, rout
           else -> false
         }
       }
-      .map { Library(it.getString("id"), it.optString("name"), it.optString("mediaType")) }
+      .map { Library(it.getString("id"), it.optString("name"), it.optString("mediaType"), it.optString("icon")) }
   }
 
   /** Books, or podcasts in a podcast library. */

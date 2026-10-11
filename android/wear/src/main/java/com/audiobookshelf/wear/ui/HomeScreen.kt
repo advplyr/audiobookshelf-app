@@ -2,11 +2,9 @@ package com.audiobookshelf.wear.ui
 
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.LibraryBooks
 import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material.icons.filled.DownloadDone
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Podcasts
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -95,7 +93,7 @@ fun ClassicHomeScreen(nav: NavHostController) {
         }
         header("Libraries")
         items(data.libraries, key = { it.id }) { library ->
-          MenuButton(spec, if (library.isPodcast) Icons.Default.Podcasts else Icons.AutoMirrored.Default.LibraryBooks, library.name) {
+          MenuButton(spec, { LibraryIcon(library.icon) }, library.name) {
             nav.navigate(Routes.library(library.id, library.name))
           }
         }
@@ -122,12 +120,21 @@ fun androidx.wear.compose.foundation.lazy.TransformingLazyColumnItemScope.MenuBu
   label: String,
   secondary: String? = null,
   onClick: () -> Unit
+) = MenuButton(spec, { Icon(icon, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize)) }, label, secondary, onClick)
+
+@Composable
+fun androidx.wear.compose.foundation.lazy.TransformingLazyColumnItemScope.MenuButton(
+  spec: androidx.wear.compose.material3.lazy.TransformationSpec,
+  icon: @Composable androidx.compose.foundation.layout.BoxScope.() -> Unit,
+  label: String,
+  secondary: String? = null,
+  onClick: () -> Unit
 ) {
   FilledTonalButton(
     onClick = onClick,
     modifier = itemModifier(spec),
     transformation = SurfaceTransformation(spec),
-    icon = { Icon(icon, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize)) },
+    icon = icon,
     secondaryLabel = secondary?.let { { Text(it, maxLines = 1, overflow = TextOverflow.Ellipsis) } },
     label = { Text(label, maxLines = 2, overflow = TextOverflow.Ellipsis) }
   )

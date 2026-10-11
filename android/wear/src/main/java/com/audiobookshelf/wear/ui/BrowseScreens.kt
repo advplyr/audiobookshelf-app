@@ -3,10 +3,7 @@ package com.audiobookshelf.wear.ui
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.LibraryBooks
-import androidx.compose.material.icons.filled.CollectionsBookmark
 import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material.icons.filled.Podcasts
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -88,15 +85,7 @@ fun LibraryPickerScreen(nav: NavHostController, forSeries: Boolean) {
       is Load.Loading -> loadingItem()
       is Load.Failed -> errorItem(libraries.message, retry)
       is Load.Ready -> items(libraries.value, key = { it.id }) { library ->
-        MenuButton(
-          spec,
-          when {
-            forSeries -> Icons.Default.CollectionsBookmark
-            library.isPodcast -> Icons.Default.Podcasts
-            else -> Icons.AutoMirrored.Default.LibraryBooks
-          },
-          library.name
-        ) { nav.navigate(open(library.id, library.name)) }
+        MenuButton(spec, { LibraryIcon(library.icon) }, library.name) { nav.navigate(open(library.id, library.name)) }
       }
     }
   }

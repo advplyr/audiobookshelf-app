@@ -22,7 +22,9 @@ phone. Built with Jetpack Compose for Wear OS, Media3 and Tiles.
   connected; tap it to check again.
 - **Browse**: the home screen is a card hub with Continue listening, Library and Series; turn on
   Settings → Scrollable homepage for a list instead. Libraries, series, search, book and episode
-  pages, and the books downloaded to the watch (On this watch).
+  pages, and the books downloaded to the watch (On this watch). Libraries show the icon chosen
+  for them on the server, drawn with the phone app's own icon font (`res/font/absicons.ttf`, a copy
+  of `static/fonts/absicons/absicons.ttf`; `LibraryIconsTest` fails if the two drift apart).
 - **Downloads**: books are saved to app storage (`files/books/<itemId>/`) and run in WorkManager.
   They ask Wear OS to bring up Wi-Fi or LTE, which is much faster than the Bluetooth link to the
   phone (`FastNetwork`). If neither comes up within 15 seconds they download over the normal
@@ -97,7 +99,7 @@ cd android
 JVM tests with Robolectric and MockWebServer, using saved server responses in
 `src/test/resources/fixtures`: API parsing and auth, models and download file names, listening
 stats, saved progress, auto-delete, the headphone check, closing an idle player, the session sync
-queue and the tile data.
+queue, the tile data and the library icons matching the phone app's.
 
 ## Build and install
 
