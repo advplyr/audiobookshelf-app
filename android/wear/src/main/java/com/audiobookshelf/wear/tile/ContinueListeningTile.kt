@@ -97,10 +97,7 @@ class ContinueListeningTile : AbsTileService() {
     /** [entries] is null while the first load is still running. */
     fun layout(context: Context, device: DeviceParameters, entries: List<ContinueEntry>?, withCovers: Set<String>): LayoutElementBuilders.LayoutElement {
       val colors = Colors.DEFAULT
-      val label = Text.Builder(context, "Continue")
-        .setTypography(Typography.TYPOGRAPHY_CAPTION1)
-        .setColor(argb(colors.primary))
-        .build()
+      val label = TileLayout.header(context, "Continue listening", colors.primary)
       if (entries.isNullOrEmpty()) {
         return PrimaryLayout.Builder(device)
           .setPrimaryLabelTextContent(label)

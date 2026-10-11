@@ -61,7 +61,7 @@ class StatsTile : AbsTileService() {
     fun layout(context: Context, device: DeviceParameters, stats: ListeningStats?, updatedAgo: Long?): LayoutElementBuilders.LayoutElement {
       val colors = Colors.DEFAULT
       val refresh = TileActions.clickable(TileActions.refresh())
-      val label = text(context, "Today", Typography.TYPOGRAPHY_CAPTION1, colors.primary)
+      val label = TileLayout.header(context, "Listened today", colors.primary)
       if (stats == null) {
         return PrimaryLayout.Builder(device)
           .setPrimaryLabelTextContent(label)

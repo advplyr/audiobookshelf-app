@@ -98,7 +98,7 @@ class DownloadsTile : AbsTileService() {
         .build()
     }
 
-    private fun label(context: Context, colors: Colors) = text(context, "On this watch", Typography.TYPOGRAPHY_CAPTION1, colors.primary)
+    private fun label(context: Context, colors: Colors) = TileLayout.header(context, "On this watch", colors.primary)
 
     private fun text(context: Context, value: String, typography: Int, color: Int, maxLines: Int = 1) =
       Text.Builder(context, value).setTypography(typography).setColor(argb(color)).setMaxLines(maxLines).build()

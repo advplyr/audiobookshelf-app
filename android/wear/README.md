@@ -46,7 +46,8 @@ phone. Built with Jetpack Compose for Wear OS, Media3 and Tiles.
   or end of chapter). The outer ring shows progress through the book, the ring around the play
   button progress through the chapter. Turn the crown or bezel on the player screen to change the
   volume. The media notification is an Ongoing Activity, so a "now playing" icon on the watch face
-  opens the player.
+  opens the player. After 15 minutes paused (`IdleTimeout`), the player saves the position and
+  closes, so the media controls and the "now playing" icon go away.
 - **Audio output**: with no headphones connected, pressing play asks where to play (`HeadphoneGuard`):
   connected headphones, the watch speaker, or Connect device (the Bluetooth picker). The speaker
   choice is kept until headphones connect, and playback starts by itself when headphones connect
@@ -64,6 +65,7 @@ phone. Built with Jetpack Compose for Wear OS, Media3 and Tiles.
   - **Listening stats**: time today, a 7-day chart, the week total and the streak, from
     `/api/me/listening-stats`. The only place stats are shown on the watch; tap to refresh.
 
+  Each tile's label starts with the Audiobookshelf logo, so it's clear which app it belongs to.
   Server data is cached (`TileCache`) so tiles show instantly and work offline. Add one for
   debugging with `adb shell am broadcast -a com.google.android.wearable.app.DEBUG_SURFACE --es
   operation add-tile --ecn component com.audiobookshelf.app.debug/com.audiobookshelf.wear.tile.<Tile>`
@@ -94,7 +96,8 @@ cd android
 
 JVM tests with Robolectric and MockWebServer, using saved server responses in
 `src/test/resources/fixtures`: API parsing and auth, models and download file names, listening
-stats, saved progress, auto-delete, the headphone check, the session sync queue and the tile data.
+stats, saved progress, auto-delete, the headphone check, closing an idle player, the session sync
+queue and the tile data.
 
 ## Build and install
 

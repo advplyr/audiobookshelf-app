@@ -3,15 +3,19 @@ package com.audiobookshelf.wear.tile
 import android.content.Context
 import android.util.Log
 import androidx.wear.protolayout.ActionBuilders
+import androidx.wear.protolayout.ColorBuilders.argb
 import androidx.wear.protolayout.DeviceParametersBuilders.DeviceParameters
 import androidx.wear.protolayout.DimensionBuilders.dp
 import androidx.wear.protolayout.LayoutElementBuilders
 import androidx.wear.protolayout.ModifiersBuilders
 import androidx.wear.protolayout.ResourceBuilders
 import androidx.wear.protolayout.TimelineBuilders
+import androidx.wear.protolayout.material.Text
+import androidx.wear.protolayout.material.Typography
 import androidx.wear.tiles.RequestBuilders
 import androidx.wear.tiles.TileBuilders
 import androidx.wear.tiles.TileService
+import com.audiobookshelf.wear.R
 import com.audiobookshelf.wear.WearApp
 import com.audiobookshelf.wear.ui.MainActivity
 import com.google.common.util.concurrent.ListenableFuture
@@ -59,6 +63,7 @@ abstract class AbsTileService : TileService() {
   override fun onTileResourcesRequest(requestParams: RequestBuilders.ResourcesRequest): ListenableFuture<ResourceBuilders.Resources> = scope.future {
     val images = imagesByVersion[requestParams.version] ?: content(requestParams.deviceConfiguration, null).images
     val builder = ResourceBuilders.Resources.Builder().setVersion(requestParams.version)
+      .addIdToImageMapping(TileLayout.LOGO_ID, logo)
     withContext(Dispatchers.IO) {
       images.forEach { (id, file) -> runCatching { file.readBytes() }.getOrNull()?.let { builder.addIdToImageMapping(id, image(it)) } }
     }
@@ -81,8 +86,14 @@ abstract class AbsTileService : TileService() {
     private const val FRESHNESS_MS = 30 * 60_000L
     const val COVER_PX = 96
 
+    // Includes the logo, so renderers holding resources cached from before it was added fetch them again
     private fun version(images: Map<String, File>) =
-      images.entries.sortedBy { it.key }.joinToString("|") { "${it.key}:${it.value.name}:${it.value.length()}" }.hashCode().toString()
+      (listOf(TileLayout.LOGO_ID) + images.entries.sortedBy { it.key }.map { "${it.key}:${it.value.name}:${it.value.length()}" })
+        .joinToString("|").hashCode().toString()
+
+    private val logo = ResourceBuilders.ImageResource.Builder()
+      .setAndroidResourceByResId(ResourceBuilders.AndroidImageResourceByResId.Builder().setResourceId(R.drawable.ic_notification).build())
+      .build()
 
     private fun image(bytes: ByteArray) = ResourceBuilders.ImageResource.Builder()
       .setInlineResource(
@@ -154,6 +165,25 @@ object CoverCache {
 
 /** Small layout helpers shared by the tiles. */
 object TileLayout {
+  const val LOGO_ID = "logo"
+  private const val LOGO_DP = 14f
+
+  /** A tile's top label with the app logo in front, so the tile reads as Audiobookshelf's. */
+  fun header(context: Context, label: String, color: Int): LayoutElementBuilders.LayoutElement =
+    LayoutElementBuilders.Row.Builder()
+      .setVerticalAlignment(LayoutElementBuilders.VERTICAL_ALIGN_CENTER)
+      .addContent(
+        LayoutElementBuilders.Image.Builder()
+          .setResourceId(LOGO_ID)
+          .setWidth(dp(LOGO_DP))
+          .setHeight(dp(LOGO_DP))
+          .setColorFilter(LayoutElementBuilders.ColorFilter.Builder().setTint(argb(color)).build())
+          .build()
+      )
+      .addContent(spacer(width = 4f))
+      .addContent(Text.Builder(context, label).setTypography(Typography.TYPOGRAPHY_CAPTION1).setColor(argb(color)).setMaxLines(1).build())
+      .build()
+
   fun spacer(height: Float = 0f, width: Float = 0f): LayoutElementBuilders.Spacer =
     LayoutElementBuilders.Spacer.Builder().setHeight(dp(height)).setWidth(dp(width)).build()
 

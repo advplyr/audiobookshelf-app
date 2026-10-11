@@ -44,6 +44,7 @@ class PlaybackService : MediaSessionService() {
   private lateinit var mediaSession: MediaSession
   private lateinit var tracker: ListeningTracker
   private var sleepJob: Job? = null
+  private lateinit var idle: IdleTimeout
 
   @OptIn(UnstableApi::class)
   override fun onCreate() {
@@ -66,8 +67,17 @@ class PlaybackService : MediaSessionService() {
 
     tracker = ListeningTracker(app, player, scope)
     player.addListener(tracker)
+    idle = IdleTimeout(
+      scope,
+      IDLE_CLOSE_MS,
+      isIdle = { !player.playWhenReady && player.mediaItemCount > 0 && !NowPlaying.waitingForHeadphones.value },
+      onTimeout = ::closeIdlePlayer
+    )
     player.addListener(object : Player.Listener {
-      override fun onIsPlayingChanged(isPlaying: Boolean) = TileRefresher.playbackChanged(this@PlaybackService)
+      override fun onIsPlayingChanged(isPlaying: Boolean) {
+        TileRefresher.playbackChanged(this@PlaybackService)
+        if (isPlaying) idle.cancel() else if (player.mediaItemCount > 0) idle.restart()
+      }
 
       override fun onPlaybackStateChanged(playbackState: Int) {
         if (playbackState == Player.STATE_ENDED) onFinishedPlaying()
@@ -145,10 +155,21 @@ class PlaybackService : MediaSessionService() {
     player.pause()
     tracker.finish()
     cancelSleepTimer()
+    idle.cancel()
     player.stop()
     player.clearMediaItems()
     NowPlaying.book.value = null
     TileRefresher.playbackChanged(this)
+  }
+
+  /**
+   * Paused for [IDLE_CLOSE_MS]: unloads the book and stops the service, so the media controls and the
+   * "now playing" icon on the watch face go away instead of staying until closed by hand.
+   */
+  private fun closeIdlePlayer() {
+    android.util.Log.i(TAG, "Paused for ${IDLE_CLOSE_MS / 60_000} minutes, closing the player")
+    unload()
+    stopSelf()
   }
 
   fun startSleepTimer(durationMs: Long) {
@@ -181,6 +202,7 @@ class PlaybackService : MediaSessionService() {
     current = null
     tracker.finish()
     cancelSleepTimer()
+    idle.cancel()
     scope.cancel()
     guard.unregister()
     mediaSession.release()
@@ -212,6 +234,7 @@ class PlaybackService : MediaSessionService() {
     private const val REQUEST_OPEN_PLAYER = 1
     const val SEEK_BACK_MS = 10_000L
     const val SEEK_FORWARD_MS = 30_000L
+    private const val IDLE_CLOSE_MS = 15 * 60_000L
 
     /** The running service, so the in-process UI can load books into it. Only touched on the main thread. */
     @SuppressLint("StaticFieldLeak")
