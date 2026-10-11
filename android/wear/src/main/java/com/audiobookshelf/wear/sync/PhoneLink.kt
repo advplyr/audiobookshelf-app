@@ -6,7 +6,6 @@ import com.audiobookshelf.wear.data.Account
 import com.audiobookshelf.wear.data.toStringMap
 import com.google.android.gms.tasks.Tasks
 import com.google.android.gms.wearable.CapabilityClient
-import com.google.android.gms.wearable.ChannelClient
 import com.google.android.gms.wearable.Wearable
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext

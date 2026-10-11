@@ -16,7 +16,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -312,7 +311,6 @@ private fun currentVolume(audioManager: AudioManager): Float {
 
 @Composable
 fun PlayerOptionsScreen(nav: NavHostController) {
-  val context = LocalContext.current
   val controller by LocalPlayer.current.controller.collectAsState()
   val playing by NowPlaying.book.collectAsState()
   val state by rememberPlayerState(controller, playing)
