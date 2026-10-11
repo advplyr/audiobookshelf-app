@@ -36,11 +36,18 @@ class DownloadWorker(context: Context, params: WorkerParameters) : CoroutineWork
   private val title = params.inputData.getString(KEY_TITLE).orEmpty()
   private val notificationId = key.key.hashCode()
 
-  override suspend fun getForegroundInfo() = foregroundInfo(0)
+  override suspend fun getForegroundInfo() = foregroundInfo(Downloads.lastPercent(key))
 
   override suspend fun doWork(): Result {
+    val result = download()
+    // Keep the last percent while waiting to retry, so the download doesn't show 0% meanwhile
+    if (result != Result.retry()) Downloads.clearPercent(key)
+    return result
+  }
+
+  private suspend fun download(): Result {
     try {
-      setForeground(foregroundInfo(0))
+      setForeground(foregroundInfo(Downloads.lastPercent(key)))
     } catch (e: IllegalStateException) {
       // Android 12+ blocks starting a foreground service while the app is in the background (e.g. a retry)
       Log.w(TAG, "Downloading without a foreground notification: ${e.message}")
@@ -63,6 +70,9 @@ class DownloadWorker(context: Context, params: WorkerParameters) : CoroutineWork
     if (remainingBytes > store.freeBytes() - FREE_SPACE_MARGIN) {
       return Result.failure(workDataOf(KEY_ERROR to "Not enough storage"))
     }
+    // Show what earlier attempts already downloaded right away, not only once new bytes arrive
+    val totalBytes = book.totalSize.coerceAtLeast(1)
+    reportProgress(((book.totalSize - remainingBytes) * 100 / totalBytes).toInt())
 
     TileRefresher.downloadsChanged(applicationContext)
     val fastNetwork = FastNetwork.acquire(applicationContext)
@@ -87,7 +97,6 @@ class DownloadWorker(context: Context, params: WorkerParameters) : CoroutineWork
   private suspend fun downloadTracks(client: OkHttpClient, book: BookDetail) = withContext(Dispatchers.IO) {
     val totalBytes = book.totalSize.coerceAtLeast(1)
     var completedBytes = 0L
-    var lastReported = -1
 
     for (track in book.tracks) {
       val file = app.downloads.trackFile(key, track)
@@ -97,16 +106,21 @@ class DownloadWorker(context: Context, params: WorkerParameters) : CoroutineWork
       }
       downloadTrack(client, track, file) { trackBytes ->
         val percent = ((completedBytes + trackBytes) * 100 / totalBytes).toInt()
-        if (percent != lastReported) {
-          // The tile shows progress in coarse steps
-          if (percent / 10 != lastReported / 10) TileRefresher.downloadsChanged(applicationContext)
-          lastReported = percent
-          setProgressAsync(workDataOf(KEY_PROGRESS to percent))
-          notify(percent)
-        }
+        if (percent != lastReported) reportProgress(percent)
       }
       completedBytes += track.size
     }
+  }
+
+  private var lastReported = -1
+
+  private fun reportProgress(percent: Int) {
+    // The tile shows progress in coarse steps
+    if (percent / 10 != lastReported / 10) TileRefresher.downloadsChanged(applicationContext)
+    lastReported = percent
+    Downloads.reportPercent(key, percent)
+    setProgressAsync(workDataOf(KEY_PROGRESS to percent))
+    notify(percent)
   }
 
   private suspend fun downloadTrack(client: OkHttpClient, track: Track, file: File, onBytes: (Long) -> Unit) {

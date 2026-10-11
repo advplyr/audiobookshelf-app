@@ -838,8 +838,6 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
     return getNextBookChapter()?.endMs ?: currentPlaybackSession?.getNextTrackEndTime()
   }
 
-  // Called from PlayerListener play event
-  // check with server if progress has updated since last play and sync progress update
   /**
    * Called when playback resumes after a pause. If the server has progress for this item that is
    * newer than this phone's last report (e.g. from the watch), seek there so the latest progress
@@ -887,6 +885,8 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
     }
   }
 
+  // Called from PlayerListener play event
+  // check with server if progress has updated since last play and sync progress update
   fun checkCurrentSessionProgress(seekBackTime: Long): Boolean {
     if (currentPlaybackSession == null) return true
 

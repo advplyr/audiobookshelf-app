@@ -110,7 +110,8 @@ class MediaProgressSyncer(
                                           METERED_CONNECTION_SYNC_INTERVAL
 
                   val currentTime = playerNotificationService.getCurrentTimeSeconds()
-                  if (currentTime > 0) {
+                  // Held back while checking for newer progress from another device
+                  if (currentTime > 0 && !freshnessCheckPending) {
                     sync(shouldSyncServer, currentTime) { syncResult ->
                       Log.d(tag, "Sync complete")
 
@@ -273,10 +274,6 @@ class MediaProgressSyncer(
   }
 
   fun sync(shouldSyncServer: Boolean, currentTime: Double, cb: (SyncResult?) -> Unit) {
-    if (freshnessCheckPending) {
-      Log.d(tag, "sync: Waiting for server progress check before syncing")
-      return cb(null)
-    }
     if (lastSyncTime <= 0) {
       Log.e(tag, "Last sync time is not set $lastSyncTime")
       return cb(null)
