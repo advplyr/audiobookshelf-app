@@ -16,8 +16,8 @@ phone. Built with Jetpack Compose for Wear OS, Media3 and Tiles.
 - **Through the phone**: when the watch can't reach the server directly (for example a server only
   reachable on the home network while the watch is on Bluetooth), every request goes through the
   phone app instead: browsing, covers, streaming and downloads (`ServerRoute` and
-  `PhoneRelayInterceptor`). The phone only forwards requests to servers it is signed in to (same
-  scheme, host and port). Requests that could be applied twice (POST, PATCH) are only resent on the
+  `PhoneRelayInterceptor`). The phone only forwards requests to servers saved in the phone app (same
+  scheme, host and port) and never adds its own credentials. Requests that could be applied twice (POST, PATCH) are only resent on the
   other route if they never reached the server. Settings → Connection shows which way the watch is
   connected; tap it to check again.
 - **Browse**: the home screen is a card hub with Continue listening, Library and Series; turn on
@@ -37,11 +37,11 @@ phone. Built with Jetpack Compose for Wear OS, Media3 and Tiles.
   progress sends them now). When you press play, the watch resumes from whichever is newer: its own
   position or the server's (which includes listening on the phone). Resuming after a pause of more
   than 5 seconds checks the server again, in case you listened elsewhere in between.
-- **Progress on the phone**: so the phone doesn't overwrite what you listened to on the watch, the
-  phone app uses the server's progress when it's newer: when resuming after a pause of more than 5
-  seconds (`checkServerProgressOnResume`; it recognises another device's progress by position,
-  since phone and server clocks can't be compared), when starting a downloaded book, and it ignores
-  progress pushed from the server that's older than its own.
+- **Progress on the phone**: so the phone doesn't overwrite what you listened to on the watch, it
+  checks the server's progress when resuming after a pause of more than 5 seconds
+  (`checkServerProgressOnResume`) and when starting a downloaded book. The resume check compares
+  events only seconds apart, so it recognises another device's progress by position rather than by
+  timestamp; starting a downloaded book compares timestamps, since those gaps are minutes or more.
 - **Playback**: Media3 ExoPlayer in a `MediaSessionService`, so the watch's media controls and
   Bluetooth headphone buttons work. The player has back 10 s / forward 30 s (long press for the
   previous / next chapter), chapters, playback speed (kept across books) and a sleep timer (minutes
@@ -120,3 +120,6 @@ adb pair <watch-ip>:<pairing-port>
 adb connect <watch-ip>:<port>
 adb -s <watch-ip>:<port> install wear/build/outputs/apk/debug/wear-debug.apk
 ```
+
+`./gradlew :wear:assembleRelease` builds the release APK, minified with R8. Sign it with the same
+key as the phone app's release build.
