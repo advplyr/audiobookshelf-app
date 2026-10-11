@@ -19,6 +19,7 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.LibraryBooks
 import androidx.compose.material.icons.filled.CollectionsBookmark
@@ -60,6 +61,9 @@ import kotlin.math.abs
 import kotlin.math.roundToInt
 
 /** A book on the hub card: what to show and how far along it is. */
+/** Corners of the book card and the cards shown in its place (loading, errors). */
+private val CARD_SHAPE = RoundedCornerShape(16.dp)
+
 private data class HubBook(val book: BookSummary, val progress: Float, val subtitle: String)
 
 fun com.audiobookshelf.wear.data.BookDetail.toSummary() =
@@ -198,6 +202,7 @@ private fun BookCard(item: HubBook, nav: NavHostController) {
         }
       }
     },
+    shape = CARD_SHAPE,
     contentPadding = PaddingValues(8.dp),
     modifier = Modifier.fillMaxSize()
   ) {
@@ -239,7 +244,7 @@ private fun ProgressBar(progress: Float, modifier: Modifier = Modifier) {
 
 @Composable
 private fun MessageCard(title: String, subtitle: String?, loading: Boolean = false, onClick: () -> Unit) {
-  Card(onClick = onClick, contentPadding = PaddingValues(8.dp), modifier = Modifier.fillMaxSize()) {
+  Card(onClick = onClick, shape = CARD_SHAPE, contentPadding = PaddingValues(8.dp), modifier = Modifier.fillMaxSize()) {
     Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
       if (loading) {
         CircularProgressIndicator(modifier = Modifier.size(24.dp))
