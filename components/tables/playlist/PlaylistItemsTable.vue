@@ -11,7 +11,7 @@
       <p v-if="totalDuration" class="text-sm text-fg">{{ totalDurationPretty }}</p>
     </div>
     <template v-for="item in items">
-      <tables-playlist-item-table-row :key="item.id" :item="item" :playlist-id="playlistId" @showMore="showMore" />
+      <tables-playlist-item-table-row :key="item.id" :item="item" :playlist-id="playlistId" :playlist-playable-items="playableItems" @showMore="showMore" />
     </template>
   </div>
 </template>
@@ -29,6 +29,14 @@ export default {
     return {}
   },
   computed: {
+    playableItems() {
+      return this.items.filter((item) => {
+        const libraryItem = item.libraryItem
+        if (!libraryItem || libraryItem.isMissing || libraryItem.isInvalid) return false
+        if (item.episode) return !!item.episode.audioFile
+        return libraryItem.media?.tracks?.length > 0
+      })
+    },
     totalDuration() {
       var _total = 0
       this.items.forEach((item) => {
