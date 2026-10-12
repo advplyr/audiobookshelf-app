@@ -653,25 +653,43 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
             }
             val episodeCount = podcast.episodes?.size ?: 0
             AbsLogger.info(tag, "handlePlaybackEnded: podcast has $episodeCount episodes, finding next after $currentEpisodeId")
-            val nextEpisode = podcast.getNextUnfinishedEpisode(fullLibraryItem.id, mediaManager, currentEpisodeId)
-            if (nextEpisode == null) {
-              AbsLogger.info(tag, "handlePlaybackEnded: no next unfinished episode found after $currentEpisodeId (total=$episodeCount)")
-              return@getLibraryItem
-            }
-            AbsLogger.info(tag, "handlePlaybackEnded: playing next episode ${nextEpisode.id} - ${nextEpisode.title}")
-            if (mediaProgressSyncer.currentPlaybackSession != null) {
-              AbsLogger.info(tag, "handlePlaybackEnded: user started new session during auto-advance - aborting")
-              return@getLibraryItem
-            }
-            mediaManager.play(fullLibraryItem, nextEpisode, getPlayItemRequestPayload(false)) {
-              if (it == null) {
-                AbsLogger.error(tag, "handlePlaybackEnded: mediaManager.play returned null - playback failed")
-              } else {
-                AbsLogger.info(tag, "handlePlaybackEnded: new playback session started ${it.id} for '${it.displayTitle}'")
-                val playbackRate = mediaManager.getSavedPlaybackRate()
-                Handler(Looper.getMainLooper()).post { preparePlayer(it, true, playbackRate) }
+
+            fun advanceToNextEpisode(afterEpId: String?) {
+              val nextEpisode = podcast.getNextUnfinishedEpisode(fullLibraryItem.id, mediaManager, afterEpId)
+              if (nextEpisode == null) {
+                AbsLogger.info(tag, "handlePlaybackEnded: no next unfinished episode found after $afterEpId (total=$episodeCount)")
+                return
+              }
+              AbsLogger.info(tag, "handlePlaybackEnded: checking server progress for candidate ${nextEpisode.id} - ${nextEpisode.title}")
+              apiHandler.getMediaProgress(fullLibraryItem.id, nextEpisode.id, DeviceManager.serverConnectionConfig) { mediaProgress ->
+                if (mediaProgress != null && mediaProgress.isFinished) {
+                  AbsLogger.info(tag, "handlePlaybackEnded: candidate ${nextEpisode.id} is finished on server (progress=${mediaProgress.progress}) - skipping")
+                  advanceToNextEpisode(nextEpisode.id)
+                  return@getMediaProgress
+                }
+                val serverStartTime = mediaProgress?.currentTime ?: 0.0
+                AbsLogger.info(tag, "handlePlaybackEnded: playing next episode ${nextEpisode.id} - ${nextEpisode.title} with serverStartTime=$serverStartTime")
+                if (mediaProgressSyncer.currentPlaybackSession != null) {
+                  AbsLogger.info(tag, "handlePlaybackEnded: user started new session during auto-advance - aborting")
+                  return@getMediaProgress
+                }
+                mediaManager.play(fullLibraryItem, nextEpisode, getPlayItemRequestPayload(false)) { newSession ->
+                  if (newSession == null) {
+                    AbsLogger.error(tag, "handlePlaybackEnded: mediaManager.play returned null - playback failed")
+                  } else {
+                    if (serverStartTime > 0.0) {
+                      AbsLogger.info(tag, "handlePlaybackEnded: overriding new session currentTime with server startTime=$serverStartTime (was ${newSession.currentTime})")
+                      newSession.currentTime = serverStartTime
+                    }
+                    AbsLogger.info(tag, "handlePlaybackEnded: new playback session started ${newSession.id} for '${newSession.displayTitle}' at ${newSession.currentTime}")
+                    val playbackRate = mediaManager.getSavedPlaybackRate()
+                    Handler(Looper.getMainLooper()).post { preparePlayer(newSession, true, playbackRate) }
+                  }
+                }
               }
             }
+
+            advanceToNextEpisode(currentEpisodeId)
           }
         }
       }
