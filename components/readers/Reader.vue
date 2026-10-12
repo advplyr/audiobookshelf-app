@@ -96,6 +96,12 @@
             </div>
             <div class="flex items-center mb-6">
               <div class="w-32">
+                <p class="text-sm">{{ $strings.LabelReadingMode }}</p>
+              </div>
+              <ui-toggle-btns v-model="ereaderSettings.flow" name="flow" :items="flowItems" @input="settingsUpdated" />
+            </div>
+            <div v-if="ereaderSettings.flow !== 'scrolled'" class="flex items-center mb-6">
+              <div class="w-32">
                 <p class="text-sm">{{ $strings.LabelLayout }}</p>
               </div>
               <ui-toggle-btns v-model="ereaderSettings.spread" name="spread" :items="spreadItems" @input="settingsUpdated" />
@@ -151,6 +157,7 @@ export default {
         fontScale: 100,
         lineSpacing: 115,
         spread: 'auto',
+        flow: 'paginated',
         textStroke: 0,
         navigateWithVolume: 'enabled',
         navigateWithVolumeWhilePlaying: false,
@@ -215,6 +222,18 @@ export default {
         {
           text: this.$strings.LabelLayoutAuto,
           value: 'auto'
+        }
+      ]
+    },
+    flowItems() {
+      return [
+        {
+          text: this.$strings.LabelReadingModePaginated,
+          value: 'paginated'
+        },
+        {
+          text: this.$strings.LabelReadingModeScrolled,
+          value: 'scrolled'
         }
       ]
     },
