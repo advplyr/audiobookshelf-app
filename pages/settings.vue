@@ -159,6 +159,20 @@
       </div>
     </div>
 
+    <div class="py-3 flex items-center">
+      <p class="pr-4 w-36">{{ $strings.LabelAutoDeleteFinished }}</p>
+      <div @click.stop="showAutoDeleteOptions">
+        <ui-text-input :value="autoDeleteDelayOption" readonly append-icon="expand_more" style="max-width: 200px" />
+      </div>
+      <span class="material-symbols text-xl ml-2" @click.stop="showInfo('autoDeleteFinished')">info</span>
+    </div>
+    <div v-if="autoDelete.delayDays" class="flex items-center py-3">
+      <div class="w-10 flex justify-center" @click="toggleAutoDeleteIncludePodcasts">
+        <ui-toggle-switch v-model="autoDelete.includePodcasts" @input="saveAutoDelete" />
+      </div>
+      <p class="pl-4">{{ $strings.LabelAutoDeleteIncludePodcasts }}</p>
+    </div>
+
     <!-- Android Auto settings -->
     <template v-if="!isiOS">
       <p class="uppercase text-xs font-semibold text-fg-muted mb-2 mt-10">{{ $strings.HeaderAndroidAutoSettings }}</p>
@@ -188,6 +202,7 @@
 <script>
 import { Dialog } from '@capacitor/dialog'
 import jumpLabelMixin from '@/mixins/jumpLabel'
+import { AUTO_DELETE_DEFAULT_SETTINGS, AUTO_DELETE_DELAY_DAYS } from '@/utils/autoDelete'
 
 export default {
   mixins: [jumpLabelMixin],
@@ -227,6 +242,7 @@ export default {
       },
       theme: 'dark',
       lockCurrentOrientation: false,
+      autoDelete: { ...AUTO_DELETE_DEFAULT_SETTINGS },
       settingInfo: {
         disableShakeToResetSleepTimer: {
           name: this.$strings.LabelDisableShakeToReset,
@@ -259,6 +275,10 @@ export default {
         androidAutoBrowseLimitForGrouping: {
           name: this.$strings.LabelAndroidAutoBrowseLimitForGrouping,
           message: this.$strings.LabelAndroidAutoBrowseLimitForGroupingHelp
+        },
+        autoDeleteFinished: {
+          name: this.$strings.LabelAutoDeleteFinished,
+          message: this.$strings.LabelAutoDeleteFinishedHelp
         }
       },
       hapticFeedbackItems: [
@@ -416,6 +436,15 @@ export default {
       const item = this.streamingUsingCellularItems.find((i) => i.value === this.settings.streamingUsingCellular)
       return item?.text || 'Error'
     },
+    autoDeleteDelayItems() {
+      const items = [{ text: this.$strings.LabelOff, value: 0 }]
+      AUTO_DELETE_DELAY_DAYS.forEach((days) => items.push({ text: this.$getString('LabelAutoDeleteDaysOption', [days]), value: days }))
+      return items
+    },
+    autoDeleteDelayOption() {
+      const item = this.autoDeleteDelayItems.find((i) => i.value === this.autoDelete.delayDays)
+      return item?.text || 'Error'
+    },
     androidAutoBrowseSeriesSequenceOrderOption() {
       const item = this.androidAutoBrowseSeriesSequenceOrderItems.find((i) => i.value === this.settings.androidAutoBrowseSeriesSequenceOrder)
       return item?.text || 'Error'
@@ -428,6 +457,7 @@ export default {
       else if (this.moreMenuSetting === 'downloadUsingCellular') return this.downloadUsingCellularItems
       else if (this.moreMenuSetting === 'streamingUsingCellular') return this.streamingUsingCellularItems
       else if (this.moreMenuSetting === 'androidAutoBrowseSeriesSequenceOrder') return this.androidAutoBrowseSeriesSequenceOrderItems
+      else if (this.moreMenuSetting === 'autoDeleteDelay') return this.autoDeleteDelayItems
       else if (this.moreMenuSetting === 'jumpForward')
         return this.jumpForwardSecondsOptions.map((value) => ({
           text: this.getJumpLabel(value),
@@ -448,6 +478,7 @@ export default {
       if (this.moreMenuSetting === 'downloadUsingCellular') return this.settings.downloadUsingCellular
       if (this.moreMenuSetting === 'streamingUsingCellular') return this.settings.streamingUsingCellular
       if (this.moreMenuSetting === 'androidAutoBrowseSeriesSequenceOrder') return this.settings.androidAutoBrowseSeriesSequenceOrder
+      if (this.moreMenuSetting === 'autoDeleteDelay') return this.autoDelete.delayDays
       if (this.moreMenuSetting === 'shakeSensitivity') return this.settings.shakeSensitivity
       if (this.moreMenuSetting === 'hapticFeedback') return this.settings.hapticFeedback
       return null
@@ -500,6 +531,10 @@ export default {
       this.moreMenuSetting = 'streamingUsingCellular'
       this.showMoreMenuDialog = true
     },
+    showAutoDeleteOptions() {
+      this.moreMenuSetting = 'autoDeleteDelay'
+      this.showMoreMenuDialog = true
+    },
     showAndroidAutoBrowseSeriesSequenceOrderOptions() {
       this.moreMenuSetting = 'androidAutoBrowseSeriesSequenceOrder'
       this.showMoreMenuDialog = true
@@ -527,6 +562,9 @@ export default {
       } else if (this.moreMenuSetting === 'androidAutoBrowseSeriesSequenceOrder') {
         this.settings.androidAutoBrowseSeriesSequenceOrder = action
         this.saveSettings()
+      } else if (this.moreMenuSetting === 'autoDeleteDelay') {
+        this.autoDelete.delayDays = action
+        this.saveAutoDelete()
       } else if (this.moreMenuSetting === 'jumpForward') {
         this.settings.jumpForwardTime = action
         this.saveSettings()
@@ -628,6 +666,14 @@ export default {
       this.$setOrientationLock(this.settings.lockOrientation)
       this.saveSettings()
     },
+    toggleAutoDeleteIncludePodcasts() {
+      this.autoDelete.includePodcasts = !this.autoDelete.includePodcasts
+      this.saveAutoDelete()
+    },
+    async saveAutoDelete() {
+      await this.$hapticsImpact()
+      await this.$autoDelete.saveSettings({ ...this.autoDelete })
+    },
     async saveSettings() {
       await this.$hapticsImpact()
       const updatedDeviceData = await this.$db.updateDeviceSettings({ ...this.settings })
@@ -678,6 +724,7 @@ export default {
       this.deviceData = await this.$db.getDeviceData()
       this.$store.commit('setDeviceData', this.deviceData)
       this.setDeviceSettings()
+      this.autoDelete = await this.$autoDelete.getSettings()
       this.loading = false
     }
   },
