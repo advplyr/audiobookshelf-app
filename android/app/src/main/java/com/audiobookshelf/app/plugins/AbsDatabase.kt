@@ -30,7 +30,7 @@ class AbsDatabase : Plugin() {
   data class LocalMediaProgressPayload(val value:List<LocalMediaProgress>)
   data class LocalLibraryItemsPayload(val value:List<LocalLibraryItem>)
   data class LocalFoldersPayload(val value:List<LocalFolder>)
-  data class ServerConnConfigPayload(val id:String?, val index:Int, val name:String?, val userId:String, val username:String, var version:String, val token:String, val refreshToken:String?, val address:String?, val customHeaders:Map<String,String>?)
+  data class ServerConnConfigPayload(val id:String?, val index:Int, val name:String?, val userId:String, val username:String, var version:String, val token:String, val refreshToken:String?, val address:String?, val customHeaders:Map<String,String>?, val localAddress:String?, val localSsidWhitelist:MutableList<String>?)
 
   override fun load() {
     mainActivity = (activity as MainActivity)
@@ -145,7 +145,7 @@ class AbsDatabase : Plugin() {
         }
         Log.d(tag, "Refresh token secured = $hasRefreshToken")
 
-        serverConnectionConfig = ServerConnectionConfig(sscId, sscIndex, "$serverAddress ($username)", serverAddress, serverVersion, userId, username, accessToken, serverConfigPayload.customHeaders)
+        serverConnectionConfig = ServerConnectionConfig(sscId, sscIndex, "$serverAddress ($username)", serverAddress, serverVersion, userId, username, accessToken, serverConfigPayload.customHeaders, serverConfigPayload.localAddress, serverConfigPayload.localSsidWhitelist ?: mutableListOf())
 
         // Add and save
         DeviceManager.deviceData.serverConnectionConfigs.add(serverConnectionConfig!!)
@@ -153,12 +153,14 @@ class AbsDatabase : Plugin() {
         DeviceManager.dbManager.saveDeviceData(DeviceManager.deviceData)
       } else {
         var shouldSave = false
-        if (serverConnectionConfig?.username != username || serverConnectionConfig?.token != accessToken || serverConnectionConfig?.version != serverVersion) {
+        if (serverConnectionConfig?.username != username || serverConnectionConfig?.token != accessToken || serverConnectionConfig?.version != serverVersion || serverConnectionConfig?.localAddress != serverConfigPayload.localAddress || serverConnectionConfig?.localSsidWhitelist != serverConfigPayload.localSsidWhitelist) {
           serverConnectionConfig?.userId = userId
           serverConnectionConfig?.username = username
           serverConnectionConfig?.name = "${serverConnectionConfig?.address} (${serverConnectionConfig?.username})"
           serverConnectionConfig?.version = serverVersion
           serverConnectionConfig?.token = accessToken
+          serverConnectionConfig?.localAddress = serverConfigPayload.localAddress
+          serverConnectionConfig?.localSsidWhitelist = serverConfigPayload.localSsidWhitelist ?: mutableListOf()
           shouldSave = true
         }
 

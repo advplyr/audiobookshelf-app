@@ -59,7 +59,9 @@ data class ServerConnectionConfig(
         var userId: String,
         var username: String,
         var token: String,
-        var customHeaders: Map<String, String>?
+        var customHeaders: Map<String, String>? = null,
+        var localAddress: String? = null,
+        var localSsidWhitelist: MutableList<String>? = mutableListOf()
 )
 
 @JsonIgnoreProperties(ignoreUnknown = true)

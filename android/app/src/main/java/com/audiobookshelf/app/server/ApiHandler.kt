@@ -54,7 +54,7 @@ class ApiHandler(var ctx:Context) {
   data class LocalSessionsSyncResponsePayload(val results:List<LocalSessionSyncResult>)
 
   private fun getRequest(endpoint:String, httpClient:OkHttpClient?, config:ServerConnectionConfig?, cb: (JSObject) -> Unit) {
-    val address = config?.address ?: DeviceManager.serverAddress
+    val address = if (config != null) DeviceManager.getServerAddress(config) else DeviceManager.serverAddress
     val token = config?.token ?: DeviceManager.token
 
     try {
@@ -71,7 +71,7 @@ class ApiHandler(var ctx:Context) {
   }
 
   private fun postRequest(endpoint:String, payload: JSObject?, config:ServerConnectionConfig?, cb: (JSObject) -> Unit) {
-    val address = config?.address ?: DeviceManager.serverAddress
+    val address = if (config != null) DeviceManager.getServerAddress(config) else DeviceManager.serverAddress
     val token = config?.token ?: DeviceManager.token
     val mediaType = "application/json; charset=utf-8".toMediaType()
     val requestBody = payload?.toString()?.toRequestBody(mediaType) ?: EMPTY_REQUEST

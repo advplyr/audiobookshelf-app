@@ -190,7 +190,7 @@ export default {
       if (libraryItem?.libraryItemId?.startsWith('li_')) {
         // Detect old library item id
         console.error('Local library item has old server library item id', libraryItem.libraryItemId)
-      } else if (query.noredirect !== '1' && libraryItem?.libraryItemId && libraryItem?.serverAddress === store.getters['user/getServerAddress'] && store.state.socketConnected) {
+      } else if (query.noredirect !== '1' && libraryItem?.libraryItemId && ((libraryItem?.serverConnectionConfigId && libraryItem.serverConnectionConfigId === store.getters['user/getServerConnectionConfigId']) || libraryItem?.serverAddress === store.getters['user/getServerAddress']) && store.state.socketConnected) {
         const queryParams = new URLSearchParams()
         queryParams.set('localLibraryItemId', libraryItemId)
         if (libraryItem.mediaType === 'podcast') {
@@ -257,8 +257,11 @@ export default {
     serverLibraryItemId() {
       if (!this.isLocal) return this.libraryItem.id
       // Check if local library item is connected to the current server
-      if (!this.libraryItem.serverAddress || !this.libraryItem.libraryItemId) return null
-      if (this.currentServerAddress === this.libraryItem.serverAddress) {
+      if (!this.libraryItem.libraryItemId) return null
+      if (this.libraryItem.serverConnectionConfigId && this.currentServerConnectionConfigId === this.libraryItem.serverConnectionConfigId) {
+        return this.libraryItem.libraryItemId
+      }
+      if (this.libraryItem.serverAddress && this.currentServerAddress === this.libraryItem.serverAddress) {
         return this.libraryItem.libraryItemId
       }
       return null
@@ -276,7 +279,9 @@ export default {
      * User is currently connected to a server and this local library item has the same server address
      */
     isLocalMatchingServerAddress() {
-      if (!this.localLibraryItem || !this.currentServerAddress) return false
+      if (!this.localLibraryItem) return false
+      if (this.localLibraryItem.serverConnectionConfigId && this.currentServerConnectionConfigId === this.localLibraryItem.serverConnectionConfigId) return true
+      if (!this.currentServerAddress) return false
       return this.localLibraryItem.serverAddress === this.currentServerAddress
     },
     /**
