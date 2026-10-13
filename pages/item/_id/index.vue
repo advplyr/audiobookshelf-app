@@ -173,6 +173,7 @@
 import { Dialog } from '@capacitor/dialog'
 import { AbsFileSystem, AbsDownloader } from '@/plugins/capacitor'
 import { getAverageColorFromCoverUrl } from '@/utils/coverAverageColor'
+import { sortPodcastEpisodes } from '@/utils/podcastEpisodes'
 import cellularPermissionHelpers from '@/mixins/cellularPermissionHelpers'
 
 export default {
@@ -471,6 +472,14 @@ export default {
     episodes() {
       return this.media.episodes || []
     },
+    podcastEpisodesOrderBy() {
+      return this.$store.getters['user/getUserSetting']('podcastEpisodesOrderBy') || 'publishedAt'
+    },
+    podcastEpisodesOrderDesc() {
+      const desc = this.$store.getters['user/getUserSetting']('podcastEpisodesOrderDesc')
+      if (desc == null) return this.podcastType === 'episodic'
+      return desc
+    },
     isCasting() {
       return this.$store.state.isCasting
     },
@@ -527,15 +536,9 @@ export default {
       if (this.playerIsStartingPlayback) return
 
       if (this.isPodcast) {
-        this.episodes.sort((a, b) => {
-          if (this.podcastType === 'serial') {
-            return String(a.publishedAt).localeCompare(String(b.publishedAt), undefined, { numeric: true, sensitivity: 'base' })
-          } else {
-            return String(b.publishedAt).localeCompare(String(a.publishedAt), undefined, { numeric: true, sensitivity: 'base' })
-          }
-        })
+        const sortedEpisodes = sortPodcastEpisodes(this.episodes, this.podcastEpisodesOrderBy, this.podcastEpisodesOrderDesc)
 
-        let episode = this.episodes.find((ep) => {
+        let episode = sortedEpisodes.find((ep) => {
           var podcastProgress = null
           if (!this.isLocal) {
             podcastProgress = this.$store.getters['user/getUserMediaProgress'](this.libraryItemId, ep.id)
@@ -545,7 +548,7 @@ export default {
           return !podcastProgress?.isFinished
         })
 
-        if (!episode) episode = this.episodes[0]
+        if (!episode) episode = sortedEpisodes[0]
 
         const episodeId = episode.id
 
