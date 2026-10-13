@@ -345,6 +345,16 @@ export default {
             let snapWidth = this.layout.pageWidth * this.layout.divisor
             return left % snapWidth !== 0
           }
+
+          // Overriding the erase function in epubjs `continuous/index.js` to fix RTL books skipping pages
+          // When scrollLeft starts at 0 and goes negative (rtlScrollType "negative"), removing a view before the current one shifts the content
+          reader.rendition.manager.erase = function (view, above) {
+            const shift = above && this.settings.axis !== 'vertical' && this.settings.direction === 'rtl' && this.settings.rtlScrollType === 'negative' && !this.settings.fullsize
+            const prevLeft = this.container.scrollLeft
+            const width = shift ? Math.floor(view.bounds().width) : 0
+            Object.getPrototypeOf(this).erase.call(this, view, above)
+            if (shift) this.scrollTo(prevLeft + width, 0, true)
+          }
         })
 
         reader.rendition.on('rendered', (section, view) => {
