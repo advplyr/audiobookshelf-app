@@ -319,6 +319,16 @@ export default {
         requestMethod: this.isLocal ? null : customRequest
       })
 
+      // Add the theme before a section is laid out so epubjs measures it with the theme applied
+      // Otherwise the section reflows after it is rendered, which moves the page when it is before the current one
+      reader.book.spine.hooks.content.register((doc) => {
+        const style = doc.createElement('style')
+        style.textContent = Object.entries(this.themeRules)
+          .map(([selector, rules]) => `${selector}{${Object.entries(rules).map(([key, value]) => `${key}:${value}`).join(';')}}`)
+          .join('')
+        doc.getElementsByTagName('head')[0].appendChild(style)
+      })
+
       /** @type {ePub.Rendition} */
       reader.rendition = reader.book.renderTo('viewer', {
         width: window.innerWidth,
@@ -344,6 +354,30 @@ export default {
             let left = Math.round(this.scrollLeft)
             let snapWidth = this.layout.pageWidth * this.layout.divisor
             return left % snapWidth !== 0
+          }
+
+          // Overriding the erase function in epubjs `continuous/index.js` to fix RTL books skipping pages
+          // When scrollLeft starts at 0 and goes negative (rtlScrollType "negative"), removing a view before the current one shifts the content
+          reader.rendition.manager.erase = function (view, above) {
+            const shift = above && this.settings.axis !== 'vertical' && this.settings.direction === 'rtl' && this.settings.rtlScrollType === 'negative' && !this.settings.fullsize
+            const prevLeft = this.container.scrollLeft
+            const width = shift ? Math.floor(view.bounds().width) : 0
+            Object.getPrototypeOf(this).erase.call(this, view, above)
+            if (shift) {
+              this.scrollTo(prevLeft + width, 0, true)
+              // A page turn animation that is still running would otherwise scroll to its old position
+              if (this.snapper && this.snapper.snapping) this.snapper.shift += width
+            }
+          }
+
+          // Overriding the scroll functions in epubjs `snap.js` so a page turn animation can be shifted by the erase override above
+          const snapper = reader.rendition.manager.snapper
+          snapper.smoothScrollTo = function (destination) {
+            this.shift = 0
+            return Object.getPrototypeOf(this).smoothScrollTo.call(this, destination)
+          }
+          snapper.scrollTo = function (left = 0, top = 0) {
+            return Object.getPrototypeOf(this).scrollTo.call(this, left + (this.shift || 0), top)
           }
         })
 
