@@ -319,6 +319,16 @@ export default {
         requestMethod: this.isLocal ? null : customRequest
       })
 
+      // Add the theme before a section is laid out so epubjs measures it with the theme applied
+      // Otherwise the section reflows after it is rendered, which moves the page when it is before the current one
+      reader.book.spine.hooks.content.register((doc) => {
+        const style = doc.createElement('style')
+        style.textContent = Object.entries(this.themeRules)
+          .map(([selector, rules]) => `${selector}{${Object.entries(rules).map(([key, value]) => `${key}:${value}`).join(';')}}`)
+          .join('')
+        doc.getElementsByTagName('head')[0].appendChild(style)
+      })
+
       /** @type {ePub.Rendition} */
       reader.rendition = reader.book.renderTo('viewer', {
         width: window.innerWidth,
