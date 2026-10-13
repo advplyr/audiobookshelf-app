@@ -1,0 +1,32 @@
+{
+  "id": "li_pod1",
+  "libraryId": "lib_pods",
+  "mediaType": "podcast",
+  "media": {
+    "metadata": { "title": "The Daily Show", "author": "Some Network" },
+    "episodes": [
+      {
+        "libraryItemId": "li_pod1",
+        "id": "ep_old",
+        "index": 1,
+        "title": "Older episode",
+        "publishedAt": 1700000000000,
+        "duration": 1800,
+        "size": 30000,
+        "chapters": [],
+        "audioFile": { "index": 1, "ino": "901", "duration": 1800, "mimeType": "audio/mpeg", "metadata": { "filename": "old.mp3", "ext": ".mp3", "size": 30000 } },
+        "audioTrack": { "index": 1, "startOffset": 0, "duration": 1800, "title": "old.mp3", "contentUrl": "/api/items/li_pod1/file/901", "mimeType": "audio/mpeg", "metadata": { "ext": ".mp3", "size": 30000 } }
+      },
+      {
+        "libraryItemId": "li_pod1",
+        "id": "ep_new",
+        "index": 2,
+        "title": "Newest episode",
+        "publishedAt": 1710000000000,
+        "size": 45000,
+        "chapters": [ { "id": 0, "start": 0, "end": 600, "title": "Intro" }, { "id": 1, "start": 600, "end": 2400, "title": "Main" } ],
+        "audioFile": { "index": 1, "ino": "902", "duration": 2400, "mimeType": "audio/mp4", "metadata": { "filename": "new.m4a", "ext": ".m4a", "size": 45000 } }
+      }
+    ]
+  }
+}
