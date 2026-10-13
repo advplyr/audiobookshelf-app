@@ -363,7 +363,21 @@ export default {
             const prevLeft = this.container.scrollLeft
             const width = shift ? Math.floor(view.bounds().width) : 0
             Object.getPrototypeOf(this).erase.call(this, view, above)
-            if (shift) this.scrollTo(prevLeft + width, 0, true)
+            if (shift) {
+              this.scrollTo(prevLeft + width, 0, true)
+              // A page turn animation that is still running would otherwise scroll to its old position
+              if (this.snapper && this.snapper.snapping) this.snapper.shift += width
+            }
+          }
+
+          // Overriding the scroll functions in epubjs `snap.js` so a page turn animation can be shifted by the erase override above
+          const snapper = reader.rendition.manager.snapper
+          snapper.smoothScrollTo = function (destination) {
+            this.shift = 0
+            return Object.getPrototypeOf(this).smoothScrollTo.call(this, destination)
+          }
+          snapper.scrollTo = function (left = 0, top = 0) {
+            return Object.getPrototypeOf(this).scrollTo.call(this, left + (this.shift || 0), top)
           }
         })
 
