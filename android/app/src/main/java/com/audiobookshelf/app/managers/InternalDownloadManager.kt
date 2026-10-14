@@ -1,6 +1,7 @@
 package com.audiobookshelf.app.managers
 
 import com.audiobookshelf.app.plugins.AbsLogger
+import com.audiobookshelf.app.server.MtlsManager
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
@@ -193,11 +194,12 @@ class InternalDownloadManager(
   private companion object {
     const val CHUNK_SIZE = 512 * 1024 // 512 KB
     val CONTENT_RANGE = Regex("bytes (\\d+)-(\\d+)/(\\d+|\\*)")
-    val client =
+    val baseClient =
             OkHttpClient.Builder()
                     .connectTimeout(30, TimeUnit.SECONDS)
                     .readTimeout(60, TimeUnit.SECONDS)
                     .writeTimeout(60, TimeUnit.SECONDS)
                     .build()
+    val client get() = MtlsManager.wrap(baseClient)
   }
 }

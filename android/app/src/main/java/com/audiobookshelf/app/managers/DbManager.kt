@@ -23,8 +23,16 @@ class DbManager {
   }
 
   fun getDeviceData(): DeviceData {
-    return Paper.book("device").read("data")
-            ?: DeviceData(mutableListOf(), null, DeviceSettings.default(), null)
+    return try {
+      Paper.book("device").read("data")
+              ?: DeviceData(mutableListOf(), null, DeviceSettings.default(), null)
+    } catch (e: Exception) {
+      // Corrupt or otherwise undeserializable persisted data (e.g. a stored PlaybackSession
+      // referencing a class shape Kryo can no longer read) would otherwise throw here every
+      // launch, permanently crashing app startup. Fall back to fresh device data instead.
+      Log.e("DbManager", "Failed to read persisted device data, resetting to defaults", e)
+      DeviceData(mutableListOf(), null, DeviceSettings.default(), null)
+    }
   }
   fun saveDeviceData(deviceData: DeviceData) {
     Paper.book("device").write("data", deviceData)
