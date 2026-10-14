@@ -54,6 +54,18 @@
       </div>
       <p class="pl-4">{{ $strings.LabelDisableAutoRewind }}</p>
     </div>
+    <div class="flex items-center py-3">
+      <div class="w-10 flex justify-center" @click="toggleShowMiniplayerCover">
+        <ui-toggle-switch v-model="settings.showMiniplayerCover" @input="saveSettings" />
+      </div>
+      <p class="pl-4">{{ $strings.LabelShowMiniplayerCover }}</p>
+    </div>
+    <div class="flex items-center py-3">
+      <div class="w-10 flex justify-center" @click="toggleShowMiniplayerTitle">
+        <ui-toggle-switch v-model="settings.showMiniplayerTitle" @input="saveSettings" />
+      </div>
+      <p class="pl-4">{{ $strings.LabelShowMiniplayerTitle }}</p>
+    </div>
     <div v-if="!isiOS" class="flex items-center py-3">
       <div class="w-10 flex justify-center" @click="toggleEnableMp3IndexSeeking">
         <ui-toggle-switch v-model="settings.enableMp3IndexSeeking" @input="saveSettings" />
@@ -220,6 +232,8 @@ export default {
         autoSleepTimerAutoRewind: false,
         autoSleepTimerAutoRewindTime: 300000, // 5 minutes
         languageCode: 'en-us',
+        showMiniplayerCover: true,
+        showMiniplayerTitle: true,
         downloadUsingCellular: 'ALWAYS',
         streamingUsingCellular: 'ALWAYS',
         androidAutoBrowseLimitForGrouping: 100,
@@ -603,6 +617,14 @@ export default {
       this.settings.disableAutoRewind = !this.settings.disableAutoRewind
       this.saveSettings()
     },
+    toggleShowMiniplayerCover() {
+      this.settings.showMiniplayerCover = !this.settings.showMiniplayerCover
+      this.saveSettings()
+    },
+    toggleShowMiniplayerTitle() {
+      this.settings.showMiniplayerTitle = !this.settings.showMiniplayerTitle
+      this.saveSettings()
+    },
     toggleEnableAltView() {
       this.settings.enableAltView = !this.settings.enableAltView
       this.saveSettings()
@@ -646,6 +668,9 @@ export default {
       this.settings.jumpForwardTime = deviceSettings.jumpForwardTime || 10
       this.settings.jumpBackwardsTime = deviceSettings.jumpBackwardsTime || 10
       this.settings.enableMp3IndexSeeking = !!deviceSettings.enableMp3IndexSeeking
+
+      this.settings.showMiniplayerCover = deviceSettings.showMiniplayerCover !== false
+      this.settings.showMiniplayerTitle = deviceSettings.showMiniplayerTitle !== false
 
       this.settings.lockOrientation = deviceSettings.lockOrientation || 'NONE'
       this.lockCurrentOrientation = this.settings.lockOrientation !== 'NONE'

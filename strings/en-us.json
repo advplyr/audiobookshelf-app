@@ -252,6 +252,8 @@
   "LabelSetEbookAsSupplementary": "Set as supplementary",
   "LabelShakeSensitivity": "Shake sensitivity",
   "LabelShowAll": "Show All",
+  "LabelShowMiniplayerCover": "Show cover in miniplayer",
+  "LabelShowMiniplayerTitle": "Show title in miniplayer",
   "LabelSize": "Size",
   "LabelSleepTimer": "Sleep timer",
   "LabelSleepTimerAlmostDoneChime": "Play a chime when almost finished",
