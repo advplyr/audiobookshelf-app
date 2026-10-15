@@ -121,6 +121,14 @@ class DbService {
   getMediaItemHistory(mediaId) {
     return AbsDatabase.getMediaItemHistory({ mediaId })
   }
+
+  ensureHistoryMigrated(mediaId) {
+    // Callers fire-and-forget, so swallow failures rather than surfacing an unhandled rejection.
+    // Migration is idempotent and retried on the next visit to the item page.
+    return AbsDatabase.ensureHistoryMigrated({ mediaId }).catch((error) => {
+      console.error('Failed to start history migration', error)
+    })
+  }
 }
 
 export default ({ app, store }, inject) => {
