@@ -3,9 +3,14 @@ package com.audiobookshelf.app.data
 import android.content.Context
 import android.os.Bundle
 import android.support.v4.media.MediaDescriptionCompat
-import androidx.media.utils.MediaConstants
+import androidx.annotation.OptIn
+import androidx.media3.common.MediaItem
+import androidx.media3.common.MediaMetadata
+import androidx.media3.common.util.UnstableApi
+import androidx.media3.session.MediaConstants
 import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
+import androidx.media.utils.MediaConstants as LegacyMediaConstants
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 class LibrarySeriesItem(
@@ -40,7 +45,10 @@ class LibrarySeriesItem(
       )
     }
     if (groupTitle !== null) {
-      extras.putString(MediaConstants.DESCRIPTION_EXTRAS_KEY_CONTENT_STYLE_GROUP_TITLE, groupTitle)
+      extras.putString(
+        LegacyMediaConstants.DESCRIPTION_EXTRAS_KEY_CONTENT_STYLE_GROUP_TITLE,
+        groupTitle
+      )
     }
 
     val mediaId = "__LIBRARY__${libraryId}__SERIES__${id}"
@@ -56,5 +64,46 @@ class LibrarySeriesItem(
   @JsonIgnore
   override fun getMediaDescription(progress:MediaProgressWrapper?, ctx: Context): MediaDescriptionCompat {
     return getMediaDescription(progress, ctx, null)
+  }
+
+  /**
+   * detailed implementation for creating a MediaItem, including the groupTitle hint.
+   */
+  @OptIn(UnstableApi::class)
+  @JsonIgnore
+  fun getMediaItem(
+    progress: MediaProgressWrapper?,
+    context: Context,
+    groupTitle: String?
+  ): MediaItem {
+    val extras = Bundle()
+
+    if (groupTitle != null) {
+      extras.putString(MediaConstants.EXTRAS_KEY_CONTENT_STYLE_GROUP_TITLE, groupTitle)
+    }
+
+    val mediaId = "__LIBRARY__${libraryId}__SERIES__${id}"
+    val subtitle = "$audiobookCount books"
+
+    val metadata = MediaMetadata.Builder()
+      .setTitle(this.title)
+      .setSubtitle(subtitle)
+      .setIsBrowsable(true)
+      .setIsPlayable(false)
+      .setExtras(extras)
+      .build()
+
+    return MediaItem.Builder()
+      .setMediaId(mediaId)
+      .setMediaMetadata(metadata)
+      .build()
+  }
+
+  /**
+   * Public Media3 override that forwards to the detailed `getMediaItem` with a null group title.
+   */
+  @JsonIgnore
+  override fun getMediaItem(progress: MediaProgressWrapper?, context: Context): MediaItem {
+    return getMediaItem(progress, context, null)
   }
 }

@@ -7,6 +7,10 @@ import com.audiobookshelf.app.player.PlayerNotificationService
 
 object MediaEventManager {
   const val tag = "MediaEventManager"
+  private const val DUPLICATE_PLAYBACK_EVENT_WINDOW_MS = 1000L
+  private const val SEEK_PLAYBACK_SUPPRESSION_MS = 2000L
+  private var lastSeekTimestampMs: Long = 0L
+  private var skipNextPostSeekPlaybackEvent = false
 
   var clientEventEmitter: PlayerNotificationService.ClientEventEmitter? = null
 
@@ -91,6 +95,15 @@ object MediaEventManager {
             getMediaItemHistoryMediaItem(playbackSession.mediaItemId)
                     ?: createMediaItemHistoryForSession(playbackSession)
 
+    if (shouldSkipPlaybackAfterRecentSeek(eventName)) {
+      return
+    }
+
+    val now = System.currentTimeMillis()
+    if (shouldSkipDuplicatePlaybackEvent(mediaItemHistory.events.lastOrNull(), eventName, playbackSession.currentTime, now)) {
+      return
+    }
+
     val mediaItemEvent =
             MediaItemEvent(
                     name = eventName,
@@ -100,9 +113,13 @@ object MediaEventManager {
                     serverSyncAttempted = syncResult?.serverSyncAttempted ?: false,
                     serverSyncSuccess = syncResult?.serverSyncSuccess,
                     serverSyncMessage = syncResult?.serverSyncMessage,
-                    timestamp = System.currentTimeMillis()
+                    timestamp = now
             )
     mediaItemHistory.events.add(mediaItemEvent)
+    if (eventName == "Seek") {
+      lastSeekTimestampMs = now
+      skipNextPostSeekPlaybackEvent = true
+    }
     DeviceManager.dbManager.saveMediaItemHistory(mediaItemHistory)
 
     clientEventEmitter?.onMediaItemHistoryUpdated(mediaItemHistory)
@@ -128,5 +145,32 @@ object MediaEventManager {
             createdAt = System.currentTimeMillis(),
             events = mutableListOf()
     )
+  }
+
+  private fun shouldSkipDuplicatePlaybackEvent(
+    lastEvent: MediaItemEvent?,
+    eventName: String,
+    currentTime: Double,
+    nowMs: Long
+  ): Boolean {
+    if (lastEvent == null) return false
+    if (lastEvent.type != "Playback") return false
+    if (lastEvent.name != eventName) return false
+    val lastCurrent = lastEvent.currentTime?.toDouble() ?: return false
+    if (lastCurrent != currentTime) return false
+    if (nowMs - lastEvent.timestamp > DUPLICATE_PLAYBACK_EVENT_WINDOW_MS) return false
+    return true
+  }
+
+  private fun shouldSkipPlaybackAfterRecentSeek(eventName: String): Boolean {
+    if (!skipNextPostSeekPlaybackEvent) return false
+    if (eventName != "Play" && eventName != "Pause") return false
+    val nowMs = System.currentTimeMillis()
+    if (nowMs - lastSeekTimestampMs > SEEK_PLAYBACK_SUPPRESSION_MS) {
+      skipNextPostSeekPlaybackEvent = false
+      lastSeekTimestampMs = 0L
+      return false
+    }
+    return true
   }
 }

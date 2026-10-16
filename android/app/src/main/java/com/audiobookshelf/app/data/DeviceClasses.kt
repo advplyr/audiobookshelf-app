@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.Uri
 import android.support.v4.media.MediaDescriptionCompat
 import android.util.Log
+import androidx.media3.common.MediaItem
 import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import com.fasterxml.jackson.annotation.JsonSubTypes
@@ -128,6 +129,14 @@ open class LibraryItemWrapper(var id: String) {
   ): MediaDescriptionCompat {
     return MediaDescriptionCompat.Builder().build()
   }
+
+  /**
+   * Returns a Media3-ready `MediaItem`. Subclasses override this with item-specific metadata.
+   */
+  @JsonIgnore
+  open fun getMediaItem(progress: MediaProgressWrapper?, context: Context): MediaItem {
+    return MediaItem.EMPTY
+  }
 }
 
 @JsonIgnoreProperties(ignoreUnknown = true)
@@ -172,7 +181,8 @@ data class DeviceSettings(
         var downloadUsingCellular: DownloadUsingCellularSetting,
         var streamingUsingCellular: StreamingUsingCellularSetting,
         var androidAutoBrowseLimitForGrouping: Int,
-        var androidAutoBrowseSeriesSequenceOrder: AndroidAutoBrowseSeriesSequenceOrderSetting
+        var androidAutoBrowseSeriesSequenceOrder: AndroidAutoBrowseSeriesSequenceOrderSetting,
+        var enableAndroidAutoPlaybackResumption: Boolean = true
 ) {
   companion object {
     // Static method to get default device settings
@@ -201,7 +211,8 @@ data class DeviceSettings(
               downloadUsingCellular = DownloadUsingCellularSetting.ALWAYS,
               streamingUsingCellular = StreamingUsingCellularSetting.ALWAYS,
               androidAutoBrowseLimitForGrouping = 100,
-              androidAutoBrowseSeriesSequenceOrder = AndroidAutoBrowseSeriesSequenceOrderSetting.ASC
+              androidAutoBrowseSeriesSequenceOrder = AndroidAutoBrowseSeriesSequenceOrderSetting.ASC,
+              enableAndroidAutoPlaybackResumption = true
       )
     }
   }
