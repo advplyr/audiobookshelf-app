@@ -25,6 +25,12 @@ object DownloadServiceHost {
           val preparing: String,
           val downloadingFile: String,
           val waitingForStorage: String,
+          val waitingForNetwork: String,
+          val waitingForWifi: String,
+          val retrying: String,
+          val cellularApprovalTitle: String,
+          val cellularApprovalText: String,
+          val useMobileData: String,
           val downloads: String,
           val cancel: String
   )
@@ -95,6 +101,7 @@ object DownloadServiceHost {
   fun retryExisting(
           context: Context,
           downloadItemId: String,
+          networkMode: String?,
           callback: (ExistingDownloadResult) -> Unit
   ) {
     val queue = ensure(context)
@@ -103,7 +110,7 @@ object DownloadServiceHost {
       val existing = queue.downloadItemQueue.find { it.id == downloadItemId }
       if (existing == null) {
         callback(ExistingDownloadResult.NOT_FOUND)
-      } else if (!queue.retryDownloadItem(downloadItemId)) {
+      } else if (!queue.retryDownloadItem(downloadItemId, networkMode)) {
         callback(ExistingDownloadResult.ACTIVE)
       } else if (startService(context)) {
         callback(ExistingDownloadResult.RETRIED)
@@ -121,11 +128,60 @@ object DownloadServiceHost {
     }
   }
 
+  fun cancelItem(context: Context, downloadItemId: String, callback: (Boolean) -> Unit) {
+    val queue = ensure(context)
+    scope.launch {
+      restoreJob?.join()
+      callback(queue.cancelDownloadItem(downloadItemId))
+    }
+  }
+
+  fun retryNow(context: Context, downloadItemId: String, callback: (Boolean) -> Unit) {
+    val queue = ensure(context)
+    scope.launch {
+      restoreJob?.join()
+      callback(queue.retryNow(downloadItemId))
+    }
+  }
+
+  /** Lets one download (or, with null, every paused Wi-Fi preferred download) use mobile data. */
+  fun allowCellular(context: Context, downloadItemId: String?) {
+    val queue = ensure(context)
+    scope.launch {
+      restoreJob?.join()
+      queue.allowCellular(downloadItemId)
+    }
+  }
+
+  /** Called when Android ends the foreground service; progress is kept for the next start. */
+  fun pauseForServiceTimeout() {
+    manager?.pause()
+  }
+
+  /** Restarts the service when the app returns to the foreground with unfinished downloads. */
+  fun resumeIfNeeded(context: Context) {
+    val queue = ensure(context)
+    scope.launch {
+      restoreJob?.join()
+      val attachedService = synchronized(this@DownloadServiceHost) { service }
+      if (queue.hasWork() && attachedService == null) {
+        AbsLogger.info(TAG, "Resuming unfinished downloads")
+        startService(context)
+      }
+    }
+  }
+
   fun setNotificationStrings(
           context: Context,
           preparing: String,
           downloadingFile: String,
           waitingForStorage: String,
+          waitingForNetwork: String,
+          waitingForWifi: String,
+          retrying: String,
+          cellularApprovalTitle: String,
+          cellularApprovalText: String,
+          useMobileData: String,
           downloads: String,
           cancel: String
   ) {
@@ -134,6 +190,12 @@ object DownloadServiceHost {
             .putString(KEY_PREPARING, preparing)
             .putString(KEY_DOWNLOADING_FILE, downloadingFile)
             .putString(KEY_WAITING_FOR_STORAGE, waitingForStorage)
+            .putString(KEY_WAITING_FOR_NETWORK, waitingForNetwork)
+            .putString(KEY_WAITING_FOR_WIFI, waitingForWifi)
+            .putString(KEY_RETRYING, retrying)
+            .putString(KEY_CELLULAR_APPROVAL_TITLE, cellularApprovalTitle)
+            .putString(KEY_CELLULAR_APPROVAL_TEXT, cellularApprovalText)
+            .putString(KEY_USE_MOBILE_DATA, useMobileData)
             .putString(KEY_DOWNLOADS, downloads)
             .putString(KEY_CANCEL, cancel)
             .apply()
@@ -147,6 +209,17 @@ object DownloadServiceHost {
                     ?: DEFAULT_DOWNLOADING_FILE,
             preferences.getString(KEY_WAITING_FOR_STORAGE, DEFAULT_WAITING_FOR_STORAGE)
                     ?: DEFAULT_WAITING_FOR_STORAGE,
+            preferences.getString(KEY_WAITING_FOR_NETWORK, DEFAULT_WAITING_FOR_NETWORK)
+                    ?: DEFAULT_WAITING_FOR_NETWORK,
+            preferences.getString(KEY_WAITING_FOR_WIFI, DEFAULT_WAITING_FOR_WIFI)
+                    ?: DEFAULT_WAITING_FOR_WIFI,
+            preferences.getString(KEY_RETRYING, DEFAULT_RETRYING) ?: DEFAULT_RETRYING,
+            preferences.getString(KEY_CELLULAR_APPROVAL_TITLE, DEFAULT_CELLULAR_APPROVAL_TITLE)
+                    ?: DEFAULT_CELLULAR_APPROVAL_TITLE,
+            preferences.getString(KEY_CELLULAR_APPROVAL_TEXT, DEFAULT_CELLULAR_APPROVAL_TEXT)
+                    ?: DEFAULT_CELLULAR_APPROVAL_TEXT,
+            preferences.getString(KEY_USE_MOBILE_DATA, DEFAULT_USE_MOBILE_DATA)
+                    ?: DEFAULT_USE_MOBILE_DATA,
             preferences.getString(KEY_DOWNLOADS, DEFAULT_DOWNLOADS) ?: DEFAULT_DOWNLOADS,
             preferences.getString(KEY_CANCEL, DEFAULT_CANCEL) ?: DEFAULT_CANCEL)
   }
@@ -166,6 +239,7 @@ object DownloadServiceHost {
     scope.launch {
       restoreJob?.join()
       queue.resumeWork()
+      queue.refreshNeedsCpu()
     }
   }
 
@@ -201,6 +275,12 @@ object DownloadServiceHost {
       bridgeEmitter.onQueueChanged(hasWork)
       service?.onQueueChanged(hasWork)
     }
+    override fun onNeedsCpuChanged(needsCpu: Boolean) {
+      service?.setNeedsCpu(needsCpu)
+    }
+    override fun onCellularApprovalChanged(waitingItems: Int) {
+      service?.onCellularApprovalChanged(waitingItems)
+    }
   }
 
   private object NoopEmitter : DownloadItemManager.DownloadEventEmitter {
@@ -214,11 +294,23 @@ object DownloadServiceHost {
   private const val KEY_PREPARING = "preparing"
   private const val KEY_DOWNLOADING_FILE = "downloading_file"
   private const val KEY_WAITING_FOR_STORAGE = "waiting_for_storage"
+  private const val KEY_WAITING_FOR_NETWORK = "waiting_for_network"
+  private const val KEY_WAITING_FOR_WIFI = "waiting_for_wifi"
+  private const val KEY_RETRYING = "retrying"
+  private const val KEY_CELLULAR_APPROVAL_TITLE = "cellular_approval_title"
+  private const val KEY_CELLULAR_APPROVAL_TEXT = "cellular_approval_text"
+  private const val KEY_USE_MOBILE_DATA = "use_mobile_data"
   private const val KEY_DOWNLOADS = "downloads"
   private const val KEY_CANCEL = "cancel"
   private const val DEFAULT_PREPARING = "Preparing downloads"
   private const val DEFAULT_DOWNLOADING_FILE = "Downloading {0}"
   private const val DEFAULT_WAITING_FOR_STORAGE = "Waiting for available storage"
+  private const val DEFAULT_WAITING_FOR_NETWORK = "Waiting for network connection"
+  private const val DEFAULT_WAITING_FOR_WIFI = "Waiting for Wi-Fi"
+  private const val DEFAULT_RETRYING = "Connection lost; retrying {0} shortly"
+  private const val DEFAULT_CELLULAR_APPROVAL_TITLE = "Downloads paused on mobile data"
+  private const val DEFAULT_CELLULAR_APPROVAL_TEXT = "{0} download(s) are waiting for Wi-Fi"
+  private const val DEFAULT_USE_MOBILE_DATA = "Use mobile data"
   private const val DEFAULT_DOWNLOADS = "Downloads"
   private const val DEFAULT_CANCEL = "Cancel"
   private const val TAG = "DownloadServiceHost"

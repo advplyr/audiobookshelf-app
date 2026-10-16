@@ -53,6 +53,12 @@ function syncDownloadNotificationStrings() {
     preparing: Vue.prototype.$strings.MessagePreparingDownloads,
     downloadingFile: Vue.prototype.$strings.MessageDownloadingFile,
     waitingForStorage: Vue.prototype.$strings.MessageWaitingForAvailableStorage,
+    waitingForNetwork: Vue.prototype.$strings.MessageWaitingForNetwork,
+    waitingForWifi: Vue.prototype.$strings.MessageWaitingForWifi,
+    retrying: Vue.prototype.$strings.MessageRetryingDownload,
+    cellularApprovalTitle: Vue.prototype.$strings.MessageDownloadsPausedOnMobileData,
+    cellularApprovalText: Vue.prototype.$strings.MessageDownloadsWaitingForWifiCount,
+    useMobileData: Vue.prototype.$strings.ButtonAllowMobileData,
     downloads: Vue.prototype.$strings.HeaderDownloads,
     cancel: Vue.prototype.$strings.ButtonCancel
   }).catch((error) => console.warn('Failed to update download notification strings', error))

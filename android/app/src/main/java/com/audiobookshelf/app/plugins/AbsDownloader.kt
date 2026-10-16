@@ -1,5 +1,6 @@
 package com.audiobookshelf.app.plugins
 
+import android.app.AlertDialog
 import android.os.Environment
 import com.audiobookshelf.app.MainActivity
 import com.audiobookshelf.app.data.*
@@ -8,6 +9,8 @@ import com.audiobookshelf.app.models.DownloadItem
 import com.audiobookshelf.app.models.DownloadItemPart
 import com.audiobookshelf.app.server.ApiHandler
 import com.audiobookshelf.app.managers.DownloadItemManager
+import com.audiobookshelf.app.managers.DownloadNetworkMonitor
+import com.audiobookshelf.app.managers.DownloadNetworkPolicy
 import com.audiobookshelf.app.services.DownloadServiceHost
 import com.fasterxml.jackson.core.json.JsonReadFeature
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
@@ -54,6 +57,12 @@ class AbsDownloader : Plugin() {
     super.handleOnDestroy()
   }
 
+  /** Picks downloads back up when the app returns, e.g. after Android stopped the service. */
+  override fun handleOnResume() {
+    super.handleOnResume()
+    DownloadServiceHost.resumeIfNeeded(mainActivity)
+  }
+
   @PluginMethod
   fun setDownloadNotificationStrings(call: PluginCall) {
     DownloadServiceHost.setNotificationStrings(
@@ -61,9 +70,83 @@ class AbsDownloader : Plugin() {
             call.getString("preparing") ?: "Preparing downloads",
             call.getString("downloadingFile") ?: "Downloading {0}",
             call.getString("waitingForStorage") ?: "Waiting for available storage",
+            call.getString("waitingForNetwork") ?: "Waiting for network connection",
+            call.getString("waitingForWifi") ?: "Waiting for Wi-Fi",
+            call.getString("retrying") ?: "Connection lost; retrying {0} shortly",
+            call.getString("cellularApprovalTitle") ?: "Downloads paused on mobile data",
+            call.getString("cellularApprovalText") ?: "{0} download(s) are waiting for Wi-Fi",
+            call.getString("useMobileData") ?: "Use mobile data",
             call.getString("downloads") ?: "Downloads",
             call.getString("cancel") ?: "Cancel")
     call.resolve()
+  }
+
+  @PluginMethod
+  fun cancelDownloadItem(call: PluginCall) {
+    val downloadItemId = call.getString("downloadItemId") ?: return call.reject("downloadItemId is required")
+    DownloadServiceHost.cancelItem(mainActivity, downloadItemId) { cancelled ->
+      call.resolve(JSObject().put("cancelled", cancelled))
+    }
+  }
+
+  @PluginMethod
+  fun cancelAllDownloads(call: PluginCall) {
+    DownloadServiceHost.cancelAll(mainActivity)
+    call.resolve()
+  }
+
+  /** Starts an item's backed-off parts immediately instead of waiting for the retry delay. */
+  @PluginMethod
+  fun retryDownloadNow(call: PluginCall) {
+    val downloadItemId = call.getString("downloadItemId") ?: return call.reject("downloadItemId is required")
+    DownloadServiceHost.retryNow(mainActivity, downloadItemId) { retried ->
+      call.resolve(JSObject().put("retried", retried))
+    }
+  }
+
+  /** Lets one queued download use mobile data. */
+  @PluginMethod
+  fun allowCellularDownload(call: PluginCall) {
+    val downloadItemId = call.getString("downloadItemId") ?: return call.reject("downloadItemId is required")
+    DownloadServiceHost.allowCellular(mainActivity, downloadItemId)
+    call.resolve()
+  }
+
+  /**
+   * Decides which networks a new download may use. On a metered network with the "ask first"
+   * policy this shows a three-way dialog (download now / wait for Wi-Fi / cancel), which the
+   * Capacitor Dialog plugin cannot. Resolves with `networkMode`, or `cancelled: true`.
+   */
+  @PluginMethod
+  fun resolveDownloadNetworkMode(call: PluginCall) {
+    val setting = DeviceManager.deviceData.deviceSettings?.downloadUsingCellular ?: DownloadUsingCellularSetting.ALWAYS
+    val metered = DownloadNetworkMonitor.isMeteredNow(mainActivity)
+    fun resolveMode(mode: String) = call.resolve(JSObject().put("networkMode", mode).put("metered", metered))
+    val initialMode = DownloadNetworkPolicy.initialMode(setting, metered)
+    when {
+      initialMode != null -> resolveMode(initialMode)
+      else ->
+              mainActivity.runOnUiThread {
+                var resolved = false
+                fun finish(mode: String?) {
+                  if (resolved) return
+                  resolved = true
+                  if (mode == null) call.resolve(JSObject().put("cancelled", true)) else resolveMode(mode)
+                }
+                AlertDialog.Builder(mainActivity)
+                        .setTitle(call.getString("title") ?: "Download on mobile data?")
+                        .setMessage(call.getString("message") ?: "You are on a metered connection.")
+                        .setPositiveButton(call.getString("downloadNow") ?: "Download now") { _, _ ->
+                          finish(DownloadItem.NETWORK_MODE_CELLULAR)
+                        }
+                        .setNeutralButton(call.getString("waitForWifi") ?: "Wait for Wi-Fi") { _, _ ->
+                          finish(DownloadItem.NETWORK_MODE_WIFI_ONLY)
+                        }
+                        .setNegativeButton(call.getString("cancel") ?: "Cancel") { _, _ -> finish(null) }
+                        .setOnCancelListener { finish(null) }
+                        .show()
+              }
+    }
   }
 
   /** Replays restored queue items when the frontend subscribes to download events. */
@@ -83,10 +166,11 @@ class AbsDownloader : Plugin() {
     var episodeId = call.data.getString("episodeId").toString()
     if (episodeId == "null") episodeId = ""
     var localFolderId = call.data.getString("localFolderId", "").toString()
+    val networkMode = call.getString("networkMode")
     AbsLogger.info(tag, "Requested download for item $libraryItemId${if (episodeId.isEmpty()) "" else " / episode $episodeId"}")
 
     val downloadId = if (episodeId.isEmpty()) libraryItemId else "$libraryItemId-$episodeId"
-    DownloadServiceHost.retryExisting(mainActivity, downloadId) { result ->
+    DownloadServiceHost.retryExisting(mainActivity, downloadId, networkMode) { result ->
       when (result) {
         DownloadServiceHost.ExistingDownloadResult.RETRIED -> call.resolve()
         DownloadServiceHost.ExistingDownloadResult.ACTIVE -> {
@@ -120,10 +204,10 @@ class AbsDownloader : Plugin() {
                 if (episode == null) {
                   call.resolve(JSObject("{\"error\":\"Invalid podcast episode not found\"}"))
                 } else {
-                  startLibraryItemDownload(libraryItem, localFolder, episode) { error -> resolveDownloadCall(call, error) }
+                  startLibraryItemDownload(libraryItem, localFolder, episode, networkMode) { error -> resolveDownloadCall(call, error) }
                 }
               } else {
-                startLibraryItemDownload(libraryItem, localFolder, null) { error -> resolveDownloadCall(call, error) }
+                startLibraryItemDownload(libraryItem, localFolder, null, networkMode) { error -> resolveDownloadCall(call, error) }
               }
             }
           }
@@ -161,6 +245,7 @@ class AbsDownloader : Plugin() {
           libraryItem: LibraryItem,
           localFolder: LocalFolder,
           episode: PodcastEpisode?,
+          networkMode: String?,
           callback: (String?) -> Unit
   ) {
     val isInternal = localFolder.id.startsWith("internal-")
@@ -229,6 +314,7 @@ class AbsDownloader : Plugin() {
           downloadItem.downloadItemParts.add(downloadItemPart)
         }
 
+        downloadItem.networkMode = networkMode
         DownloadServiceHost.enqueue(mainActivity, downloadItem, callback)
       } else callback("No downloadable files found")
     } else {
@@ -266,6 +352,7 @@ class AbsDownloader : Plugin() {
         downloadItem.downloadItemParts.add(downloadItemPart)
       }
 
+        downloadItem.networkMode = networkMode
         DownloadServiceHost.enqueue(mainActivity, downloadItem, callback)
     }
   }
