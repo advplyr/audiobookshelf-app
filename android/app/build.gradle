@@ -48,6 +48,18 @@ android {
       ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
     }
   }
+  testOptions {
+    unitTests {
+      includeAndroidResources = true
+      all {
+        // Paper's Kryo serializers reflect into JDK collections, which ART allows but JDK 17+ blocks
+        jvmArgs '--add-opens=java.base/java.util=ALL-UNNAMED',
+                '--add-opens=java.base/java.lang=ALL-UNNAMED',
+                '--add-opens=java.base/java.util.concurrent=ALL-UNNAMED',
+                '--add-opens=java.base/java.net=ALL-UNNAMED'
+      }
+    }
+  }
   buildTypes {
     debug {
       applicationIdSuffix ".debug"
@@ -128,6 +140,17 @@ dependencies {
 
   // Jackson for JSON
   implementation 'com.fasterxml.jackson.module:jackson-module-kotlin:2.12.2'
+
+  // Unit tests (JVM, with Robolectric for Android framework classes)
+  testImplementation "junit:junit:$junit_version"
+  testImplementation 'org.robolectric:robolectric:4.14.1'
+  testImplementation 'androidx.test:core:1.6.1'
+  testImplementation 'com.squareup.okhttp3:mockwebserver:4.9.2'
+}
+
+// Capacitor ships Java 21 bytecode; unit tests load it on the JVM (on device it is dexed), so run them on 21
+tasks.withType(Test).configureEach {
+  javaLauncher = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(21) }
 }
 
 apply from: 'capacitor.build.gradle'
