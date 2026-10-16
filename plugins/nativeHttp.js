@@ -61,11 +61,13 @@ export default function ({ store, $db, $socket }, inject) {
      * @returns {Promise} - Promise that resolves with the response data
      */
     async handleTokenRefresh(method, url, data, headers, options, serverConnectionConfig) {
+      let shouldLogout = false
       try {
         console.log('[nativeHttp] Attempting to refresh token...')
 
         if (!serverConnectionConfig?.id) {
           console.error('[nativeHttp] No server connection config ID available for token refresh')
+          shouldLogout = true
           throw new Error('No server connection available')
         }
 
@@ -73,11 +75,13 @@ export default function ({ store, $db, $socket }, inject) {
         const refreshToken = await $db.getRefreshToken(serverConnectionConfig.id)
         if (!refreshToken) {
           console.error('[nativeHttp] No refresh token available')
+          shouldLogout = true
           throw new Error('No refresh token available')
         }
 
         // Attempt to refresh the token
         const newTokens = await this.refreshAccessToken(refreshToken, serverConnectionConfig.address)
+        shouldLogout = newTokens?._rejected === true
         if (!newTokens?.accessToken) {
           console.error('[nativeHttp] Failed to refresh access token')
           throw new Error('Failed to refresh access token')
@@ -109,8 +113,7 @@ export default function ({ store, $db, $socket }, inject) {
       } catch (error) {
         console.error('[nativeHttp] Token refresh failed:', error)
 
-        // If refresh fails, redirect to login
-        await this.handleRefreshFailure(serverConnectionConfig?.id)
+        if (shouldLogout) await this.handleRefreshFailure(serverConnectionConfig?.id)
         throw error
       }
     },
@@ -140,7 +143,7 @@ export default function ({ store, $db, $socket }, inject) {
 
         if (response.status !== 200) {
           console.error('[nativeHttp] Token refresh request failed:', response.status)
-          return null
+          return response.status === 401 ? { _rejected: true } : null
         }
 
         const userResponseData = response.data
