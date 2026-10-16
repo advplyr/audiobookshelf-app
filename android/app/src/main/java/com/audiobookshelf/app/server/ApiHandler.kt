@@ -478,6 +478,28 @@ class ApiHandler(var ctx:Context) {
     }
   }
 
+  /**
+   * Returns the newest unfinished podcast episodes for [libraryId]
+   * as pairs of library item id and episode id, newest first
+   */
+  fun getLibraryRecentEpisodes(
+    libraryId: String,
+    limit: Int,
+    cb: (List<Pair<String, String>>) -> Unit
+  ) {
+    getRequest("/api/libraries/$libraryId/recent-episodes?limit=$limit&page=0", null, null) {
+      val episodes = mutableListOf<Pair<String, String>>()
+      if (it.has("episodes")) {
+        val array = it.getJSONArray("episodes")
+        for (i in 0 until array.length()) {
+          val episode = array.getJSONObject(i)
+          episodes.add(Pair(episode.getString("libraryItemId"), episode.getString("id")))
+        }
+      }
+      cb(episodes)
+    }
+  }
+
   fun getLibrarySeries(libraryId:String, cb: (List<LibrarySeriesItem>) -> Unit) {
     Log.d(tag, "Getting series")
     getRequest("/api/libraries/$libraryId/series?minified=1&sort=name&limit=10000", null, null) {

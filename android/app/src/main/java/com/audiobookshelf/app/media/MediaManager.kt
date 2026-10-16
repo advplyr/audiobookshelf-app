@@ -636,6 +636,49 @@ class MediaManager(private var apiHandler: ApiHandler, var ctx: Context) {
     }
   }
 
+  /**
+   * Loads newest unfinished episodes across all podcasts in [libraryId], newest first.
+   * Podcasts with episodes not yet known are fetched so that every episode is playable.
+   */
+  fun loadLibraryLatestEpisodes(
+    libraryId: String,
+    cb: (List<LibraryItemWithEpisode>) -> Unit
+  ) {
+    apiHandler.getLibraryRecentEpisodes(libraryId, 50) { recentEpisodes ->
+      val libraryItemIdsToLoad = recentEpisodes
+        .filter { (_, episodeId) -> !podcastEpisodeLibraryItemMap.containsKey(episodeId) }
+        .map { (libraryItemId, _) -> libraryItemId }
+        .distinct()
+
+      val onPodcastsLoaded = { loadedLibraryItems: Collection<LibraryItem> ->
+        loadedLibraryItems.forEach { libraryItem ->
+          (libraryItem.media as Podcast).episodes?.forEach { podcastEpisode ->
+            podcastEpisodeLibraryItemMap[podcastEpisode.id] =
+              LibraryItemWithEpisode(libraryItem, podcastEpisode)
+          }
+        }
+        cb(recentEpisodes.mapNotNull { (_, episodeId) -> podcastEpisodeLibraryItemMap[episodeId] })
+      }
+
+      if (libraryItemIdsToLoad.isEmpty()) {
+        onPodcastsLoaded(listOf())
+        return@getLibraryRecentEpisodes
+      }
+
+      // Requests complete on different threads so results are applied once all are done
+      val loadedLibraryItems = Collections.synchronizedList(mutableListOf<LibraryItem>())
+      val remaining = AtomicInteger(libraryItemIdsToLoad.size)
+      libraryItemIdsToLoad.forEach { libraryItemId ->
+        apiHandler.getLibraryItem(libraryItemId) { libraryItem ->
+          libraryItem?.let { loadedLibraryItems.add(it) }
+          if (remaining.decrementAndGet() == 0) {
+            onPodcastsLoaded(loadedLibraryItems)
+          }
+        }
+      }
+    }
+  }
+
   private fun loadLibraryItem(libraryItemId:String, cb: (LibraryItemWrapper?) -> Unit) {
     if (libraryItemId.startsWith("local")) {
       cb(DeviceManager.dbManager.getLocalLibraryItem(libraryItemId))
