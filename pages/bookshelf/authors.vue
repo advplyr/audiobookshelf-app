@@ -1,23 +1,49 @@
 <template>
-  <div>
-    <div id="bookshelf" class="w-full h-full p-4 overflow-y-auto">
-      <div class="flex flex-wrap justify-center">
-        <template v-for="author in authors">
-          <cards-author-card :key="author.id" :author="author" :width="cardWidth" :height="cardHeight" class="p-2" />
-        </template>
+  <div class="flex flex-col h-full">
+    <!-- Toolbar: sort selector + list/grid toggle -->
+    <div class="flex items-center px-4 py-2 border-b border-white border-opacity-10 flex-shrink-0">
+      <div class="flex items-center border border-white border-opacity-25 rounded px-2 cursor-pointer" @click="cycleSortKey">
+        <p class="text-sm text-fg">{{ sortLabel }}</p>
+        <span class="material-symbols ml-1 text-fg">{{ sortDir === 'asc' ? 'arrow_drop_up' : 'arrow_drop_down' }}</span>
+      </div>
+      <div class="flex-grow" />
+      <span class="material-symbols text-2xl px-2 cursor-pointer text-fg" @click="toggleListView">{{ listView ? 'grid_view' : 'view_list' }}</span>
+    </div>
+
+    <!-- Content -->
+    <div id="bookshelf" class="flex-grow overflow-y-auto">
+      <!-- Grid view -->
+      <div v-if="!listView" class="flex flex-wrap justify-center p-4">
+        <div v-for="author in sortedAuthors" :key="author.id" class="p-2 cursor-pointer" @click="navigateToAuthor(author)">
+          <cards-author-card :author="author" :width="cardWidth" :height="cardHeight" />
+        </div>
+      </div>
+
+      <!-- List view -->
+      <div v-else class="w-full">
+        <cards-author-list-row v-for="author in sortedAuthors" :key="author.id" :author="author" />
       </div>
     </div>
   </div>
 </template>
 
 <script>
+const SORT_CYCLE = [
+  { key: 'name', dir: 'asc', label: 'Name (A-Z)' },
+  { key: 'name', dir: 'desc', label: 'Name (Z-A)' },
+  { key: 'numBooks', dir: 'desc', label: 'Most Books' },
+  { key: 'numBooks', dir: 'asc', label: 'Fewest Books' }
+]
+
 export default {
   data() {
     return {
       loading: true,
       authors: [],
       loadedLibraryId: null,
-      cardWidth: 200
+      cardWidth: 200,
+      listView: false,
+      sortIndex: 0
     }
   },
   computed: {
@@ -26,6 +52,26 @@ export default {
     },
     cardHeight() {
       return this.cardWidth * 1.25
+    },
+    sortKey() {
+      return SORT_CYCLE[this.sortIndex].key
+    },
+    sortDir() {
+      return SORT_CYCLE[this.sortIndex].dir
+    },
+    sortLabel() {
+      return SORT_CYCLE[this.sortIndex].label
+    },
+    sortedAuthors() {
+      return [...this.authors].sort((a, b) => {
+        let av = a[this.sortKey]
+        let bv = b[this.sortKey]
+        if (typeof av === 'string') av = av.toLowerCase()
+        if (typeof bv === 'string') bv = bv.toLowerCase()
+        if (av < bv) return this.sortDir === 'asc' ? -1 : 1
+        if (av > bv) return this.sortDir === 'asc' ? 1 : -1
+        return 0
+      })
     }
   },
   methods: {
@@ -45,6 +91,16 @@ export default {
       console.log('Loaded authors', this.authors)
       this.$eventBus.$emit('bookshelf-total-entities', this.authors.length)
       this.loading = false
+    },
+    cycleSortKey() {
+      this.sortIndex = (this.sortIndex + 1) % SORT_CYCLE.length
+    },
+    toggleListView() {
+      this.listView = !this.listView
+      this.$localStore.setAuthorsListView(this.listView)
+    },
+    navigateToAuthor(author) {
+      this.$router.push(`/bookshelf/library?filter=authors.${this.$encode(author.id)}`)
     },
     authorAdded(author) {
       if (!this.authors.some((au) => au.id === author.id)) {
@@ -74,7 +130,8 @@ export default {
       }
     }
   },
-  mounted() {
+  async mounted() {
+    this.listView = await this.$localStore.getAuthorsListView()
     this.init()
     this.$socket.$on('author_added', this.authorAdded)
     this.$socket.$on('author_updated', this.authorUpdated)
