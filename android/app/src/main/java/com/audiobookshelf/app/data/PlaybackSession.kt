@@ -2,10 +2,7 @@ package com.audiobookshelf.app.data
 
 import android.content.Context
 import android.graphics.Bitmap
-import android.graphics.ImageDecoder
 import android.net.Uri
-import android.os.Build
-import android.provider.MediaStore
 import android.support.v4.media.MediaMetadataCompat
 import androidx.core.content.FileProvider
 import androidx.core.net.toFile
@@ -248,10 +245,11 @@ class PlaybackSession(
   }
 
   /**
-   * Resolves the cover art bitmap (local covers are decoded synchronously, server-side covers
-   * are fetched asynchronously) and calls `onArtResolved` once it's available
+   * Resolves the cover art bitmap asynchronously (local and server-side covers) and calls
+   * `onArtResolved` once it's available. The bitmap is downscaled and cached by
+   * [resolveUriAsBitmap], so this never decodes on the caller's thread.
    *
-   * Returns the Job for the async fetch, or `null` if the bitmap was resolved synchronously.
+   * Returns the Job for the async fetch.
    */
   @JsonIgnore
   fun resolveCoverBitmapAsync(
@@ -260,22 +258,6 @@ class PlaybackSession(
           onArtResolved: () -> Unit
   ): Job? {
     val coverUri = getCoverUri(ctx)
-
-    // Local covers get bitmap synchronously, no async fetch needed
-    if (localLibraryItem?.coverContentUrl != null) {
-      resolvedCoverBitmap =
-              if (Build.VERSION.SDK_INT < 28) {
-                MediaStore.Images.Media.getBitmap(ctx.contentResolver, coverUri)
-              } else {
-                val source: ImageDecoder.Source =
-                        ImageDecoder.createSource(ctx.contentResolver, coverUri)
-                ImageDecoder.decodeBitmap(source)
-              }
-      onArtResolved()
-      return null
-    }
-
-    // Server-side cover: resolve the art bitmap async
     return coroutineScope.launch {
       val bitmap = resolveUriAsBitmap(ctx, coverUri)
       bitmap?.let {
