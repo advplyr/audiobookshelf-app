@@ -683,7 +683,14 @@ export default {
     },
     startPlayInterval() {
       clearInterval(this.playInterval)
+      if (document.visibilityState !== 'visible') return
+
       this.playInterval = setInterval(async () => {
+        if (document.visibilityState !== 'visible') {
+          this.stopPlayInterval()
+          return
+        }
+
         var data = await AbsAudioPlayer.getCurrentTime()
         this.currentTime = Number(data.value.toFixed(2))
         this.bufferedTime = Number(data.bufferedTime.toFixed(2))
@@ -982,6 +989,13 @@ export default {
     minimizePlayerEvt() {
       this.collapseFullscreen()
     },
+    deviceFocused(hasFocus) {
+      if (hasFocus && this.isPlaying) {
+        this.startPlayInterval()
+      } else {
+        this.stopPlayInterval()
+      }
+    },
     showProgressSyncIsFailing() {
       this.syncStatus = this.$constants.SyncStatus.FAILED
     },
@@ -1000,6 +1014,7 @@ export default {
     window.addEventListener('resize', this.screenOrientationChange)
 
     this.$eventBus.$on('minimize-player', this.minimizePlayerEvt)
+    this.$eventBus.$on('device-focus-update', this.deviceFocused)
     document.body.addEventListener('touchstart', this.touchstart, { passive: false })
     document.body.addEventListener('touchend', this.touchend)
     document.body.addEventListener('touchmove', this.touchmove)
@@ -1021,6 +1036,7 @@ export default {
 
     this.forceCloseDropdownMenu()
     this.$eventBus.$off('minimize-player', this.minimizePlayerEvt)
+    this.$eventBus.$off('device-focus-update', this.deviceFocused)
     document.body.removeEventListener('touchstart', this.touchstart)
     document.body.removeEventListener('touchend', this.touchend)
     document.body.removeEventListener('touchmove', this.touchmove)
