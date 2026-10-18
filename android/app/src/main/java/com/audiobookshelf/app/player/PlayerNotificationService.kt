@@ -336,12 +336,18 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
                 // so we create and set the bitmap here instead of AbMediaDescriptionAdapter
                 if (currentPlaybackSession!!.localLibraryItem?.coverContentUrl != null) {
                   bitmap =
-                    if (Build.VERSION.SDK_INT < 28) {
-                      MediaStore.Images.Media.getBitmap(ctx.contentResolver, coverUri)
-                    } else {
-                      val source: ImageDecoder.Source =
-                        ImageDecoder.createSource(ctx.contentResolver, coverUri)
-                      ImageDecoder.decodeBitmap(source)
+                    try {
+                      if (Build.VERSION.SDK_INT < 28) {
+                        @Suppress("DEPRECATION")
+                        MediaStore.Images.Media.getBitmap(ctx.contentResolver, coverUri)
+                      } else {
+                        val source: ImageDecoder.Source =
+                          ImageDecoder.createSource(ctx.contentResolver, coverUri)
+                        ImageDecoder.decodeBitmap(source)
+                      }
+                    } catch (e: Exception) {
+                      Log.e(tag, "Failed to decode cover bitmap: ${e.message}")
+                      null
                     }
                 }
 
