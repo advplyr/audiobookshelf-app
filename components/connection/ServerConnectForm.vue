@@ -56,8 +56,8 @@
           </div>
           <div class="w-full h-px bg-fg/10 my-2" />
           <form v-if="isLocalAuthEnabled" @submit.prevent="submitAuth" class="pt-3">
-            <ui-text-input v-model="serverConfig.username" :disabled="processing" :placeholder="$strings.LabelUsername" class="w-full mb-2 text-lg" />
-            <ui-text-input v-model="password" type="password" :disabled="processing" :placeholder="$strings.LabelPassword" class="w-full mb-2 text-lg" />
+            <ui-text-input id="username" name="username" autocomplete="username" v-model="serverConfig.username" :disabled="processing" :placeholder="$strings.LabelUsername" class="w-full mb-2 text-lg" />
+            <ui-text-input id="password" name="password" autocomplete="current-password" v-model="password" type="password" :disabled="processing" :placeholder="$strings.LabelPassword" class="w-full mb-2 text-lg" />
 
             <div class="flex items-center pt-2">
               <ui-icon-btn v-if="serverConfig.id" bg-color="error" icon="delete" type="button" @click="removeServerConfigClick(serverConfig)" />
