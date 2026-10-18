@@ -1,6 +1,6 @@
 <template>
   <div class="w-full my-4">
-    <div class="w-full bg-primary px-4 py-2 flex items-center" :class="expanded ? 'rounded-t-md' : 'rounded-md'" @click.stop="clickBar">
+    <div class="w-full bg-primary px-4 py-2 flex items-center" :class="expanded ? 'rounded-t-md' : 'rounded-md'" tabindex="0" @click.stop="clickBar" @keydown.enter.prevent.stop="clickBar">
       <p class="pr-2">{{ $strings.HeaderChapters }}</p>
       <div class="h-6 w-6 rounded-full bg-fg/10 flex items-center justify-center">
         <span class="text-xs font-mono">{{ chapters.length }}</span>
@@ -21,8 +21,8 @@
           <td>
             {{ chapter.title }}
           </td>
-          <td class="font-mono text-center underline w-16" @click.stop="goToTimestamp(chapter.start)">
-            {{ $secondsToTimestamp(chapter.start) }}
+          <td class="font-mono text-center w-16">
+            <span tabindex="0" class="underline cursor-pointer" @click.stop="goToTimestamp(chapter.start)" @keydown.enter.prevent.stop="goToTimestamp(chapter.start)">{{ $secondsToTimestamp(chapter.start) }}</span>
           </td>
           <td class="font-mono text-center">
             {{ $secondsToTimestamp(Math.max(0, chapter.end - chapter.start)) }}

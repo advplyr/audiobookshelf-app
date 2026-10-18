@@ -1,5 +1,5 @@
 <template>
-  <div class="w-full h-full px-4 py-8 overflow-y-auto">
+  <div id="settings-page" class="w-full h-full px-4 py-8 overflow-y-auto">
     <!-- Display settings -->
     <p class="uppercase text-xs font-semibold text-fg-muted mb-2">{{ $strings.HeaderUserInterfaceSettings }}</p>
     <div class="flex items-center py-3">
@@ -17,19 +17,19 @@
     </div>
     <div class="py-3 flex items-center">
       <p class="pr-4 w-36">{{ $strings.LabelHapticFeedback }}</p>
-      <div @click.stop="showHapticFeedbackOptions">
+      <div tabindex="0" class="settings-dropdown" @click.stop="showHapticFeedbackOptions" @keydown.enter.prevent.stop="showHapticFeedbackOptions">
         <ui-text-input :value="hapticFeedbackOption" readonly append-icon="expand_more" style="max-width: 200px" />
       </div>
     </div>
     <div class="py-3 flex items-center">
       <p class="pr-4 w-36">{{ $strings.LabelLanguage }}</p>
-      <div @click.stop="showLanguageOptions">
+      <div tabindex="0" class="settings-dropdown" @click.stop="showLanguageOptions" @keydown.enter.prevent.stop="showLanguageOptions">
         <ui-text-input :value="languageOption" readonly append-icon="expand_more" style="max-width: 200px" />
       </div>
     </div>
     <div class="py-3 flex items-center">
       <p class="pr-4 w-36">{{ $strings.LabelTheme }}</p>
-      <div @click.stop="showThemeOptions">
+      <div tabindex="0" class="settings-dropdown" @click.stop="showThemeOptions" @keydown.enter.prevent.stop="showThemeOptions">
         <ui-text-input :value="themeOption" readonly append-icon="expand_more" style="max-width: 200px" />
       </div>
     </div>
@@ -38,13 +38,13 @@
     <p class="uppercase text-xs font-semibold text-fg-muted mb-2 mt-10">{{ $strings.HeaderPlaybackSettings }}</p>
     <div class="py-3 flex items-center">
       <p class="pr-4 w-36">{{ $strings.LabelJumpBackwardsTime }}</p>
-      <div @click.stop="showJumpBackwardsOptions">
+      <div tabindex="0" class="settings-dropdown" @click.stop="showJumpBackwardsOptions" @keydown.enter.prevent.stop="showJumpBackwardsOptions">
         <ui-text-input :value="jumpBackwardsOption" readonly append-icon="expand_more" style="width: 145px; max-width: 145px" />
       </div>
     </div>
     <div class="py-3 flex items-center">
       <p class="pr-4 w-36">{{ $strings.LabelJumpForwardsTime }}</p>
-      <div @click.stop="showJumpForwardOptions">
+      <div tabindex="0" class="settings-dropdown" @click.stop="showJumpForwardOptions" @keydown.enter.prevent.stop="showJumpForwardOptions">
         <ui-text-input :value="jumpForwardOption" readonly append-icon="expand_more" style="width: 145px; max-width: 145px" />
       </div>
     </div>
@@ -59,7 +59,7 @@
         <ui-toggle-switch v-model="settings.enableMp3IndexSeeking" @input="saveSettings" />
       </div>
       <p class="pl-4">{{ $strings.LabelEnableMp3IndexSeeking }}</p>
-      <span class="material-symbols text-xl ml-2" @click.stop="showConfirmMp3IndexSeeking">info</span>
+      <span tabindex="0" class="material-symbols text-xl ml-2 cursor-pointer" @click.stop="showConfirmMp3IndexSeeking" @keydown.enter.prevent.stop="showConfirmMp3IndexSeeking">info</span>
     </div>
     <div class="flex items-center py-3">
       <div class="w-10 flex justify-center" @click="toggleAllowSeekingOnMediaControls">
@@ -76,11 +76,11 @@
           <ui-toggle-switch v-model="settings.disableShakeToResetSleepTimer" @input="saveSettings" />
         </div>
         <p class="pl-4">{{ $strings.LabelDisableShakeToReset }}</p>
-        <span class="material-symbols text-xl ml-2" @click.stop="showInfo('disableShakeToResetSleepTimer')">info</span>
+        <span tabindex="0" class="material-symbols text-xl ml-2 cursor-pointer" @click.stop="showInfo('disableShakeToResetSleepTimer')" @keydown.enter.prevent.stop="showInfo('disableShakeToResetSleepTimer')">info</span>
       </div>
       <div v-if="!settings.disableShakeToResetSleepTimer" class="py-3 flex items-center">
         <p class="pr-4 w-36">{{ $strings.LabelShakeSensitivity }}</p>
-        <div @click.stop="showShakeSensitivityOptions">
+        <div tabindex="0" class="settings-dropdown" @click.stop="showShakeSensitivityOptions" @keydown.enter.prevent.stop="showShakeSensitivityOptions">
           <ui-text-input :value="shakeSensitivityOption" readonly append-icon="expand_more" style="width: 145px; max-width: 145px" />
         </div>
       </div>
@@ -90,7 +90,7 @@
         <ui-toggle-switch v-model="settings.disableSleepTimerFadeOut" @input="saveSettings" />
       </div>
       <p class="pl-4">{{ $strings.LabelDisableAudioFadeOut }}</p>
-      <span class="material-symbols text-xl ml-2" @click.stop="showInfo('disableSleepTimerFadeOut')">info</span>
+      <span tabindex="0" class="material-symbols text-xl ml-2 cursor-pointer" @click.stop="showInfo('disableSleepTimerFadeOut')" @keydown.enter.prevent.stop="showInfo('disableSleepTimerFadeOut')">info</span>
     </div>
     <template v-if="!isiOS">
       <div class="flex items-center py-3">
@@ -98,21 +98,21 @@
           <ui-toggle-switch v-model="settings.disableSleepTimerResetFeedback" @input="saveSettings" />
         </div>
         <p class="pl-4">{{ $strings.LabelDisableVibrateOnReset }}</p>
-        <span class="material-symbols text-xl ml-2" @click.stop="showInfo('disableSleepTimerResetFeedback')">info</span>
+        <span tabindex="0" class="material-symbols text-xl ml-2 cursor-pointer" @click.stop="showInfo('disableSleepTimerResetFeedback')" @keydown.enter.prevent.stop="showInfo('disableSleepTimerResetFeedback')">info</span>
       </div>
       <div class="flex items-center py-3">
         <div class="w-10 flex justify-center" @click="toggleSleepTimerAlmostDoneChime">
           <ui-toggle-switch v-model="settings.enableSleepTimerAlmostDoneChime" @input="saveSettings" />
         </div>
         <p class="pl-4">{{ $strings.LabelSleepTimerAlmostDoneChime }}</p>
-        <span class="material-symbols text-xl ml-2" @click.stop="showInfo('enableSleepTimerAlmostDoneChime')">info</span>
+        <span tabindex="0" class="material-symbols text-xl ml-2 cursor-pointer" @click.stop="showInfo('enableSleepTimerAlmostDoneChime')" @keydown.enter.prevent.stop="showInfo('enableSleepTimerAlmostDoneChime')">info</span>
       </div>
       <div class="flex items-center py-3">
         <div class="w-10 flex justify-center" @click="toggleAutoSleepTimer">
           <ui-toggle-switch v-model="settings.autoSleepTimer" @input="saveSettings" />
         </div>
         <p class="pl-4">{{ $strings.LabelAutoSleepTimer }}</p>
-        <span class="material-symbols text-xl ml-2" @click.stop="showInfo('autoSleepTimer')">info</span>
+        <span tabindex="0" class="material-symbols text-xl ml-2 cursor-pointer" @click.stop="showInfo('autoSleepTimer')" @keydown.enter.prevent.stop="showInfo('autoSleepTimer')">info</span>
       </div>
     </template>
     <!-- Auto Sleep timer settings -->
@@ -126,7 +126,7 @@
     </div>
     <div v-if="settings.autoSleepTimer" class="py-3 flex items-center">
       <p class="pr-4 w-36">{{ $strings.LabelSleepTimer }}</p>
-      <div @click.stop="showSleepTimerOptions">
+      <div tabindex="0" class="settings-dropdown" @click.stop="showSleepTimerOptions" @keydown.enter.prevent.stop="showSleepTimerOptions">
         <ui-text-input :value="sleepTimerLengthOption" readonly append-icon="expand_more" style="width: 145px; max-width: 145px" />
       </div>
     </div>
@@ -135,11 +135,11 @@
         <ui-toggle-switch v-model="settings.autoSleepTimerAutoRewind" @input="saveSettings" />
       </div>
       <p class="pl-4">{{ $strings.LabelAutoSleepTimerAutoRewind }}</p>
-      <span class="material-symbols text-xl ml-2" @click.stop="showInfo('autoSleepTimerAutoRewind')">info</span>
+      <span tabindex="0" class="material-symbols text-xl ml-2 cursor-pointer" @click.stop="showInfo('autoSleepTimerAutoRewind')" @keydown.enter.prevent.stop="showInfo('autoSleepTimerAutoRewind')">info</span>
     </div>
     <div v-if="settings.autoSleepTimerAutoRewind" class="py-3 flex items-center">
       <p class="pr-4 w-36">{{ $strings.LabelAutoRewindTime }}</p>
-      <div @click.stop="showAutoSleepTimerRewindOptions">
+      <div tabindex="0" class="settings-dropdown" @click.stop="showAutoSleepTimerRewindOptions" @keydown.enter.prevent.stop="showAutoSleepTimerRewindOptions">
         <ui-text-input :value="autoSleepTimerRewindLengthOption" readonly append-icon="expand_more" style="width: 145px; max-width: 145px" />
       </div>
     </div>
@@ -148,13 +148,13 @@
     <p class="uppercase text-xs font-semibold text-fg-muted mb-2 mt-10">{{ $strings.HeaderDataSettings }}</p>
     <div class="py-3 flex items-center">
       <p class="pr-4 w-36">{{ $strings.LabelDownloadUsingCellular }}</p>
-      <div @click.stop="showDownloadUsingCellularOptions">
+      <div tabindex="0" class="settings-dropdown" @click.stop="showDownloadUsingCellularOptions" @keydown.enter.prevent.stop="showDownloadUsingCellularOptions">
         <ui-text-input :value="downloadUsingCellularOption" readonly append-icon="expand_more" style="max-width: 200px" />
       </div>
     </div>
     <div class="py-3 flex items-center">
       <p class="pr-4 w-36">{{ $strings.LabelStreamingUsingCellular }}</p>
-      <div @click.stop="showStreamingUsingCellularOptions">
+      <div tabindex="0" class="settings-dropdown" @click.stop="showStreamingUsingCellularOptions" @keydown.enter.prevent.stop="showStreamingUsingCellularOptions">
         <ui-text-input :value="streamingUsingCellularOption" readonly append-icon="expand_more" style="max-width: 200px" />
       </div>
     </div>
@@ -165,11 +165,11 @@
       <div class="py-3 flex items-center">
         <p class="pr-4 w-36">{{ $strings.LabelAndroidAutoBrowseLimitForGrouping }}</p>
         <ui-text-input type="number" v-model="settings.androidAutoBrowseLimitForGrouping" style="width: 145px; max-width: 145px" @input="androidAutoBrowseLimitForGroupingUpdated" />
-        <span class="material-symbols text-xl ml-2" @click.stop="showInfo('androidAutoBrowseLimitForGrouping')">info</span>
+        <span tabindex="0" class="material-symbols text-xl ml-2 cursor-pointer" @click.stop="showInfo('androidAutoBrowseLimitForGrouping')" @keydown.enter.prevent.stop="showInfo('androidAutoBrowseLimitForGrouping')">info</span>
       </div>
       <div class="py-3 flex items-center">
         <p class="pr-4 w-36">{{ $strings.LabelAndroidAutoBrowseSeriesSequenceOrder }}</p>
-        <div @click.stop="showAndroidAutoBrowseSeriesSequenceOrderOptions">
+        <div tabindex="0" class="settings-dropdown" @click.stop="showAndroidAutoBrowseSeriesSequenceOrderOptions" @keydown.enter.prevent.stop="showAndroidAutoBrowseSeriesSequenceOrderOptions">
           <ui-text-input :value="androidAutoBrowseSeriesSequenceOrderOption" readonly append-icon="expand_more" style="max-width: 200px" />
         </div>
       </div>
