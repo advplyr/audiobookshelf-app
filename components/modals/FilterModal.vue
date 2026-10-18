@@ -50,7 +50,12 @@
 export default {
   props: {
     value: Boolean,
-    filterBy: String
+    filterBy: String,
+    /** 'books' | 'series' | 'collections' — series/collections omit series-of-series style filters */
+    filterContext: {
+      type: String,
+      default: 'books'
+    }
   },
   data() {
     return {
@@ -153,6 +158,59 @@ export default {
 
       return items
     },
+    seriesStyleItems() {
+      const items = [
+        {
+          text: this.$strings.LabelAll,
+          value: 'all'
+        },
+        {
+          text: this.$strings.LabelGenre,
+          value: 'genres',
+          sublist: true
+        },
+        {
+          text: this.$strings.LabelTag,
+          value: 'tags',
+          sublist: true
+        },
+        {
+          text: this.$strings.LabelAuthor,
+          value: 'authors',
+          sublist: true
+        },
+        {
+          text: this.$strings.LabelNarrator,
+          value: 'narrators',
+          sublist: true
+        },
+        {
+          text: this.$strings.LabelPublisher,
+          value: 'publishers',
+          sublist: true
+        },
+        {
+          text: this.$strings.LabelLanguage,
+          value: 'languages',
+          sublist: true
+        },
+        {
+          text: this.filterContext === 'series' ? this.$strings.LabelSeriesProgress : this.$strings.LabelProgress,
+          value: 'progress',
+          sublist: true
+        }
+      ]
+
+      if (this.userCanAccessExplicitContent) {
+        items.push({
+          text: this.$strings.LabelExplicit,
+          value: 'explicit',
+          sublist: false
+        })
+      }
+
+      return items
+    },
     podcastItems() {
       const items = [
         {
@@ -190,8 +248,12 @@ export default {
       return this.$store.getters['libraries/getCurrentLibraryMediaType'] === 'podcast'
     },
     items() {
+      if (this.filterContext === 'series' || this.filterContext === 'collections') return this.seriesStyleItems
       if (this.isPodcast) return this.podcastItems
       return this.bookItems
+    },
+    publishers() {
+      return this.filterData.publishers || []
     },
     selectedItemSublist() {
       return this.selected && this.selected.includes('.') ? this.selected.split('.')[0] : false
