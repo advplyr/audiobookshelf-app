@@ -89,6 +89,9 @@ object DeviceManager {
       deviceData.deviceSettings?.androidAutoBrowseSeriesSequenceOrder =
               AndroidAutoBrowseSeriesSequenceOrderSetting.ASC
     }
+    if (deviceData.deviceSettings?.autoResumeAfterCarDisconnect == null) {
+      deviceData.deviceSettings?.autoResumeAfterCarDisconnect = true
+    }
   }
 
   /**
