@@ -527,12 +527,14 @@ export default {
       if (this.playerIsStartingPlayback) return
 
       if (this.isPodcast) {
+        // Sort by numeric publishedAt; serial podcasts play oldest-first,
+        // others newest-first. Numeric comparison is required so pre-1970
+        // negative ms epochs aren't misordered as ASCII strings.
+        const factor = this.podcastType === 'serial' ? 1 : -1
         this.episodes.sort((a, b) => {
-          if (this.podcastType === 'serial') {
-            return String(a.publishedAt).localeCompare(String(b.publishedAt), undefined, { numeric: true, sensitivity: 'base' })
-          } else {
-            return String(b.publishedAt).localeCompare(String(a.publishedAt), undefined, { numeric: true, sensitivity: 'base' })
-          }
+          const av = a.publishedAt == null ? Number.NEGATIVE_INFINITY : Number(a.publishedAt)
+          const bv = b.publishedAt == null ? Number.NEGATIVE_INFINITY : Number(b.publishedAt)
+          return factor * (av < bv ? -1 : av > bv ? 1 : 0)
         })
 
         let episode = this.episodes.find((ep) => {
