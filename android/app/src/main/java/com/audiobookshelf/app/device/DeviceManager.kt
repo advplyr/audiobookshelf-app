@@ -69,6 +69,10 @@ object DeviceManager {
     if (deviceData.deviceSettings?.enableSleepTimerAlmostDoneChime == null) {
       deviceData.deviceSettings?.enableSleepTimerAlmostDoneChime = false
     }
+    // Initialize audio ducking setting
+    if (deviceData.deviceSettings?.enableAudioDucking == null) {
+      deviceData.deviceSettings?.enableAudioDucking = false
+    }
 
     // Language added in v0.9.69
     if (deviceData.deviceSettings?.languageCode == null) {
