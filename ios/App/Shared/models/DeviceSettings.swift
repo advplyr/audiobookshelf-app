@@ -14,6 +14,9 @@ class DeviceSettings: Object {
     @Persisted var allowSeekingOnMediaControls: Bool = false
     @Persisted var jumpBackwardsTime: Int = 10
     @Persisted var jumpForwardTime: Int = 10
+    @Persisted var longJumpBackwardsTime: Int = 60
+    @Persisted var longJumpForwardTime: Int = 60
+    @Persisted var fullscreenOuterControls: String = "CHAPTERS"
     @Persisted var lockOrientation: String = "NONE"
     @Persisted var hapticFeedback: String = "LIGHT"
     @Persisted var languageCode: String = "en-us"
@@ -33,6 +36,9 @@ func deviceSettingsToJSON(settings: DeviceSettings) -> Dictionary<String, Any> {
         "allowSeekingOnMediaControls": settings.allowSeekingOnMediaControls,
         "jumpBackwardsTime": settings.jumpBackwardsTime,
         "jumpForwardTime": settings.jumpForwardTime,
+        "longJumpBackwardsTime": settings.longJumpBackwardsTime,
+        "longJumpForwardTime": settings.longJumpForwardTime,
+        "fullscreenOuterControls": settings.fullscreenOuterControls,
         "lockOrientation": settings.lockOrientation,
         "hapticFeedback": settings.hapticFeedback,
         "languageCode": settings.languageCode,

@@ -84,8 +84,12 @@
 
       <!-- Playback controls - jump buttons, play/pause, chapter navigation -->
       <div id="playerControls" class="absolute right-0 bottom-0 mx-auto" style="max-width: 414px">
-        <div class="flex items-center max-w-full" :class="playerSettings.lockUi ? 'justify-center' : 'justify-between'">
-          <span v-show="showFullscreen && !playerSettings.lockUi" class="material-symbols next-icon text-fg cursor-pointer" :class="showLoadingState ? 'text-opacity-10' : 'text-opacity-75'" @click.stop="jumpChapterStart">first_page</span>
+        <div class="flex items-center max-w-full" :class="playerSettings.lockUi || (showFullscreen && fullscreenOuterControls === 'HIDDEN') ? 'justify-center' : 'justify-between'">
+          <span v-if="showFullscreen && !playerSettings.lockUi && fullscreenOuterControls === 'CHAPTERS'" class="material-symbols next-icon text-fg cursor-pointer" :class="showLoadingState ? 'text-opacity-10' : 'text-opacity-75'" @click.stop="jumpChapterStart">first_page</span>
+          <div v-if="showFullscreen && !playerSettings.lockUi && fullscreenOuterControls === 'LONG_JUMPS'" class="jump-icon text-fg cursor-pointer flex flex-col items-center" :class="showLoadingState ? 'text-opacity-10' : 'text-opacity-75'" @click.stop="longJumpBackwards">
+            <span class="material-symbols text-3xl leading-none">fast_rewind</span>
+            <span class="jump-label text-[10px] font-semibold leading-tight">{{ longJumpBackwardsLabel }}</span>
+          </div>
           <div v-show="!playerSettings.lockUi" class="jump-icon text-fg cursor-pointer flex flex-col items-center" :class="showLoadingState ? 'text-opacity-10' : 'text-opacity-75'" @click.stop="jumpBackwards">
             <span class="material-symbols text-3xl leading-none">replay</span>
             <span v-if="showFullscreen" class="jump-label text-[10px] font-semibold leading-tight">{{ jumpBackwardsLabel }}</span>
@@ -100,7 +104,11 @@
             <span class="material-symbols text-3xl leading-none">forward_media</span>
             <span v-if="showFullscreen" class="jump-label text-[10px] font-semibold leading-tight">{{ jumpForwardLabel }}</span>
           </div>
-          <span v-show="showFullscreen && !playerSettings.lockUi" class="material-symbols next-icon text-fg cursor-pointer" :class="nextChapter && !showLoadingState ? 'text-opacity-75' : 'text-opacity-10'" @click.stop="jumpNextChapter">last_page</span>
+          <div v-if="showFullscreen && !playerSettings.lockUi && fullscreenOuterControls === 'LONG_JUMPS'" class="jump-icon text-fg cursor-pointer flex flex-col items-center" :class="showLoadingState ? 'text-opacity-10' : 'text-opacity-75'" @click.stop="longJumpForward">
+            <span class="material-symbols text-3xl leading-none">fast_forward</span>
+            <span class="jump-label text-[10px] font-semibold leading-tight">{{ longJumpForwardLabel }}</span>
+          </div>
+          <span v-if="showFullscreen && !playerSettings.lockUi && fullscreenOuterControls === 'CHAPTERS'" class="material-symbols next-icon text-fg cursor-pointer" :class="nextChapter && !showLoadingState ? 'text-opacity-75' : 'text-opacity-10'" @click.stop="jumpNextChapter">last_page</span>
         </div>
       </div>
 
@@ -255,11 +263,26 @@ export default {
     jumpBackwardsLabel() {
       return this.getJumpLabel(this.jumpBackwardsTime)
     },
+    longJumpForwardLabel() {
+      return this.getJumpLabel(this.longJumpForwardTime)
+    },
+    longJumpBackwardsLabel() {
+      return this.getJumpLabel(this.longJumpBackwardsTime)
+    },
     jumpForwardTime() {
       return this.$store.getters['getJumpForwardTime']
     },
     jumpBackwardsTime() {
       return this.$store.getters['getJumpBackwardsTime']
+    },
+    longJumpForwardTime() {
+      return this.$store.getters['getLongJumpForwardTime']
+    },
+    longJumpBackwardsTime() {
+      return this.$store.getters['getLongJumpBackwardsTime']
+    },
+    fullscreenOuterControls() {
+      return this.$store.getters['getFullscreenOuterControls']
     },
     bookCoverAspectRatio() {
       return this.$store.getters['libraries/getBookCoverAspectRatio']
@@ -523,6 +546,16 @@ export default {
       await this.$hapticsImpact()
       if (this.showLoadingState) return
       AbsAudioPlayer.seekForward({ value: this.jumpForwardTime })
+    },
+    async longJumpBackwards() {
+      await this.$hapticsImpact()
+      if (this.showLoadingState) return
+      AbsAudioPlayer.seekBackward({ value: this.longJumpBackwardsTime })
+    },
+    async longJumpForward() {
+      await this.$hapticsImpact()
+      if (this.showLoadingState) return
+      AbsAudioPlayer.seekForward({ value: this.longJumpForwardTime })
     },
     setStreamReady() {
       this.readyTrackWidth = this.trackWidth
