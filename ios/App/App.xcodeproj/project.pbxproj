@@ -37,6 +37,7 @@
 		50B271D11FEDC1A000F3C39B /* public in Resources */ = {isa = PBXBuildFile; fileRef = 50B271D01FEDC1A000F3C39B /* public */; };
 		65643F4DAA661FB0B247247E /* Pods_Audiobookshelf.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 8F9A7CCC479333E44DC314BE /* Pods_Audiobookshelf.framework */; };
 		6F2516272E68DA3000F40541 /* LogEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F2516262E68DA3000F40541 /* LogEntry.swift */; };
+		9DB79F612401E6EB7586319F /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58E3DB573305C7801C33F33D /* SceneDelegate.swift */; };
 		E9D5504628AC1A3900C746DD /* LibraryItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9D5504528AC1A3900C746DD /* LibraryItem.swift */; };
 		E9D5504828AC1A7A00C746DD /* MediaType.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9D5504728AC1A7A00C746DD /* MediaType.swift */; };
 		E9D5504A28AC1AA600C746DD /* Metadata.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9D5504928AC1AA600C746DD /* Metadata.swift */; };
@@ -112,6 +113,7 @@
 		504EC3111FED79650016851F /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		504EC3131FED79650016851F /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		50B271D01FEDC1A000F3C39B /* public */ = {isa = PBXFileReference; lastKnownFileType = folder; path = public; sourceTree = "<group>"; };
+		58E3DB573305C7801C33F33D /* SceneDelegate.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = SceneDelegate.swift; sourceTree = "<group>"; };
 		6F2516262E68DA3000F40541 /* LogEntry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogEntry.swift; sourceTree = "<group>"; };
 		8F9A7CCC479333E44DC314BE /* Pods_Audiobookshelf.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_Audiobookshelf.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		BE96D57E131924D520D57057 /* Pods-Audiobookshelf.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Audiobookshelf.debug.xcconfig"; path = "Target Support Files/Pods-Audiobookshelf/Pods-Audiobookshelf.debug.xcconfig"; sourceTree = "<group>"; };
@@ -292,6 +294,7 @@
 				50B271D01FEDC1A000F3C39B /* public */,
 				4D8D412C26E187E400BA5F0D /* App-Bridging-Header.h */,
 				4DFE2DA22D345C390000B204 /* MyViewController.swift */,
+				58E3DB573305C7801C33F33D /* SceneDelegate.swift */,
 			);
 			path = App;
 			sourceTree = "<group>";
@@ -579,6 +582,7 @@
 				E9E8814A28DA644F00D750C1 /* PlayerTimeUtils.swift in Sources */,
 				3AB34055280832720039308B /* PlayerEvents.swift in Sources */,
 				E9D5506C28AC1E2100C746DD /* LocalMediaProgress.swift in Sources */,
+				9DB79F612401E6EB7586319F /* SceneDelegate.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
