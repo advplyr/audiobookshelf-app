@@ -1,6 +1,7 @@
 import UIKit
 import Capacitor
 import RealmSwift
+import WebKit
 
 @UIApplicationMain
 class AppDelegate: UIResponder, UIApplicationDelegate {
@@ -10,6 +11,13 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
         // Override point for customization after application launch.
+
+        // The WebView's disk cache survives app reinstalls, so a stale cached
+        // index.html can keep serving the previous web bundle forever
+        WKWebsiteDataStore.default().removeData(
+            ofTypes: [WKWebsiteDataTypeDiskCache, WKWebsiteDataTypeMemoryCache],
+            modifiedSince: .distantPast
+        ) { }
 
         let configuration = Realm.Configuration(
             schemaVersion: 21,
