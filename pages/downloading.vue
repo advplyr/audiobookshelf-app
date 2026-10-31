@@ -12,6 +12,9 @@
           </div>
           <div class="flex-grow px-2">
             <p class="break-all">{{ itemPart.filename }}</p>
+            <p class="text-xs text-fg-muted">
+              {{ $bytesPretty(itemPart.bytesDownloaded, 1) }} / {{ $bytesPretty(itemPart.fileSize, 1) }}<template v-if="!itemPart.completed && itemPart.downloadSpeed > 0"> @ {{ $bytesPretty(itemPart.downloadSpeed, 1) }}/s</template>
+            </p>
           </div>
         </div>
 

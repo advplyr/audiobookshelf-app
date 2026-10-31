@@ -34,7 +34,8 @@ public class AbsDownloader: CAPPlugin, CAPBridgedPlugin, URLSessionDownloadDeleg
     private var pendingDownloadTasks: [DownloadItemPartTask] = []
     private var activeDownloadTasks: Set<String> = [] // Track active task IDs
     private let maxConcurrentDownloads = 3
-    
+    private var speedTrackers: [String: DownloadSpeedTracker] = [:]
+
     
     // MARK: - Download Queue Management
 
@@ -54,10 +55,26 @@ public class AbsDownloader: CAPPlugin, CAPBridgedPlugin, URLSessionDownloadDeleg
     private func markDownloadTaskCompleted(_ taskId: String) {
         downloadQueueLock.lock()
         activeDownloadTasks.remove(taskId)
+        speedTrackers.removeValue(forKey: taskId)
         downloadQueueLock.unlock()
 
         // Try to start the next download
         startNextDownloadInQueue()
+    }
+
+    // Smoothed bytes/sec from the deltas between progress updates
+    private func recordDownloadSpeed(partId: String, bytesWritten: Double) {
+        downloadQueueLock.lock()
+        defer { downloadQueueLock.unlock() }
+        var tracker = speedTrackers[partId] ?? DownloadSpeedTracker()
+        tracker.record(totalBytes: bytesWritten, at: Date().timeIntervalSinceReferenceDate)
+        speedTrackers[partId] = tracker
+    }
+
+    private func currentDownloadSpeed(forPart partId: String) -> Double {
+        downloadQueueLock.lock()
+        defer { downloadQueueLock.unlock() }
+        return speedTrackers[partId]?.bytesPerSecond ?? 0
     }
 
 
@@ -126,6 +143,9 @@ public class AbsDownloader: CAPPlugin, CAPBridgedPlugin, URLSessionDownloadDeleg
     }
     
     public func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didWriteData bytesWritten: Int64, totalBytesWritten: Int64, totalBytesExpectedToWrite: Int64) {
+        if let partId = downloadTask.taskDescription {
+            recordDownloadSpeed(partId: partId, bytesWritten: Double(totalBytesWritten))
+        }
         handleDownloadTaskUpdate(downloadTask: downloadTask) { downloadItem, downloadItemPart in
             // Calculate the download percentage
             let percentDownloaded = (Double(totalBytesWritten) / Double(totalBytesExpectedToWrite)) * 100
@@ -176,7 +196,10 @@ public class AbsDownloader: CAPPlugin, CAPBridgedPlugin, URLSessionDownloadDeleg
             // Call the progress handler
             do {
                 try progressHandler(downloadItem, part)
-                try? self.notifyListeners("onDownloadItemPartUpdate", data: part.asDictionary())
+                if var data = try? part.asDictionary() {
+                    data["downloadSpeed"] = self.currentDownloadSpeed(forPart: part.id)
+                    self.notifyListeners("onDownloadItemPartUpdate", data: data)
+                }
             } catch {
                 AbsLogger.error(message: "Error while processing progress")
                 debugPrint(error)
