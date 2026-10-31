@@ -14,7 +14,8 @@ public class AbsDownloader: CAPPlugin, CAPBridgedPlugin, URLSessionDownloadDeleg
     public var identifier = "AbsDownloaderPlugin"
     public var jsName = "AbsDownloader"
     public let pluginMethods: [CAPPluginMethod] = [
-        CAPPluginMethod(name: "downloadLibraryItem", returnType: CAPPluginReturnPromise)
+        CAPPluginMethod(name: "downloadLibraryItem", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "getActiveDownloadItems", returnType: CAPPluginReturnPromise)
     ]
     
     static private let downloadsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
@@ -284,7 +285,39 @@ public class AbsDownloader: CAPPlugin, CAPBridgedPlugin, URLSessionDownloadDeleg
     
     
     // MARK: - Capacitor functions
-    
+
+    // Returns download items that are still in progress with live session tasks,
+    // so the UI can restore its download list after an app relaunch
+    @objc func getActiveDownloadItems(_ call: CAPPluginCall) {
+        session.getTasksWithCompletionHandler { _, _, downloadTasks in
+            let livePartIds = Set(downloadTasks.compactMap { $0.taskDescription })
+            do {
+                let realm = try Realm()
+                let allItems = realm.objects(DownloadItem.self)
+                let activeItems = allItems.filter { item in
+                    !item.isDoneDownloading() && item.downloadItemParts.contains { livePartIds.contains($0.id) }
+                }
+                // The media payload is large and unnecessary for restoring the UI;
+                // big payloads were getting the bridge callback dropped entirely
+                let payload: [[String: Any]] = activeItems.compactMap { item in
+                    var dict = try? item.asDictionary()
+                    dict?.removeValue(forKey: "media")
+                    dict?.removeValue(forKey: "userMediaProgress")
+                    return dict
+                }
+                let jsonString = (try? String(data: JSONSerialization.data(withJSONObject: payload), encoding: .utf8)) ?? "[]"
+                AbsLogger.info(message: "getActiveDownloadItems: \(downloadTasks.count) session tasks, \(allItems.count) stored items, \(activeItems.count) active, json \(jsonString.count) chars")
+                DispatchQueue.main.async {
+                    call.resolve(["downloadItemsJson": jsonString])
+                }
+            } catch {
+                AbsLogger.error(message: "Failed to fetch active download items")
+                debugPrint(error)
+                call.resolve(["downloadItemsJson": "[]"])
+            }
+        }
+    }
+
     @objc func downloadLibraryItem(_ call: CAPPluginCall) {
         let libraryItemId = call.getString("libraryItemId")
         var episodeId = call.getString("episodeId")

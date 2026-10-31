@@ -13,7 +13,8 @@ export default {
       downloadItemListener: null,
       completeListener: null,
       itemPartUpdateListener: null,
-      queueChangedListener: null
+      queueChangedListener: null,
+      restoringDownloads: false
     }
   },
   computed: {
@@ -77,6 +78,23 @@ export default {
     },
     onDownloadItemPartUpdate(itemPart) {
       this.$store.commit('globals/updateDownloadItemPart', itemPart)
+      // Progress arrived for an item the store doesn't know about (e.g. app was
+      // relaunched mid-download): pull the active downloads from native
+      if (this.isIos && !this.downloadItems.some((i) => i.id === itemPart.downloadItemId)) {
+        this.restoreActiveDownloads()
+      }
+    },
+    async restoreActiveDownloads() {
+      if (this.restoringDownloads) return
+      this.restoringDownloads = true
+      try {
+        const result = await AbsDownloader.getActiveDownloadItems()
+        const items = result && result.downloadItemsJson ? JSON.parse(result.downloadItemsJson) : []
+        items.forEach((downloadItem) => this.onDownloadItem(downloadItem))
+      } catch (e) {
+        console.error('Failed to restore active downloads', e)
+      }
+      this.restoringDownloads = false
     },
     onQueueChanged(data) {
       if (!data.hasWork) this.$store.commit('globals/clearItemDownloads')
@@ -87,12 +105,23 @@ export default {
     this.itemPartUpdateListener = await AbsDownloader.addListener('onDownloadItemPartUpdate', (data) => this.onDownloadItemPartUpdate(data))
     this.queueChangedListener = await AbsDownloader.addListener('onQueueChanged', (data) => this.onQueueChanged(data))
     this.completeListener = await AbsDownloader.addListener('onItemDownloadComplete', (data) => this.onItemDownloadComplete(data))
+
+    // Restore downloads still running natively (they survive app relaunches).
+    // Retried because a background URLSession reconstitutes its tasks
+    // asynchronously after launch and early queries can come back empty.
+    if (this.isIos) {
+      this.restoreActiveDownloads()
+      this.restoreTimers = [2000, 6000, 15000].map((delay) => setTimeout(() => {
+        if (!this.downloadItems.length) this.restoreActiveDownloads()
+      }, delay))
+    }
   },
   beforeDestroy() {
     this.downloadItemListener?.remove()
     this.completeListener?.remove()
     this.itemPartUpdateListener?.remove()
     this.queueChangedListener?.remove()
+    this.restoreTimers?.forEach((t) => clearTimeout(t))
   }
 }
 </script>
