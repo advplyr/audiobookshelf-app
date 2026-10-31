@@ -14,7 +14,8 @@ public class AbsDownloader: CAPPlugin, CAPBridgedPlugin, URLSessionDownloadDeleg
     public var identifier = "AbsDownloaderPlugin"
     public var jsName = "AbsDownloader"
     public let pluginMethods: [CAPPluginMethod] = [
-        CAPPluginMethod(name: "downloadLibraryItem", returnType: CAPPluginReturnPromise)
+        CAPPluginMethod(name: "downloadLibraryItem", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "cancelDownloadItem", returnType: CAPPluginReturnPromise)
     ]
     
     static private let downloadsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
@@ -101,6 +102,14 @@ public class AbsDownloader: CAPPlugin, CAPBridgedPlugin, URLSessionDownloadDeleg
     }
     
     public func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
+        // User-initiated cancels are not failures; the item has already been deleted
+        if (error as NSError?)?.code == NSURLErrorCancelled {
+            if let taskId = task.taskDescription {
+                markDownloadTaskCompleted(taskId)
+            }
+            return
+        }
+
         handleDownloadTaskUpdate(downloadTask: task) { downloadItem, downloadItemPart in
             if let error = error {
                 let realm = try Realm()
@@ -284,7 +293,48 @@ public class AbsDownloader: CAPPlugin, CAPBridgedPlugin, URLSessionDownloadDeleg
     
     
     // MARK: - Capacitor functions
-    
+
+    @objc func cancelDownloadItem(_ call: CAPPluginCall) {
+        guard let downloadItemId = call.getString("downloadItemId") else {
+            return call.resolve(["error": "downloadItemId not specified"])
+        }
+        guard let downloadItem = Database.shared.getDownloadItem(downloadItemId: downloadItemId) else {
+            return call.resolve(["error": "Download item not found"])
+        }
+
+        let partIds = Set(downloadItem.downloadItemParts.map { $0.id })
+        let libraryItemId = downloadItem.libraryItemId ?? ""
+        AbsLogger.info(message: "Cancelling download for \(downloadItem.itemTitle ?? downloadItemId)")
+
+        // Remove from the progress monitor first so it never emits a failure
+        // notification for a user-cancelled item
+        progressStatusQueue.sync(flags: .barrier) {
+            self.downloadItemProgress.removeValue(forKey: downloadItemId)
+        }
+
+        // Drop queued and active tasks for this item
+        downloadQueueLock.lock()
+        pendingDownloadTasks.removeAll { partIds.contains($0.partId) }
+        activeDownloadTasks.subtract(partIds)
+        downloadQueueLock.unlock()
+
+        session.getTasksWithCompletionHandler { _, _, downloadTasks in
+            for task in downloadTasks where partIds.contains(task.taskDescription ?? "") {
+                task.cancel()
+            }
+            call.resolve()
+        }
+
+        // Remove partial files unless a local library item already lives in that folder
+        let localItemExists = Database.shared.getLocalLibraryItem(byServerLibraryItemId: libraryItemId) != nil
+        try? downloadItem.delete()
+        if !localItemExists && !libraryItemId.isEmpty {
+            let itemFolder = AbsDownloader.downloadsDirectory.appendingPathComponent(libraryItemId)
+            try? FileManager.default.removeItem(at: itemFolder)
+        }
+
+    }
+
     @objc func downloadLibraryItem(_ call: CAPPluginCall) {
         let libraryItemId = call.getString("libraryItemId")
         var episodeId = call.getString("episodeId")
