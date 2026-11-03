@@ -5,6 +5,7 @@ import enUsStrings from '../strings/en-us.json'
 
 const defaultCode = 'en-us'
 let $localStore = null
+let $eventBus = null
 
 const languageCodeMap = {
   ar: { label: 'عربي', dateFnsLocale: 'ar' },
@@ -22,6 +23,7 @@ const languageCodeMap = {
   he: { label: 'עברית', dateFnsLocale: 'he' },
   hr: { label: 'Hrvatski', dateFnsLocale: 'hr' },
   it: { label: 'Italiano', dateFnsLocale: 'it' },
+  ja: { label: '日本語', dateFnsLocale: 'ja' },
   lt: { label: 'Lietuvių', dateFnsLocale: 'lt' },
   hu: { label: 'Magyar', dateFnsLocale: 'hu' },
   ko: { label: '한국어', dateFnsLocale: 'ko' },
@@ -134,7 +136,7 @@ async function loadi18n(code) {
   Vue.prototype.$setDateFnsLocale(languageCodeMap[code].dateFnsLocale)
   syncDownloadNotificationStrings()
 
-  this.$eventBus.$emit('change-lang', code)
+  $eventBus.$emit('change-lang', code)
   return true
 }
 
@@ -170,5 +172,6 @@ async function initialize() {
 
 export default ({ app, store }, inject) => {
   $localStore = app.$localStore
+  $eventBus = app.$eventBus
   initialize().finally(syncDownloadNotificationStrings)
 }
