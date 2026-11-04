@@ -188,7 +188,7 @@ public class AbsDownloader: CAPPlugin, CAPBridgedPlugin, URLSessionDownloadDeleg
     // progress map update for each part. Called from the progress monitor timer and
     // before a download task completes, so per-chunk callbacks never touch Realm.
     private func flushPendingDownloadProgress() {
-        let pendingProgress = progressStatusQueue.sync {
+        let pendingProgress = progressStatusQueue.sync(flags: .barrier) {
             progressCoalescer.drain()
         }
         guard !pendingProgress.isEmpty else { return }
