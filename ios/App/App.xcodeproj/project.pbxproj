@@ -797,6 +797,7 @@
 		};
 		E9E8814028DA5DE500D750C1 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = BE96D57E131924D520D57057 /* Pods-Audiobookshelf.debug.xcconfig */;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
@@ -819,6 +820,7 @@
 		};
 		E9E8814128DA5DE500D750C1 /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = D2F7F575384A63F1C47DE984 /* Pods-Audiobookshelf.release.xcconfig */;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
