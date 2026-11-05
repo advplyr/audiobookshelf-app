@@ -3,6 +3,7 @@
   "version": "0.14.2-beta",
   "author": "advplyr",
   "scripts": {
+    "test": "node --test tests/*.test.cjs",
     "dev": "nuxt --hostname 0.0.0.0 --port 1337",
     "build": "nuxt build",
     "start": "nuxt --hostname 0.0.0.0 --port 1337",

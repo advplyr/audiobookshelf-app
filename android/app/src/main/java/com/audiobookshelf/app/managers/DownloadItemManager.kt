@@ -76,16 +76,7 @@ class DownloadItemManager(
   fun restoreQueue() {
     if (downloadItemQueue.isNotEmpty()) return
     DeviceManager.dbManager.getDownloadItems().forEach { item ->
-      item.downloadItemParts.filter { it.moved }.forEach { part ->
-        if (!finalizedFileExists(part)) {
-          AbsLogger.error(tag, "Finalized file is missing; resetting ${part.filename}")
-          part.moved = false
-          part.completed = false
-          part.completedDestinationUri = null
-          part.downloadId = null
-          part.reusedExistingFile = false
-        }
-      }
+      reconcileFinalizedParts(item)
       if (item.isDownloadFinished) {
         downloadItemQueue.add(item)
         checkDownloadItemFinished(item)
@@ -110,6 +101,19 @@ class DownloadItemManager(
     notifyQueueChanged()
   }
 
+  private fun reconcileFinalizedParts(item: DownloadItem) {
+    item.downloadItemParts.filter { it.moved }.forEach { part ->
+      if (!finalizedFileExists(part)) {
+        AbsLogger.error(tag, "Finalized file is missing; resetting ${part.filename}")
+        part.moved = false
+        part.completed = false
+        part.completedDestinationUri = null
+        part.downloadId = null
+        part.reusedExistingFile = false
+      }
+    }
+  }
+
   @Synchronized
   fun addDownloadItem(downloadItem: DownloadItem) {
     val existingItem = downloadItemQueue.find { it.id == downloadItem.id }
@@ -125,8 +129,15 @@ class DownloadItemManager(
   @Synchronized
   fun retryDownloadItem(downloadItemId: String): Boolean {
     val item = downloadItemQueue.find { it.id == downloadItemId } ?: return false
+    if (item.id in finalizingItems) return false
+    if (item.isDownloadFinished) {
+      reconcileFinalizedParts(item)
+      if (item.isDownloadFinished) {
+        checkDownloadItemFinished(item)
+        return true
+      }
+    }
     if (item.downloadItemParts.any { it in currentDownloadItemParts }) return false
-    if (item.isDownloadFinished) return false
     synchronized(IncompleteDownloadCleanup) {
       var resetFailed = false
       item.downloadItemParts.filter { !it.moved }.forEach { part ->
@@ -157,7 +168,8 @@ class DownloadItemManager(
   fun cancelAll() {
     activeCalls.values.forEach(InternalDownloadManager.DownloadHandle::cancel)
     activeCalls.clear()
-    downloadItemQueue.forEach { item ->
+    val cancelled = downloadItemQueue.filterNot { it.id in finalizingItems }
+    cancelled.forEach { item ->
       item.downloadItemParts.forEach { part ->
         File(part.destinationPath).delete()
         if (part.moved && !part.reusedExistingFile && part.isInternalStorage) {
@@ -180,7 +192,8 @@ class DownloadItemManager(
     }
     currentDownloadItemParts.clear()
     reservations.clear()
-    downloadItemQueue.clear()
+    downloadItemQueue.removeAll(cancelled)
+    cancelled.forEach { lastPersistTime.remove(it.id) }
     notifyQueueChanged()
   }
 
@@ -566,27 +579,48 @@ class DownloadItemManager(
       try {
         val scanLock = scanLocks.computeIfAbsent(scanDestinationKey(item)) { Any() }
         synchronized(scanLock) {
-          folderScanner.scanDownloadItem(item) { scanResult ->
-            val event =
-                    JSObject().apply {
-                      put("libraryItemId", item.id)
-                      put("localFolderId", item.localFolder.id)
-                      scanResult?.localLibraryItem?.let {
-                        put("localLibraryItem", JSObject(jacksonMapper.writeValueAsString(it)))
-                      }
-                      scanResult?.localMediaProgress?.let {
-                        put("localMediaProgress", JSObject(jacksonMapper.writeValueAsString(it)))
-                      }
-                    }
-            clientEventEmitter.onDownloadItemComplete(event)
-            synchronized(this@DownloadItemManager) {
-              downloadItemQueue.remove(item)
-              DeviceManager.dbManager.removeDownloadItem(item.id)
+          var result: FolderScanner.DownloadItemScanResult? = null
+          synchronized(DeviceManager.dbManager) {
+            folderScanner.scanDownloadItem(item) { result = it }
+            result?.let { scan ->
+              if (item.episodeId == null) DeviceManager.dbManager.saveLocalLibraryItem(scan.localLibraryItem)
+              else DeviceManager.dbManager.saveDownloadedPodcastEpisodes(scan.localLibraryItem, setOf(item.episodeId))
+              scan.localMediaProgress?.let {
+                if (!DeviceManager.dbManager.saveDownloadedProgressIfNewer(it)) scan.localMediaProgress = null
+              }
             }
           }
+          val scan = result ?: return@launch
+          val event = JSObject().apply {
+            put("libraryItemId", item.id)
+            put("localFolderId", item.localFolder.id)
+            put("localLibraryItemId", scan.localLibraryItem.id)
+            if (scan.localEpisode == null) {
+              put("localLibraryItem", JSObject(jacksonMapper.writeValueAsString(scan.localLibraryItem)))
+            } else {
+              val delta = JSObject().apply {
+                put("id", scan.localLibraryItem.id)
+                put("libraryItemId", item.libraryItemId)
+                put("folderId", item.localFolder.id)
+                put("episode", JSObject(jacksonMapper.writeValueAsString(scan.localEpisode)))
+                scan.episodeFile?.let { put("audioFile", JSObject(jacksonMapper.writeValueAsString(it))) }
+                scan.coverFile?.let { put("coverFile", JSObject(jacksonMapper.writeValueAsString(it))) }
+              }
+              put("localPodcastDelta", delta)
+            }
+            scan.localMediaProgress?.let {
+              put("localMediaProgress", JSObject(jacksonMapper.writeValueAsString(it)))
+            }
+          }
+          synchronized(this@DownloadItemManager) {
+            DeviceManager.dbManager.removeDownloadItem(item.id)
+            downloadItemQueue.remove(item)
+            lastPersistTime.remove(item.id)
+          }
+          clientEventEmitter.onDownloadItemComplete(event)
         }
       } catch (e: Exception) {
-        // The files are already in place, so leave the item queued for restoreQueue to rescan.
+        // Keep the existing durable queue row so restoration can replay the episode commit.
         AbsLogger.error(tag, "Could not finalize download item ${item.id}: ${e.message}")
       } finally {
         synchronized(this@DownloadItemManager) {

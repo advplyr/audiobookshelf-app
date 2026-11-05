@@ -1,6 +1,6 @@
 <template>
-  <div v-if="downloadItemPartsRemaining.length" @click="clickedIt">
-    <widgets-circle-progress :value="progress" :count="downloadItemPartsRemaining.length" />
+  <div v-if="remainingParts" @click="clickedIt">
+    <widgets-circle-progress :value="progress" :count="remainingParts" />
   </div>
 </template>
 
@@ -13,51 +13,48 @@ export default {
       downloadItemListener: null,
       completeListener: null,
       itemPartUpdateListener: null,
-      queueChangedListener: null
-    }
-  },
-  computed: {
-    downloadItems() {
-      return this.$store.state.globals.itemDownloads
-    },
-    downloadItemParts() {
-      let parts = []
-      this.downloadItems.forEach((di) => parts.push(...di.downloadItemParts))
-      return parts
-    },
-    downloadItemPartsRemaining() {
-      return this.downloadItemParts.filter((dip) => !dip.completed)
-    },
-    progress() {
-      let totalBytes = 0
-      let totalBytesDownloaded = 0
-      this.downloadItemParts.forEach((dip) => {
-        totalBytes += dip.fileSize
-        totalBytesDownloaded += dip.bytesDownloaded
-      })
-
-      if (!totalBytes) return 0
-      return Math.min(1, totalBytesDownloaded / totalBytes)
-    },
-    isIos() {
-      return this.$platform === 'ios'
+      queueChangedListener: null,
+      remainingParts: 0,
+      progress: 0,
+      progressTimer: null
     }
   },
   methods: {
+    // Combine frequent native events into one queue-total calculation per 250 ms; store updates stay immediate.
+    scheduleProgressUpdate() {
+      if (this.progressTimer !== null) return
+      this.progressTimer = setTimeout(() => {
+        this.progressTimer = null
+        let totalBytes = 0
+        let downloadedBytes = 0
+        let remainingParts = 0
+        for (const item of this.$store.state.globals.itemDownloads) {
+          for (const part of item.downloadItemParts) {
+            totalBytes += Number(part.fileSize)
+            downloadedBytes += Number(part.bytesDownloaded)
+            if (!part.completed) remainingParts++
+          }
+        }
+        this.remainingParts = remainingParts
+        this.progress = totalBytes ? Math.min(1, downloadedBytes / totalBytes) : 0
+      }, 250)
+    },
     clickedIt() {
       this.$router.push('/downloading')
     },
+    // Accept full-item completions from books/iOS and compact Android podcast updates.
     onItemDownloadComplete(data) {
-      console.log('DownloadProgressIndicator onItemDownloadComplete', JSON.stringify(data))
       if (!data || !data.libraryItemId) {
         console.error('Invalid item download complete payload')
         return
       }
 
-      if (!data.localLibraryItem) {
-        this.$toast.error(this.$strings.MessageItemDownloadCompleteFailedToCreate)
-      } else {
+      if (data.localLibraryItem) {
         this.$eventBus.$emit('new-local-library-item', data.localLibraryItem)
+      } else if (data.localPodcastDelta) {
+        this.$eventBus.$emit('local-podcast-download-delta', data.localPodcastDelta)
+      } else if (!data.localLibraryItemId) {
+        this.$toast.error(this.$strings.MessageItemDownloadCompleteFailedToCreate)
       }
 
       if (data.localMediaProgress) {
@@ -66,20 +63,22 @@ export default {
       }
 
       this.$store.commit('globals/removeItemDownload', data.libraryItemId)
+      this.scheduleProgressUpdate()
     },
     onDownloadItem(downloadItem) {
-      console.log('DownloadProgressIndicator onDownloadItem', JSON.stringify(downloadItem))
-
       downloadItem.itemProgress = 0
       downloadItem.episodes = downloadItem.downloadItemParts.filter((dip) => dip.episode).map((dip) => dip.episode)
 
       this.$store.commit('globals/addUpdateItemDownload', downloadItem)
+      this.scheduleProgressUpdate()
     },
     onDownloadItemPartUpdate(itemPart) {
       this.$store.commit('globals/updateDownloadItemPart', itemPart)
+      this.scheduleProgressUpdate()
     },
     onQueueChanged(data) {
       if (!data.hasWork) this.$store.commit('globals/clearItemDownloads')
+      this.scheduleProgressUpdate()
     }
   },
   async mounted() {
@@ -89,6 +88,7 @@ export default {
     this.completeListener = await AbsDownloader.addListener('onItemDownloadComplete', (data) => this.onItemDownloadComplete(data))
   },
   beforeDestroy() {
+    clearTimeout(this.progressTimer)
     this.downloadItemListener?.remove()
     this.completeListener?.remove()
     this.itemPartUpdateListener?.remove()

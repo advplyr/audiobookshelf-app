@@ -29,8 +29,10 @@
 
 <script>
 import { Capacitor } from '@capacitor/core'
+import localPodcastDownloads from '@/mixins/localPodcastDownloads'
 
 export default {
+  mixins: [localPodcastDownloads],
   data() {
     return {
       localLibraryItems: []
@@ -44,6 +46,12 @@ export default {
         size += item.localFiles[i].size
       }
       return size
+    },
+    acceptLocalPodcastDelta(delta) {
+      return true
+    },
+    findLocalPodcastRecord(id) {
+      return this.localLibraryItems.find((item) => item.id === id)
     },
     newLocalLibraryItem(item) {
       if (!item) return
@@ -60,15 +68,16 @@ export default {
       }
     },
     async init() {
+      const before = new Map(this.localLibraryItems.map((item) => [item.id, item]))
       var items = (await this.$db.getLocalLibraryItems()) || []
-      this.localLibraryItems = items.map((lmi) => {
-        console.log('Local library item', JSON.stringify(lmi))
+      const snapshot = items.map((lmi) => {
         return {
           ...lmi,
           size: this.getSize(lmi),
           coverPathSrc: lmi.coverContentUrl ? Capacitor.convertFileSrc(lmi.coverContentUrl) : null
         }
       })
+      this.localLibraryItems = this.mergeLocalDownloadSnapshot(snapshot, before)
     }
   },
   mounted() {
@@ -80,4 +89,3 @@ export default {
   }
 }
 </script>
-

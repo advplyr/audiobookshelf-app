@@ -298,13 +298,19 @@ class AbsFileSystem : Plugin() {
     val docfile = DocumentFileCompat.fromUri(mainActivity, Uri.parse(contentUrl))
     val success = docfile?.delete() == true
     if (success) {
-      localLibraryItem.media.removeAudioTrack(trackLocalFileId)
-      localLibraryItem.removeLocalFile(trackLocalFileId)
-      DeviceManager.dbManager.saveLocalLibraryItem(localLibraryItem)
-      call.resolve(JSObject(jacksonMapper.writeValueAsString(localLibraryItem)))
-    } else {
-      call.resolve(JSObject("{\"success\":false}"))
+      val updated = synchronized(DeviceManager.dbManager) {
+        DeviceManager.dbManager.getLocalLibraryItem(localLibraryItemId)?.apply {
+          media.removeAudioTrack(trackLocalFileId)
+          removeLocalFile(trackLocalFileId)
+          DeviceManager.dbManager.saveLocalLibraryItem(this)
+        }
+      }
+      if (updated != null) {
+        call.resolve(JSObject(jacksonMapper.writeValueAsString(updated)))
+        return
+      }
     }
+    call.resolve(JSObject("{\"success\":false}"))
   }
 
   private fun folderPickerString(key: String, defaultValue: String): String =
