@@ -71,6 +71,8 @@
             <span class="px-1 text-base">{{ $strings.LabelMissing }}</span>
           </ui-btn>
 
+          <widgets-bulk-download-button v-if="isPodcast && !isLocal" class="mt-4 w-full" :podcast-id="libraryItemId" media-type="podcast" />
+
           <div v-if="!isPodcast && progressPercent > 0" class="px-4 py-2 bg-primary text-sm font-semibold rounded-md text-fg mt-4 text-center">
             <p>{{ $strings.LabelYourProgress }}: {{ Math.round(progressPercent * 100) }}%</p>
             <p v-if="!useEBookProgress && !userIsFinished" class="text-fg-muted text-xs">{{ $getString('LabelTimeRemaining', [$elapsedPretty(userTimeRemaining)]) }}</p>
@@ -174,6 +176,7 @@ import { Dialog } from '@capacitor/dialog'
 import { AbsFileSystem, AbsDownloader } from '@/plugins/capacitor'
 import { getAverageColorFromCoverUrl } from '@/utils/coverAverageColor'
 import cellularPermissionHelpers from '@/mixins/cellularPermissionHelpers'
+import localPodcastDownloads from '@/mixins/localPodcastDownloads'
 
 export default {
   async asyncData({ store, params, redirect, app, query }) {
@@ -224,7 +227,7 @@ export default {
       startingDownload: false
     }
   },
-  mixins: [cellularPermissionHelpers],
+  mixins: [cellularPermissionHelpers, localPodcastDownloads],
   computed: {
     isIos() {
       return this.$platform === 'ios'
@@ -692,7 +695,18 @@ export default {
         this.$toast.error(errorMsg)
       }
     },
+    acceptLocalPodcastDelta(delta) {
+      return delta.id === this.libraryItemId || delta.libraryItemId === this.libraryItemId
+    },
+    findLocalPodcastRecord(id) {
+      if (this.libraryItem?.id === id) return this.libraryItem
+      return this.libraryItem?.localLibraryItem?.id === id ? this.libraryItem.localLibraryItem : null
+    },
     newLocalLibraryItem(item) {
+      if (item.id === this.libraryItemId) {
+        this.libraryItem = item
+        return
+      }
       if (item.libraryItemId == this.libraryItemId) {
         console.log('New local library item', item.id)
         this.$set(this.libraryItem, 'localLibraryItem', item)

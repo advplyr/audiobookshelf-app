@@ -30,11 +30,17 @@ jobs:
       - name: install dependencies
         run: npm ci --omit=optional
 
+      - name: run web regression tests
+        run: npm test
+
       - name: build Nuxt project
         run: npm run generate
 
       - name: copy to Android project
         run: npx cap sync
+
+      - name: run Android unit tests
+        run: ./android/gradlew :app:testDebugUnitTest -p android --no-daemon
 
       - name: build Android app
         run: ./android/gradlew assembleDebug -p android --no-daemon

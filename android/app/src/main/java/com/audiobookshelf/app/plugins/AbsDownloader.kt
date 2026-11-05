@@ -17,6 +17,7 @@ import com.getcapacitor.PluginCall
 import com.getcapacitor.PluginMethod
 import com.getcapacitor.annotation.CapacitorPlugin
 import java.io.File
+import java.util.UUID
 
 @CapacitorPlugin(name = "AbsDownloader")
 class AbsDownloader : Plugin() {
@@ -50,6 +51,12 @@ class AbsDownloader : Plugin() {
   }
 
   override fun handleOnDestroy() {
+    bulkManifestCache.close()
+    synchronized(bulkInventoryIds) {
+      bulkInventoryClosed = true
+      bulkInventoryIds.forEach(downloadItemManager::endBulkInventory)
+      bulkInventoryIds.clear()
+    }
     DownloadServiceHost.detachBridge()
     super.handleOnDestroy()
   }
@@ -71,10 +78,84 @@ class AbsDownloader : Plugin() {
   override fun addListener(call: PluginCall) {
     super.addListener(call)
     if (call.getString("eventName") == "onDownloadItem" && ::downloadItemManager.isInitialized) {
-      downloadItemManager.downloadItemQueue.forEach { item ->
-        notifyListeners("onDownloadItem", JSObject(jacksonMapper.writeValueAsString(item)))
-      }
+      downloadItemManager.queuedItems().forEach(clientEventEmitter::onDownloadItem)
     }
+  }
+
+  private val bulkManifestFolder by lazy {
+    File(mainActivity.cacheDir, "bulk-download-manifests")
+  }
+  private val bulkManifestCache by lazy { BulkPodcastManifestCache(bulkManifestFolder) }
+
+  @PluginMethod
+  fun bulkPodcastManifest(call: PluginCall) {
+    try {
+      when (call.getString("action")) {
+        "stage" -> {
+          val data = call.getObject("manifest") ?: return call.reject("Missing podcast manifest")
+          call.resolve(JSObject().put("id", bulkManifestCache.stage(data.toString())))
+        }
+        "consume" -> {
+          val id = call.getString("id") ?: return call.reject("Missing manifest identifier")
+          call.resolve(JSObject(bulkManifestCache.consume(id)))
+        }
+        "discard" -> {
+          val ids = call.getArray("ids") ?: return call.reject("Missing manifest identifiers")
+          bulkManifestCache.discard((0 until ids.length()).map { ids.getString(it) })
+          call.resolve()
+        }
+        else -> call.reject("Unknown podcast manifest action")
+      }
+    } catch (e: Exception) {
+      call.reject("Could not access podcast download manifest", e)
+    }
+  }
+
+  private val bulkInventoryIds = mutableSetOf<String>()
+  private var bulkInventoryClosed = false
+
+  @PluginMethod
+  fun getBulkOfflineItems(call: PluginCall) {
+    var inventoryId: String? = null
+    try {
+      val values = call.getArray("libraryItemIds") ?: return call.reject("Missing library item IDs")
+      val mediaType = call.getString("mediaType") ?: return call.reject("Missing media type")
+      val connectionId = call.getString("connectionId") ?: return call.reject("Missing server connection")
+      val userId = call.getString("userId") ?: return call.reject("Missing server account")
+      val config = DeviceManager.serverConnectionConfig
+      if (config?.id != connectionId || config.userId != userId) return call.reject("Download account changed")
+      val oldUserId = call.getString("oldUserId")
+      val ids = (0 until values.length()).mapTo(mutableSetOf()) { values.getString(it) }
+      val id = UUID.randomUUID().toString()
+      synchronized(bulkInventoryIds) {
+        if (bulkInventoryClosed) return call.reject("Download bridge is closed")
+        downloadItemManager.beginBulkInventory(id, connectionId to userId, ids)
+        bulkInventoryIds.add(id)
+        inventoryId = id
+      }
+      val items = DeviceManager.dbManager.getBulkOfflineItems(mainActivity, ids, mediaType, connectionId to userId, oldUserId)
+      call.resolve(JSObject().put("inventoryId", id).put("items", com.getcapacitor.JSArray(jacksonMapper.writeValueAsString(items))))
+    } catch (e: Exception) {
+      inventoryId?.let(::releaseBulkInventory)
+      call.reject("Could not read offline download inventory", e)
+    }
+  }
+
+  private fun releaseBulkInventory(id: String) {
+    synchronized(bulkInventoryIds) {
+      if (bulkInventoryIds.remove(id)) downloadItemManager.endBulkInventory(id)
+    }
+  }
+
+  @PluginMethod
+  fun releaseBulkOfflineItems(call: PluginCall) {
+    call.getString("inventoryId")?.let(::releaseBulkInventory)
+    call.resolve()
+  }
+
+  @PluginMethod
+  fun getCancellationGeneration(call: PluginCall) {
+    call.resolve(JSObject().put("generation", DownloadServiceHost.cancellationGeneration))
   }
 
   @PluginMethod
@@ -85,47 +166,97 @@ class AbsDownloader : Plugin() {
     var localFolderId = call.data.getString("localFolderId", "").toString()
     AbsLogger.info(tag, "Requested download for item $libraryItemId${if (episodeId.isEmpty()) "" else " / episode $episodeId"}")
 
+    val expectedConnectionId = call.getString("expectedConnectionId")
+    val expectedUserId = call.getString("expectedUserId")
+    val isBulk = expectedConnectionId != null
+    fun connectionMatches(): Boolean {
+      val config = DeviceManager.serverConnectionConfig
+      return !isBulk || (config?.id == expectedConnectionId && config?.userId == expectedUserId)
+    }
+    if (!connectionMatches()) {
+      resolveDownloadCall(call, "Download account changed")
+      return
+    }
+
     val downloadId = if (episodeId.isEmpty()) libraryItemId else "$libraryItemId-$episodeId"
-    DownloadServiceHost.retryExisting(mainActivity, downloadId) { result ->
+    val expectedAccount = expectedConnectionId?.let { it to expectedUserId.orEmpty() }
+    val generation = if (isBulk) call.getInt("cancellationGeneration", -1) else null
+    val inventoryId = if (isBulk) call.getString("inventoryId") else null
+    DownloadServiceHost.retryExisting(mainActivity, downloadId, expectedAccount, generation, inventoryId) { result ->
+      if (!connectionMatches()) {
+        resolveDownloadCall(call, "Download account changed")
+        return@retryExisting
+      }
       when (result) {
         DownloadServiceHost.ExistingDownloadResult.RETRIED -> call.resolve()
         DownloadServiceHost.ExistingDownloadResult.ACTIVE -> {
           AbsLogger.info(tag, "Download already active for $downloadId")
-          call.resolve(JSObject("{\"error\":\"Download already started for this media entity\"}"))
+          val response = JSObject().put("error", "Download already started for this media entity")
+          if (isBulk) response.put("alreadyQueued", true)
+          call.resolve(response)
         }
+        DownloadServiceHost.ExistingDownloadResult.CANCELLED ->
+                resolveDownloadCall(call, DownloadServiceHost.CANCELLED)
+        DownloadServiceHost.ExistingDownloadResult.ACCOUNT_CHANGED ->
+                resolveDownloadCall(call, "Download account changed")
         DownloadServiceHost.ExistingDownloadResult.SERVICE_START_FAILED ->
                 call.resolve(JSObject("{\"error\":\"Unable to start the Android download service\"}"))
         DownloadServiceHost.ExistingDownloadResult.NOT_FOUND -> {
-          apiHandler.getLibraryItemWithProgress(libraryItemId, episodeId) { libraryItem ->
-            if (libraryItem == null) {
-              call.resolve(JSObject("{\"error\":\"Server request failed\"}"))
-            } else {
-              AbsLogger.info(tag, "Preparing download for ${libraryItem.id}")
-
-              if (localFolderId == "") localFolderId = "internal-${libraryItem.mediaType}"
-              var localFolder = DeviceManager.dbManager.getLocalFolder(localFolderId)
-              if (localFolder == null && localFolderId.startsWith("internal-")) {
-                AbsLogger.info(tag, "Creating internal download folder $localFolderId")
-                localFolder = LocalFolder(localFolderId, "Internal App Storage", "", "", "", "internal", libraryItem.mediaType)
-                DeviceManager.dbManager.saveLocalFolder(localFolder)
-              }
-
-              if (localFolder == null) {
-                call.resolve(JSObject("{\"error\":\"Local Folder Not Found\"}"))
-              } else if (episodeId.isNotEmpty() && libraryItem.mediaType != "podcast") {
-                call.resolve(JSObject("{\"error\":\"Invalid library item not a podcast\"}"))
-              } else if (episodeId.isNotEmpty()) {
-                val podcast = libraryItem.media as Podcast
-                val episode = podcast.episodes?.find { it.id == episodeId }
-                if (episode == null) {
-                  call.resolve(JSObject("{\"error\":\"Invalid podcast episode not found\"}"))
-                } else {
-                  startLibraryItemDownload(libraryItem, localFolder, episode) { error -> resolveDownloadCall(call, error) }
-                }
+          val prepare: (LibraryItem?) -> Unit = { libraryItem ->
+            try {
+              if (!connectionMatches()) {
+                resolveDownloadCall(call, "Download account changed")
+              } else if (libraryItem == null || libraryItem.id != libraryItemId) {
+                call.resolve(JSObject("{\"error\":\"Server request failed\"}"))
               } else {
-                startLibraryItemDownload(libraryItem, localFolder, null) { error -> resolveDownloadCall(call, error) }
+                AbsLogger.info(tag, "Preparing download for ${libraryItem.id}")
+
+                if (localFolderId == "") localFolderId = "internal-${libraryItem.mediaType}"
+                var localFolder = DeviceManager.dbManager.getLocalFolder(localFolderId)
+                if (localFolder == null && localFolderId.startsWith("internal-")) {
+                  AbsLogger.info(tag, "Creating internal download folder $localFolderId")
+                  localFolder = LocalFolder(localFolderId, "Internal App Storage", "", "", "", "internal", libraryItem.mediaType)
+                  DeviceManager.dbManager.saveLocalFolder(localFolder)
+                }
+
+                if (localFolder == null) {
+                  call.resolve(JSObject("{\"error\":\"Local Folder Not Found\"}"))
+                } else if (episodeId.isNotEmpty() && libraryItem.mediaType != "podcast") {
+                  call.resolve(JSObject("{\"error\":\"Invalid library item not a podcast\"}"))
+                } else if (isBulk && libraryItem.mediaType == "podcast" && episodeId.isBlank()) {
+                  resolveDownloadCall(call, "Podcast download requires an episode")
+                } else if (episodeId.isNotEmpty()) {
+                  val podcast = libraryItem.media as Podcast
+                  val episode = podcast.episodes?.find { it.id == episodeId }
+                  if (episode == null) {
+                    call.resolve(JSObject("{\"error\":\"Invalid podcast episode not found\"}"))
+                  } else if (isBulk && (episode.audioFile?.ino.isNullOrBlank() || episode.audioTrack?.relPath.isNullOrBlank())) {
+                    resolveDownloadCall(call, "Podcast episode has no downloadable audio")
+                  } else {
+                    startLibraryItemDownload(libraryItem, localFolder, episode, expectedAccount, generation, inventoryId, call.getString("existingPodcastPath")) { error -> resolveDownloadCall(call, error) }
+                  }
+                } else {
+                  startLibraryItemDownload(libraryItem, localFolder, null, expectedAccount, generation, inventoryId, null) { error -> resolveDownloadCall(call, error) }
+                }
               }
+            } catch (e: Exception) {
+              AbsLogger.error(tag, "Could not prepare download: ${e.message}")
+              resolveDownloadCall(call, "Could not prepare download")
             }
+          }
+          val snapshot = if (isBulk && episodeId.isNotEmpty()) call.getObject("podcastSnapshot") else null
+          if (snapshot == null && isBulk && episodeId.isNotEmpty()) {
+            resolveDownloadCall(call, "Bulk podcast download requires episode metadata")
+          } else if (snapshot == null) {
+            apiHandler.getLibraryItemWithProgress(libraryItemId, episodeId, prepare)
+          } else {
+            val item = try {
+              jacksonMapper.readValue(snapshot.toString(), LibraryItem::class.java)
+            } catch (e: Exception) {
+              AbsLogger.error(tag, "Invalid podcast snapshot: ${e.message}")
+              null
+            }
+            prepare(item)
           }
         }
       }
@@ -134,7 +265,12 @@ class AbsDownloader : Plugin() {
 
   private fun resolveDownloadCall(call: PluginCall, error: String?) {
     if (error == null) call.resolve()
-    else call.resolve(JSObject().put("error", error))
+    else {
+      val response = JSObject().put("error", error)
+      if (error == DownloadServiceHost.ALREADY_QUEUED) response.put("alreadyQueued", true)
+      if (error == DownloadServiceHost.CANCELLED || error == "Download account changed") response.put("submissionStopped", true)
+      call.resolve(response)
+    }
   }
 
   // Item filenames could be the same if they are in sub-folders, this will make them unique
@@ -161,9 +297,29 @@ class AbsDownloader : Plugin() {
           libraryItem: LibraryItem,
           localFolder: LocalFolder,
           episode: PodcastEpisode?,
+          expectedAccount: Pair<String, String>?,
+          generation: Int?,
+          inventoryId: String?,
+          existingPodcastPath: String?,
           callback: (String?) -> Unit
   ) {
     val isInternal = localFolder.id.startsWith("internal-")
+    val config = DeviceManager.serverConnectionConfig
+    val isBulk = expectedAccount != null
+    if (expectedAccount != null && (config?.id != expectedAccount.first || config?.userId != expectedAccount.second)) {
+      callback("Download account changed")
+      return
+    }
+    if (isBulk && isInternal && episode == null) {
+      val existing = DeviceManager.dbManager.getLocalLibraryItem("local_${libraryItem.id}")
+      if (existing != null && (existing.serverConnectionConfigId != config?.id || existing.serverUserId != config?.userId)) {
+        callback("Offline copy belongs to another account")
+        return
+      }
+    }
+    val itemKey = UUID.nameUUIDFromBytes("${config?.id}:${config?.userId}:${libraryItem.id}".toByteArray()).toString()
+    fun distinctFilename(filename: String, key: String): String =
+            if (isBulk || !isInternal && episode != null) "${UUID.nameUUIDFromBytes("$itemKey:$key".toByteArray())}.${File(filename).extension}" else filename
 
     val finalInternalFolderPath = "${mainActivity.filesDir}/downloads/${libraryItem.id}"
     val tempFolderPath =
@@ -180,15 +336,26 @@ class AbsDownloader : Plugin() {
 
       val tracks = libraryItem.media.getAudioTracks()
       AbsLogger.info(tag, "Queueing library item download with ${tracks.size} files")
-      val itemSubfolder = "$bookAuthor/$bookTitle"
+      val itemSubfolder = if (isBulk) "Audiobookshelf-$itemKey" else "$bookAuthor/$bookTitle"
       val itemFolderPath = if (isInternal) finalInternalFolderPath else "${localFolder.absolutePath}/$itemSubfolder"
-      val downloadItem = DownloadItem(libraryItem.id, libraryItem.id, null, libraryItem.userMediaProgress,DeviceManager.serverConnectionConfig?.id ?: "", DeviceManager.serverAddress, DeviceManager.serverUserId, libraryItem.mediaType, itemFolderPath, localFolder, bookTitle, itemSubfolder, libraryItem.media, mutableListOf())
+      val downloadItem = DownloadItem(libraryItem.id, libraryItem.id, null, libraryItem.userMediaProgress,config?.id ?: "", config?.address ?: "", config?.userId ?: "", libraryItem.mediaType, itemFolderPath, localFolder, bookTitle, itemSubfolder, libraryItem.media, mutableListOf())
 
       val book = libraryItem.media as Book
+      val audioFileInosByPath = book.audioFiles.orEmpty().asReversed().associate { it.metadata.path to it.ino }
+      if (isBulk && tracks.any { it.relPath.isBlank() || audioFileInosByPath[it.metadata?.path].isNullOrBlank() }) {
+        callback("Audiobook contains a track without downloadable audio")
+        return
+      }
+      if (isBulk && book.ebookFile?.ino?.isBlank() == true) {
+        callback("Book contains an ebook without a downloadable file")
+        return
+      }
       book.ebookFile?.let { ebookFile ->
         val fileSize = ebookFile.metadata?.size ?: 0
         val serverPath = "/api/items/${libraryItem.id}/file/${ebookFile.ino}/download"
-        val destinationFilename = getFilenameFromRelPath(ebookFile.metadata?.relPath ?: "")
+        val relPath = ebookFile.metadata?.relPath.orEmpty()
+        val filename = if (isBulk && relPath.isBlank()) "ebook.${ebookFile.ebookFormat}" else getFilenameFromRelPath(relPath)
+        val destinationFilename = distinctFilename(filename, "ebook:${ebookFile.ino}")
         val finalDestinationFile = File("$itemFolderPath/$destinationFilename")
         val destinationFile = File("$tempFolderPath/$destinationFilename.part")
 
@@ -197,15 +364,14 @@ class AbsDownloader : Plugin() {
       }
 
       // Create download item part for each audio track
-      val audioFiles = (libraryItem.media as Book).audioFiles ?: mutableListOf()
       tracks.forEach { audioTrack ->
         val fileSize = audioTrack.metadata?.size ?: 0
 
         // TODO: Currently file ino is only stored on AudioFile. This should be updated server side to be in FileMetadata or on the AudioTrack
-        val audioFileIno = audioFiles.find { it.metadata.path == audioTrack.metadata?.path }?.ino
+        val audioFileIno = audioFileInosByPath[audioTrack.metadata?.path]
 
         val serverPath = "/api/items/${libraryItem.id}/file/${audioFileIno}/download"
-        val destinationFilename = getFilenameFromRelPath(audioTrack.relPath)
+        val destinationFilename = distinctFilename(getFilenameFromRelPath(audioTrack.relPath), "track:${audioTrack.index}:$audioFileIno")
 
         val finalDestinationFile = File("$itemFolderPath/$destinationFilename")
         val destinationFile = File("$tempFolderPath/$destinationFilename.part")
@@ -216,12 +382,12 @@ class AbsDownloader : Plugin() {
 
       if (downloadItem.downloadItemParts.isNotEmpty()) {
         // Add cover download item
-        if (libraryItem.media.coverPath != null && libraryItem.media.coverPath?.isNotEmpty() == true) {
+        if (!isBulk && !libraryItem.media.coverPath.isNullOrEmpty()) {
           val coverLibraryFile = libraryItem.libraryFiles?.find { it.metadata.path == libraryItem.media.coverPath }
           val coverFileSize = coverLibraryFile?.metadata?.size ?: 0
 
           val serverPath = "/api/items/${libraryItem.id}/cover"
-          val destinationFilename = "cover-${libraryItem.id}.jpg"
+          val destinationFilename = distinctFilename("cover-${libraryItem.id}.jpg", "cover")
           val destinationFile = File("$tempFolderPath/$destinationFilename.part")
           val finalDestinationFile = File("$itemFolderPath/$destinationFilename")
 
@@ -229,7 +395,7 @@ class AbsDownloader : Plugin() {
           downloadItem.downloadItemParts.add(downloadItemPart)
         }
 
-        DownloadServiceHost.enqueue(mainActivity, downloadItem, callback)
+        DownloadServiceHost.enqueue(mainActivity, downloadItem, generation, inventoryId, callback)
       } else callback("No downloadable files found")
     } else {
       // Podcast episode download
@@ -240,33 +406,48 @@ class AbsDownloader : Plugin() {
       val fileSize = audioTrack?.metadata?.size ?: 0
 
       AbsLogger.info(tag, "Queueing podcast episode download")
-      val itemFolderPath = if (isInternal) finalInternalFolderPath else "${localFolder.absolutePath}/$podcastTitle"
+      val existingPath = when {
+        isInternal -> null
+        isBulk -> existingPodcastPath
+        else -> DeviceManager.dbManager.getLocalLibraryItems("podcast").firstOrNull {
+          it.libraryItemId == libraryItem.id && it.folderId == localFolder.id &&
+                  it.serverConnectionConfigId == config?.id && it.serverUserId == config?.userId
+        }?.absolutePath
+      }
+      val rootPrefix = localFolder.absolutePath.trimEnd('/') + "/"
+      val existingSubfolder = existingPath?.takeIf { it.startsWith(rootPrefix) }?.removePrefix(rootPrefix)
+              ?.takeIf { it.isNotBlank() && '/' !in it && it != "." && it != ".." }
+      val itemSubfolder = if (isInternal && !isBulk) podcastTitle else existingSubfolder ?: "Audiobookshelf-$itemKey"
+      val itemFolderPath = if (isInternal) finalInternalFolderPath else "${localFolder.absolutePath}/$itemSubfolder"
       val downloadItemId = "${libraryItem.id}-${episode?.id}"
-      val downloadItem = DownloadItem(downloadItemId, libraryItem.id, episode?.id, libraryItem.userMediaProgress, DeviceManager.serverConnectionConfig?.id ?: "", DeviceManager.serverAddress, DeviceManager.serverUserId, libraryItem.mediaType, itemFolderPath, localFolder, podcastTitle, podcastTitle, libraryItem.media, mutableListOf())
+      // Each episode part already carries its own metadata. Keep bulk queue entries small.
+      val podcastMedia = if (isBulk) libraryItem.media.getLocalCopy() else libraryItem.media
+      val downloadItem = DownloadItem(downloadItemId, libraryItem.id, episode?.id, libraryItem.userMediaProgress, config?.id ?: "", config?.address ?: "", config?.userId ?: "", libraryItem.mediaType, itemFolderPath, localFolder, podcastTitle, itemSubfolder, podcastMedia, mutableListOf())
 
       var serverPath = "/api/items/${libraryItem.id}/file/${audioFileIno}/download"
-      var destinationFilename = getFilenameFromRelPath(audioTrack?.relPath ?: "")
+      var destinationFilename = distinctFilename(getFilenameFromRelPath(audioTrack?.relPath ?: ""), "episode:${episode?.id}")
 
       var destinationFile = File("$tempFolderPath/$destinationFilename.part")
       var finalDestinationFile = File("$itemFolderPath/$destinationFilename")
-      var downloadItemPart = DownloadItemPart.make(downloadItem.id, destinationFilename,fileSize, destinationFile,finalDestinationFile,podcastTitle,serverPath,localFolder,null,audioTrack,episode)
+      var downloadItemPart = DownloadItemPart.make(downloadItem.id, destinationFilename,fileSize, destinationFile,finalDestinationFile,itemSubfolder,serverPath,localFolder,null,audioTrack,episode)
       downloadItem.downloadItemParts.add(downloadItemPart)
 
-      if (libraryItem.media.coverPath != null && libraryItem.media.coverPath?.isNotEmpty() == true) {
+      // Bulk episode availability depends only on its audio file.
+      if (!isBulk && !libraryItem.media.coverPath.isNullOrEmpty()) {
         val coverLibraryFile = libraryItem.libraryFiles?.find { it.metadata.path == libraryItem.media.coverPath }
         val coverFileSize = coverLibraryFile?.metadata?.size ?: 0
 
         serverPath = "/api/items/${libraryItem.id}/cover"
-        destinationFilename = "cover.jpg"
+        destinationFilename = distinctFilename("cover.jpg", "cover")
 
         destinationFile = File("$tempFolderPath/$destinationFilename.part")
         finalDestinationFile = File("$itemFolderPath/$destinationFilename")
 
-        downloadItemPart = DownloadItemPart.make(downloadItem.id, destinationFilename,coverFileSize,destinationFile,finalDestinationFile,podcastTitle,serverPath,localFolder,null,null,null)
+        downloadItemPart = DownloadItemPart.make(downloadItem.id, destinationFilename,coverFileSize,destinationFile,finalDestinationFile,itemSubfolder,serverPath,localFolder,null,null,null)
         downloadItem.downloadItemParts.add(downloadItemPart)
       }
 
-        DownloadServiceHost.enqueue(mainActivity, downloadItem, callback)
+        DownloadServiceHost.enqueue(mainActivity, downloadItem, generation, inventoryId, callback)
     }
   }
 }
