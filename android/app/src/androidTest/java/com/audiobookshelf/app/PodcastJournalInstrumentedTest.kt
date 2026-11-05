@@ -48,10 +48,14 @@ class PodcastJournalInstrumentedTest {
       val episodes = (reopened.media as Podcast).episodes!!
       assertEquals(listOf("legacy", "downloaded"), episodes.map { it.serverEpisodeId })
       assertEquals(setOf("replacement", "downloaded"), reopened.localFiles.map { it.id }.toSet())
+      val inventory = database.getBulkOfflineItems(context, setOf(id), "podcast").single()
+      assertEquals(setOf("legacy", "downloaded"), inventory.episodeIds)
+      assertTrue(database.getBulkOfflineItems(context, setOf("other-item"), "podcast").isEmpty())
       assertTrue(reopened.localFiles.all { it.exists(context) })
       assertEquals(id, database.getLocalLibraryItemWithEpisode("local_ep_downloaded")?.libraryItemWrapper?.id)
 
       assertTrue(File(directory, "downloaded.mp3").delete())
+      assertEquals(setOf("legacy"), database.getBulkOfflineItems(context, setOf(id), "podcast").single().episodeIds)
 
       reopened.media.removeAudioTrack("downloaded")
       reopened.removeLocalFile("downloaded")

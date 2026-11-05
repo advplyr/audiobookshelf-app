@@ -49,6 +49,66 @@ class DbManager {
     return localLibraryItems
   }
 
+  data class BulkOfflineItem(
+          val id: String,
+          val libraryItemId: String,
+          val folderId: String,
+          val absolutePath: String,
+          val serverConnectionConfigId: String?,
+          val serverUserId: String?,
+          val episodeIds: Set<String>,
+          val hasOfflineBook: Boolean
+  )
+
+  // Builds a compact inventory of accessible files, including saved episode updates.
+  // May normalize matching selected records from previousUserId to owner without compacting journals.
+  @Synchronized
+  fun getBulkOfflineItems(
+          context: Context,
+          ids: Set<String>,
+          mediaType: String,
+          owner: Pair<String, String>? = null,
+          previousUserId: String? = null
+  ): List<BulkOfflineItem> {
+    val library = Paper.book("localLibraryItems")
+    return library.allKeys.mapNotNull { key ->
+      val stored = library.read<Any>(key)
+      val item = when (stored) {
+        is LocalPodcastRecord -> stored.item
+        is LocalLibraryItem -> stored
+        else -> return@mapNotNull null
+      }
+      val serverId = item.libraryItemId ?: return@mapNotNull null
+      if (serverId !in ids || item.mediaType != mediaType) return@mapNotNull null
+      if (owner != null && !previousUserId.isNullOrBlank() && previousUserId != owner.second &&
+              item.serverConnectionConfigId == owner.first && item.serverUserId == previousUserId) {
+        // Normalize the authenticated profile's migration alias without compacting episode journals.
+        item.serverUserId = owner.second
+        library.write(key, stored)
+      }
+      val files = item.localFiles.associateBy { it.id }
+      val episodeIds = (item.media as? Podcast)?.episodes.orEmpty().mapNotNullTo(mutableSetOf()) { episode ->
+        episode.serverEpisodeId?.takeIf { files[episode.audioTrack?.localFileId]?.exists(context) == true }
+      }
+      if (stored is LocalPodcastRecord) {
+        val book = podcastEpisodeBook(stored.episodeGeneration)
+        book.allKeys.forEach { episodeKey ->
+          val entry = book.read<DownloadedPodcastEpisode>(episodeKey) ?: return@forEach
+          val episodeId = entry.episode.serverEpisodeId ?: return@forEach
+          if (entry.audioFile?.exists(context) == true) episodeIds.add(episodeId)
+          else episodeIds.remove(episodeId)
+        }
+      }
+      val book = item.media as? Book
+      val bookFileIds = book?.let {
+        it.getAudioTracks().map { track -> track.localFileId } + listOfNotNull(it.ebookFile).map { ebook -> ebook.localFileId }
+      }.orEmpty()
+      val hasOfflineBook = bookFileIds.isNotEmpty() && bookFileIds.all { files[it]?.exists(context) == true }
+      BulkOfflineItem(item.id, serverId, item.folderId, item.absolutePath, item.serverConnectionConfigId,
+              item.serverUserId, episodeIds, hasOfflineBook)
+    }
+  }
+
   fun getLocalLibraryItemsInFolder(folderId: String): List<LocalLibraryItem> {
     val localLibraryItems = getLocalLibraryItems()
     return localLibraryItems.filter { it.folderId == folderId }

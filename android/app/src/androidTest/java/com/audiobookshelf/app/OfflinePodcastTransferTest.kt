@@ -43,9 +43,12 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class OfflinePodcastTransferTest {
   @Test
-  fun restoresPersistedEpisodeAndOpensDownloadedAudioAfterServerStops() = verifyTransfer()
+  fun restoresPersistedEpisodeAndOpensDownloadedAudioAfterServerStops() = verifyTransfer(false)
 
-  private fun verifyTransfer() {
+  @Test
+  fun restoredDownloadUsesSavedConnectionWhenAnotherServerIsActive() = verifyTransfer(true)
+
+  private fun verifyTransfer(switchActiveConnection: Boolean) {
     val context = InstrumentationRegistry.getInstrumentation().targetContext
     DbManager.initialize(context)
     val database = DeviceManager.dbManager
@@ -106,6 +109,12 @@ class OfflinePodcastTransferTest {
         }
         val item = episodeDownload(id, config, staging, targetFile, audio.size, sharedFolder)
         database.saveDownloadItem(item)
+        if (switchActiveConnection) {
+          val other = ServerConnectionConfig("other-$id", 1, "Other", "http://127.0.0.1:1", null,
+                  "other-account", "other-user", "other-token", null)
+          DeviceManager.deviceData.serverConnectionConfigs.add(other)
+          DeviceManager.serverConnectionConfig = other
+        }
         manager.restoreQueue()
         manager.resumeWork()
         assertTrue("Restored episode did not finish", completed.await(20, TimeUnit.SECONDS))
@@ -113,6 +122,7 @@ class OfflinePodcastTransferTest {
       }
 
       assertEquals("Bearer fixture-token", authorization.get())
+      if (switchActiveConnection) assertEquals("other-$id", DeviceManager.serverConnectionConfigId)
       val localId = event.get().optString("localLibraryItemId")
       assertTrue(localId.isNotBlank())
       if (sharedFolder == null) assertEquals("local_$id", localId)

@@ -295,6 +295,12 @@ class FolderScanner(private val ctx: Context) {
       val localItem =
               existingItem(id)
                       ?: newLocalLibraryItem(id, item, item.itemFolderPath, item.itemFolderPath, "")
+      if (item.itemSubfolder.startsWith("Audiobookshelf-") &&
+              (localItem.serverConnectionConfigId != item.serverConnectionConfigId || localItem.serverUserId != item.serverUserId)) {
+        Log.e(tag, "Download destination belongs to another account")
+        callback(null)
+        return
+      }
       scanParts(item, localItem, callback = callback)
       return
     }
@@ -321,6 +327,14 @@ class FolderScanner(private val ctx: Context) {
                             itemFolder.getAbsolutePath(ctx),
                             itemFolder.uri.toString()
                     )
+    if (item.episodeId != null && localItem.libraryItemId != null &&
+            (localItem.libraryItemId != item.libraryItemId ||
+                    localItem.serverConnectionConfigId != item.serverConnectionConfigId ||
+                    localItem.serverUserId != item.serverUserId)) {
+      Log.e(tag, "Podcast destination belongs to another item or account")
+      callback(null)
+      return
+    }
     scanParts(item, localItem, itemFolder, callback)
   }
 }

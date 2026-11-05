@@ -45,6 +45,7 @@ class ApiHandler(var ctx:Context) {
   }
 
   private var defaultClient = OkHttpClient()
+  private val downloadMetadataClient = defaultClient.newBuilder().callTimeout(30, TimeUnit.SECONDS).build()
   private var pingClient = OkHttpClient.Builder().callTimeout(3, TimeUnit.SECONDS).build()
   private var jacksonMapper = jacksonObjectMapper().enable(JsonReadFeature.ALLOW_UNESCAPED_CONTROL_CHARS.mappedFeature())
   private var secureStorage = SecureStorage(ctx)
@@ -135,7 +136,12 @@ class ApiHandler(var ctx:Context) {
             return
           }
 
-          val bodyString = it.body!!.string()
+          val bodyString = try {
+            it.body?.string().orEmpty()
+          } catch (e: IOException) {
+            cb(JSObject().put("error", "Could not read response body"))
+            return
+          }
           if (bodyString == "OK") {
             cb(JSObject())
           } else {
@@ -357,7 +363,12 @@ class ApiHandler(var ctx:Context) {
               return
             }
 
-            val bodyString = it.body!!.string()
+            val bodyString = try {
+              it.body?.string().orEmpty()
+            } catch (e: IOException) {
+              callback(JSObject().put("error", "Could not read retry response body"))
+              return
+            }
             if (bodyString == "OK") {
               callback(JSObject())
             } else {
@@ -453,12 +464,17 @@ class ApiHandler(var ctx:Context) {
   fun getLibraryItemWithProgress(libraryItemId:String, episodeId:String?, cb: (LibraryItem?) -> Unit) {
     var requestUrl = "/api/items/$libraryItemId?expanded=1&include=progress"
     if (!episodeId.isNullOrEmpty()) requestUrl += "&episode=$episodeId"
-    getRequest(requestUrl, null, null) {
+    getRequest(requestUrl, downloadMetadataClient, null) {
       if (it.has("error")) {
         Log.e(tag, it.getString("error") ?: "getLibraryItemWithProgress Failed")
         cb(null)
       } else {
-        val libraryItem = jacksonMapper.readValue<LibraryItem>(it.toString())
+        val libraryItem = try {
+          jacksonMapper.readValue<LibraryItem>(it.toString())
+        } catch (e: Exception) {
+          Log.e(tag, "Invalid download item response", e)
+          null
+        }
         cb(libraryItem)
       }
     }

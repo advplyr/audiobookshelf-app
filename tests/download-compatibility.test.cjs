@@ -13,6 +13,26 @@ function loadComponent(filename, dependencies = {}) {
   return new Function(...Object.keys(dependencies), source)(...Object.values(dependencies))
 }
 
+test('bulk actions require Android, connectivity, and download permission', () => {
+  const component = loadComponent('components/widgets/BulkDownloadButton.vue', { cellularPermissionHelpers: {} })
+  const vm = {
+    $platform: 'android',
+    libraryId: 'library',
+    connectionId: 'server',
+    userId: 'user',
+    $store: { state: { networkConnected: true }, getters: { 'user/getUserCanDownload': true } }
+  }
+  assert.equal(component.computed.canDownload.call(vm), true)
+  for (const platform of ['ios', 'web']) {
+    assert.equal(component.computed.canDownload.call({ ...vm, $platform: platform }), false)
+  }
+  vm.$store.state.networkConnected = false
+  assert.equal(component.computed.canDownload.call(vm), false)
+  vm.$store.state.networkConnected = true
+  vm.$store.getters['user/getUserCanDownload'] = false
+  assert.equal(component.computed.canDownload.call(vm), false)
+})
+
 test('legacy full-item completion updates offline views and playback progress', () => {
   const component = loadComponent('components/widgets/DownloadProgressIndicator.vue')
   const events = []

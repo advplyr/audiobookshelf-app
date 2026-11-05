@@ -46,8 +46,32 @@ class DownloadItemManager(
           jacksonObjectMapper()
                   .enable(JsonReadFeature.ALLOW_UNESCAPED_CONTROL_CHARS.mappedFeature())
 
-  var downloadItemQueue: MutableList<DownloadItem> = mutableListOf()
-    private set
+  private val downloadItemQueue = linkedMapOf<String, DownloadItem>()
+  private val bulkReceipts = BulkDownloadReceipts()
+
+  @Synchronized
+  fun beginBulkInventory(id: String, account: Pair<String, String>, libraryItemIds: Set<String>) {
+    bulkReceipts.begin(id, account, libraryItemIds)
+  }
+
+  @Synchronized
+  fun endBulkInventory(id: String) {
+    bulkReceipts.end(id)
+  }
+
+  @Synchronized
+  fun isBulkInventoryActive(id: String?, account: Pair<String, String>): Boolean =
+          bulkReceipts.isActive(id, account)
+
+  @Synchronized
+  fun completedSinceBulkInventory(id: String?, account: Pair<String, String>, downloadId: String): Boolean =
+          bulkReceipts.contains(id, account, downloadId)
+
+  @Synchronized
+  fun queuedItem(id: String): DownloadItem? = downloadItemQueue[id]
+
+  @Synchronized
+  fun queuedItems(): List<DownloadItem> = downloadItemQueue.values.toList()
   var currentDownloadItemParts: MutableList<DownloadItemPart> = mutableListOf()
     private set
 
@@ -68,7 +92,7 @@ class DownloadItemManager(
   @Synchronized
   fun setEventEmitter(eventEmitter: DownloadEventEmitter) {
     clientEventEmitter = eventEmitter
-    downloadItemQueue.forEach(clientEventEmitter::onDownloadItem)
+    downloadItemQueue.values.forEach(clientEventEmitter::onDownloadItem)
     notifyQueueChanged()
   }
 
@@ -78,7 +102,7 @@ class DownloadItemManager(
     DeviceManager.dbManager.getDownloadItems().forEach { item ->
       reconcileFinalizedParts(item)
       if (item.isDownloadFinished) {
-        downloadItemQueue.add(item)
+        downloadItemQueue[item.id] = item
         checkDownloadItemFinished(item)
         return@forEach
       }
@@ -94,7 +118,7 @@ class DownloadItemManager(
       if (item.terminalFailureAt != null) {
         item.downloadItemParts.filter { !it.moved }.forEach { it.failed = true }
       }
-      downloadItemQueue.add(item)
+      downloadItemQueue[item.id] = item
       if (item.terminalFailureAt != null) IncompleteDownloadCleanup.schedule(context, item)
       clientEventEmitter.onDownloadItem(item)
     }
@@ -115,28 +139,29 @@ class DownloadItemManager(
   }
 
   @Synchronized
-  fun addDownloadItem(downloadItem: DownloadItem) {
-    val existingItem = downloadItemQueue.find { it.id == downloadItem.id }
-    if (existingItem != null) {
-      return
-    }
+  fun addDownloadItem(downloadItem: DownloadItem): Boolean {
+    val existingItem = downloadItemQueue[downloadItem.id]
+    if (existingItem != null) return false
     persist(downloadItem, force = true)
-    downloadItemQueue.add(downloadItem)
+    downloadItemQueue[downloadItem.id] = downloadItem
     clientEventEmitter.onDownloadItem(downloadItem)
     notifyQueueChanged()
+    return true
   }
 
   @Synchronized
-  fun retryDownloadItem(downloadItemId: String): Boolean {
-    val item = downloadItemQueue.find { it.id == downloadItemId } ?: return false
+  fun retryDownloadItem(downloadItemId: String, failedOnly: Boolean = false): Boolean {
+    val item = downloadItemQueue[downloadItemId] ?: return false
     if (item.id in finalizingItems) return false
-    if (item.isDownloadFinished) {
+    val needsFinalization = item.isDownloadFinished
+    if (needsFinalization) {
       reconcileFinalizedParts(item)
       if (item.isDownloadFinished) {
         checkDownloadItemFinished(item)
         return true
       }
     }
+    if (!needsFinalization && failedOnly && item.terminalFailureAt == null) return false
     if (item.downloadItemParts.any { it in currentDownloadItemParts }) return false
     synchronized(IncompleteDownloadCleanup) {
       var resetFailed = false
@@ -168,7 +193,7 @@ class DownloadItemManager(
   fun cancelAll() {
     activeCalls.values.forEach(InternalDownloadManager.DownloadHandle::cancel)
     activeCalls.clear()
-    val cancelled = downloadItemQueue.filterNot { it.id in finalizingItems }
+    val cancelled = downloadItemQueue.values.filterNot { it.id in finalizingItems }
     cancelled.forEach { item ->
       item.downloadItemParts.forEach { part ->
         File(part.destinationPath).delete()
@@ -192,15 +217,17 @@ class DownloadItemManager(
     }
     currentDownloadItemParts.clear()
     reservations.clear()
-    downloadItemQueue.removeAll(cancelled)
-    cancelled.forEach { lastPersistTime.remove(it.id) }
+    cancelled.forEach {
+      downloadItemQueue.remove(it.id)
+      lastPersistTime.remove(it.id)
+    }
     notifyQueueChanged()
   }
 
   @Synchronized
   fun hasWork(): Boolean =
           finalizingItems.isNotEmpty() ||
-                  downloadItemQueue.any { item ->
+                  downloadItemQueue.values.any { item ->
                     item.downloadItemParts.any { part ->
                       (!part.moved && !part.failed) || part.isMoving
                     }
@@ -208,9 +235,9 @@ class DownloadItemManager(
 
   @Synchronized
   private fun checkUpdateDownloadQueue() {
-    downloadItemQueue.toList().forEach { item ->
+    for (item in downloadItemQueue.values) {
       var slots = MAX_SIMULTANEOUS_DOWNLOADS - currentDownloadItemParts.size
-      if (slots <= 0) return@forEach
+      if (slots <= 0) break
       item.downloadItemParts
               .filter { part ->
                 part.completed &&
@@ -227,7 +254,7 @@ class DownloadItemManager(
                 part.downloadId = APP_MANAGED_DOWNLOAD_ID
               }
       slots = MAX_SIMULTANEOUS_DOWNLOADS - currentDownloadItemParts.size
-      if (slots <= 0) return@forEach
+      if (slots <= 0) break
       item.getNextDownloadItemParts(slots).forEach { part ->
         val existingFile = findSharedStorageFile(part)
         if (existingFile != null) {
@@ -246,7 +273,7 @@ class DownloadItemManager(
         } else if (part.fileSize <= 0L && currentDownloadItemParts.any { it.fileSize <= 0L }) {
           leaveQueued(item, part)
         } else if (tryReserve(part)) startDownload(item, part)
-        else {
+        else if (!part.waitingForSpace) {
           part.waitingForSpace = true
           part.lastUpdateTime = System.currentTimeMillis()
           persist(item)
@@ -257,7 +284,17 @@ class DownloadItemManager(
     if (hasWork()) startWatchingDownloads() else notifyQueueChanged()
   }
 
+  private fun matchingDownloadConnection(item: DownloadItem) =
+          DeviceManager.getServerConnectionConfig(item.serverConnectionConfigId)?.copy()?.takeIf {
+            it.address == item.serverAddress && it.userId == item.serverUserId
+          }
+
   private fun startDownload(item: DownloadItem, part: DownloadItemPart) {
+    val token = matchingDownloadConnection(item)?.token?.takeIf { it.isNotBlank() }
+    if (token == null) {
+      markTerminalFailure(item, part, "Download connection is unavailable")
+      return
+    }
     val stagingFile = File(part.destinationPath)
     stagingFile.parentFile?.mkdirs()
     part.downloadId = APP_MANAGED_DOWNLOAD_ID
@@ -266,12 +303,6 @@ class DownloadItemManager(
     currentDownloadItemParts.add(part)
     persist(item, force = true)
     AbsLogger.info(tag, "Starting download for ${part.filename}")
-    val activeConfig = DeviceManager.serverConnectionConfig
-    val token =
-            if (activeConfig?.id == item.serverConnectionConfigId) activeConfig.token
-            else
-                    DeviceManager.getServerConnectionConfig(item.serverConnectionConfigId)?.token
-                            ?: DeviceManager.token
     val handle =
             InternalDownloadManager(
                             stagingFile,
@@ -350,14 +381,11 @@ class DownloadItemManager(
     }
   }
 
+  @Synchronized
   private fun handlePartUpdate(part: DownloadItemPart) {
+    if (currentDownloadItemParts.none { it === part }) return
+    val item = downloadItemQueue[part.downloadItemId] ?: return
     clientEventEmitter.onDownloadItemPartUpdate(part)
-    val item =
-            synchronized(this) { downloadItemQueue.find { it.id == part.downloadItemId } }
-                    ?: run {
-                      removeActivePart(part)
-                      return
-                    }
     if (!part.completed && !part.failed) {
       val lastUpdate = part.lastUpdateTime ?: return
       if (System.currentTimeMillis() - lastUpdate > STALL_TIMEOUT_MS) {
@@ -394,6 +422,12 @@ class DownloadItemManager(
   /** A 401 refreshes the token for this queued item's server without consuming transfer retries. */
   @Synchronized
   private fun handleAuthError(item: DownloadItem, part: DownloadItemPart) {
+    if (downloadItemQueue[item.id] !== item || currentDownloadItemParts.none { it === part }) return
+    val connection = matchingDownloadConnection(item)
+    if (connection == null) {
+      markTerminalFailure(item, part, "Download connection is unavailable")
+      return
+    }
     removeActivePart(part)
     reservations.remove(part.destinationPath)
     part.downloadId = null
@@ -413,7 +447,7 @@ class DownloadItemManager(
     )
     persist(item, force = true)
     clientEventEmitter.onDownloadItemPartUpdate(part)
-    refreshTokenThenResume(item.serverConnectionConfigId)
+    refreshTokenThenResume(connection.id)
   }
 
   private fun refreshTokenThenResume(serverConnectionConfigId: String) {
@@ -445,7 +479,7 @@ class DownloadItemManager(
 
   @Synchronized
   private fun failParkedAuthParts(serverConnectionConfigId: String) {
-    downloadItemQueue.toList().forEach { item ->
+    downloadItemQueue.values.toList().forEach { item ->
       if (item.serverConnectionConfigId != serverConnectionConfigId) return@forEach
       item.downloadItemParts
               .filter {
@@ -553,6 +587,7 @@ class DownloadItemManager(
 
   @Synchronized
   private fun failFinalization(item: DownloadItem, part: DownloadItemPart, message: String) {
+    if (downloadItemQueue[item.id] !== item) return
     AbsLogger.error(tag, message)
     part.isMoving = false
     part.failed = true
@@ -614,7 +649,8 @@ class DownloadItemManager(
           }
           synchronized(this@DownloadItemManager) {
             DeviceManager.dbManager.removeDownloadItem(item.id)
-            downloadItemQueue.remove(item)
+            bulkReceipts.complete(item.serverConnectionConfigId to item.serverUserId, item.libraryItemId, item.id)
+            downloadItemQueue.remove(item.id)
             lastPersistTime.remove(item.id)
           }
           clientEventEmitter.onDownloadItemComplete(event)
