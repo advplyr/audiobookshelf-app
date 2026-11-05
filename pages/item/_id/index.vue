@@ -174,6 +174,7 @@ import { Dialog } from '@capacitor/dialog'
 import { AbsFileSystem, AbsDownloader } from '@/plugins/capacitor'
 import { getAverageColorFromCoverUrl } from '@/utils/coverAverageColor'
 import cellularPermissionHelpers from '@/mixins/cellularPermissionHelpers'
+import localPodcastDownloads from '@/mixins/localPodcastDownloads'
 
 export default {
   async asyncData({ store, params, redirect, app, query }) {
@@ -224,7 +225,7 @@ export default {
       startingDownload: false
     }
   },
-  mixins: [cellularPermissionHelpers],
+  mixins: [cellularPermissionHelpers, localPodcastDownloads],
   computed: {
     isIos() {
       return this.$platform === 'ios'
@@ -692,7 +693,18 @@ export default {
         this.$toast.error(errorMsg)
       }
     },
+    acceptLocalPodcastDelta(delta) {
+      return delta.id === this.libraryItemId || delta.libraryItemId === this.libraryItemId
+    },
+    findLocalPodcastRecord(id) {
+      if (this.libraryItem?.id === id) return this.libraryItem
+      return this.libraryItem?.localLibraryItem?.id === id ? this.libraryItem.localLibraryItem : null
+    },
     newLocalLibraryItem(item) {
+      if (item.id === this.libraryItemId) {
+        this.libraryItem = item
+        return
+      }
       if (item.libraryItemId == this.libraryItemId) {
         console.log('New local library item', item.id)
         this.$set(this.libraryItem, 'localLibraryItem', item)

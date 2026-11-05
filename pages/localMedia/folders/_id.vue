@@ -36,8 +36,10 @@
 import { Capacitor } from '@capacitor/core'
 import { Dialog } from '@capacitor/dialog'
 import { AbsFileSystem } from '@/plugins/capacitor'
+import localPodcastDownloads from '@/mixins/localPodcastDownloads'
 
 export default {
+  mixins: [localPodcastDownloads],
   asyncData({ params, query }) {
     return {
       folderId: params.id
@@ -114,29 +116,33 @@ export default {
       var folder = await this.$db.getLocalFolder(this.folderId)
       this.folder = folder
 
+      const before = new Map(this.localLibraryItems.map((item) => [item.id, item]))
       var items = (await this.$db.getLocalLibraryItemsInFolder(this.folderId)) || []
       console.log('Init folder', this.folderId, items)
-      this.localLibraryItems = items.map((lmi) => {
-        console.log('Local library item', JSON.stringify(lmi))
+      const snapshot = items.map((lmi) => {
         return {
           ...lmi,
           coverPathSrc: lmi.coverContentUrl ? Capacitor.convertFileSrc(lmi.coverContentUrl) : null
         }
       })
+      this.localLibraryItems = this.mergeLocalDownloadSnapshot(snapshot, before)
+    },
+    acceptLocalPodcastDelta(delta) {
+      return delta.folderId === this.folderId
+    },
+    findLocalPodcastRecord(id) {
+      return this.localLibraryItems.find((item) => item.id === id)
     },
     newLocalLibraryItem(item) {
       if (item.folderId == this.folderId) {
         console.log('New local library item', item.id)
-        if (this.localLibraryItems.find((li) => li.id == item.id)) {
-          console.warn('Item already added', item.id)
-          return
-        }
-
+        const index = this.localLibraryItems.findIndex((li) => li.id === item.id)
         var _item = {
           ...item,
           coverPathSrc: item.coverContentUrl ? Capacitor.convertFileSrc(item.coverContentUrl) : null
         }
-        this.localLibraryItems.push(_item)
+        if (index >= 0) this.localLibraryItems.splice(index, 1, _item)
+        else this.localLibraryItems.push(_item)
       }
     }
   },
