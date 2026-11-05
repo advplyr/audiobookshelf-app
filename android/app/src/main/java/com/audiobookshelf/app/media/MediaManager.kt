@@ -6,6 +6,7 @@ import android.support.v4.media.MediaBrowserCompat
 import android.util.Log
 import com.audiobookshelf.app.data.*
 import com.audiobookshelf.app.device.DeviceManager
+import com.audiobookshelf.app.plugins.AbsLogger
 import com.audiobookshelf.app.server.ApiHandler
 import com.getcapacitor.JSObject
 import java.util.*
@@ -727,6 +728,37 @@ class MediaManager(private var apiHandler: ApiHandler, var ctx: Context) {
       }
     }
     return successfulPing
+  }
+
+  private val isRestoringServerConnection = java.util.concurrent.atomic.AtomicBoolean(false)
+
+  /**
+   * Sets [DeviceManager.serverConnectionConfig] to the saved config [serverConnectionConfigId] if none is set
+   * and that server is reachable. Android Auto only checks the server when it connects, so a server that was
+   * unreachable at that moment would otherwise stay unset until the phone app is opened.
+   * [cb] receives true if the active connection is [serverConnectionConfigId].
+   */
+  fun restoreServerConnection(serverConnectionConfigId: String, cb: (Boolean) -> Unit) {
+    DeviceManager.serverConnectionConfig?.let { return cb(it.id == serverConnectionConfigId) }
+
+    val config = DeviceManager.getServerConnectionConfig(serverConnectionConfigId)
+    if (config == null || !DeviceManager.checkConnectivity(ctx) || !isRestoringServerConnection.compareAndSet(false, true)) {
+      return cb(false)
+    }
+
+    androidAutoIOScope.launch {
+      try {
+        val isReachable = checkServerConnection(config)
+        // The phone app may have set a connection while the server was being pinged
+        if (isReachable && DeviceManager.serverConnectionConfig == null) {
+          DeviceManager.serverConnectionConfig = config
+          AbsLogger.info(tag, "restoreServerConnection: Restored server connection ${config.name}")
+        }
+        cb(DeviceManager.serverConnectionConfig?.id == serverConnectionConfigId)
+      } finally {
+        isRestoringServerConnection.set(false)
+      }
+    }
   }
 
   private suspend fun authorize(config:ServerConnectionConfig) : MutableList<MediaProgress> {
