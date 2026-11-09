@@ -17,16 +17,25 @@
             <p class="text-xl font-mono">{{ this.$secondsToTimestamp(currentTime / _playbackRate) }}</p>
           </div>
 
-          <ui-text-input-with-label v-model="newBookmarkTitle" :placeholder="bookmarkPlaceholder()" :autofocus="false" ref="noteInput" label="Note" />
+          <ui-text-input-with-label v-model="newBookmarkTitle" :placeholder="bookmarkPlaceholder()" :autofocus="false" ref="noteInput" label="Title" />
+          <label class="block mt-4 text-sm">Description (saved on this device)</label>
+          <textarea v-model="newBookmarkDescription" class="w-full mt-1 p-2 rounded bg-bg text-fg border border-border" rows="2" />
           <div class="flex justify-end mt-6">
             <ui-btn color="success" class="w-full" @click.stop="submitBookmark">{{ selectedBookmark ? 'Update' : 'Create' }}</ui-btn>
           </div>
         </div>
         <div class="w-full h-full" v-else>
           <template v-for="bookmark in bookmarks">
-            <modals-bookmarks-bookmark-item :key="bookmark.id" :highlight="currentTime === bookmark.time" :bookmark="bookmark" :playback-rate="_playbackRate" @click="clickBookmark" @edit="editBookmark" @delete="deleteBookmark" />
+            <modals-bookmarks-bookmark-item :key="`${bookmark.libraryItemId}:${bookmark.time}`" :highlight="Math.floor(currentTime) === bookmark.time" :bookmark="bookmark" :playback-rate="_playbackRate" @click="clickBookmark" @edit="editBookmark" @delete="deleteBookmark" />
           </template>
-          <div v-if="!bookmarks.length" class="flex h-32 items-center justify-center">
+          <div v-for="conflict in conflicts" :key="conflict.id" class="p-3 border-t border-warning text-sm">
+            <p>Bookmark sync needs your choice: {{ conflict.bookmark.title }}. {{ conflictMessage(conflict.conflict) }}</p>
+            <div class="flex gap-4 mt-2 underline">
+              <button @click.stop="resolveConflict(conflict.id, 'server')">Use server version</button>
+              <button @click.stop="resolveConflict(conflict.id, 'local')">Keep mine</button>
+            </div>
+          </div>
+          <div v-if="!bookmarks.length && !conflicts.length" class="flex h-32 items-center justify-center">
             <p class="text-xl">{{ $strings.MessageNoBookmarks }}</p>
           </div>
         </div>
@@ -64,7 +73,8 @@ export default {
     return {
       selectedBookmark: null,
       showBookmarkTitleInput: false,
-      newBookmarkTitle: ''
+      newBookmarkTitle: '',
+      newBookmarkDescription: ''
     }
   },
   watch: {
@@ -72,6 +82,7 @@ export default {
       if (newVal) {
         this.showBookmarkTitleInput = false
         this.newBookmarkTitle = ''
+        this.newBookmarkDescription = ''
       }
     }
   },
@@ -85,7 +96,10 @@ export default {
       }
     },
     canCreateBookmark() {
-      return !this.bookmarks.find((bm) => bm.time === this.currentTime)
+      return !this.bookmarks.find((bm) => bm.time === Math.floor(this.currentTime))
+    },
+    conflicts() {
+      return this.$store.state.bookmarks.pending.filter((operation) => operation.bookmark.libraryItemId === this.libraryItemId && operation.conflict)
     },
     _playbackRate() {
       if (!this.playbackRate || isNaN(this.playbackRate)) return 1
@@ -93,6 +107,15 @@ export default {
     }
   },
   methods: {
+    conflictMessage(reason) {
+      return {
+        collision: 'Another bookmark exists at this second. Keeping yours will replace it.',
+        'possible-duplicate': 'A similar bookmark is within five seconds. Keeping yours will create another.',
+        'remote-changed': 'This bookmark changed on another device.',
+        'remote-deleted': 'This bookmark was deleted on another device.',
+        'server-rejected': 'The server rejected this change.'
+      }[reason] || 'The server version differs.'
+    },
     bookmarkPlaceholder() {
       // using a method prevents caching the date
       return this.$formatDate(Date.now(), 'MMM dd, yyyy HH:mm')
@@ -100,6 +123,7 @@ export default {
     editBookmark(bm) {
       this.selectedBookmark = bm
       this.newBookmarkTitle = bm.title
+      this.newBookmarkDescription = bm.description || ''
       this.showBookmarkTitleInput = true
     },
     async deleteBookmark(bm) {
@@ -110,11 +134,7 @@ export default {
       })
       if (!value) return
 
-      this.$nativeHttp
-        .delete(`/api/me/item/${this.libraryItemId}/bookmark/${bm.time}`)
-        .then(() => {
-          this.$store.commit('user/deleteBookmark', { libraryItemId: this.libraryItemId, time: bm.time })
-        })
+      this.$store.dispatch('bookmarks/change', { type: 'delete', bookmark: bm })
         .catch((error) => {
           this.$toast.error(this.$strings.ToastBookmarkRemoveFailed)
           console.error(error)
@@ -124,11 +144,14 @@ export default {
       await this.$hapticsImpact()
       this.$emit('select', bm)
     },
+    resolveConflict(id, choice) {
+      this.$store.dispatch('bookmarks/resolveConflict', { id, choice }).catch((error) => {
+        this.$toast.error(error.message || 'Could not resolve bookmark conflict')
+      })
+    },
     submitUpdateBookmark(updatedBookmark) {
-      this.$nativeHttp
-        .patch(`/api/me/item/${this.libraryItemId}/bookmark`, updatedBookmark)
-        .then((bookmark) => {
-          this.$store.commit('user/updateBookmark', bookmark)
+      this.$store.dispatch('bookmarks/change', { type: 'update', bookmark: updatedBookmark })
+        .then(() => {
           this.showBookmarkTitleInput = false
         })
         .catch((error) => {
@@ -141,27 +164,29 @@ export default {
         this.newBookmarkTitle = this.$formatDate(Date.now(), 'MMM dd, yyyy HH:mm')
       }
       const bookmark = {
+        libraryItemId: this.libraryItemId,
         title: this.newBookmarkTitle,
+        description: this.newBookmarkDescription,
         time: Math.floor(this.currentTime)
       }
-      this.$nativeHttp
-        .post(`/api/me/item/${this.libraryItemId}/bookmark`, bookmark)
+      this.$store.dispatch('bookmarks/change', { type: 'create', bookmark })
         .then(() => {
           this.$toast.success('Bookmark added')
+          this.newBookmarkTitle = ''
+          this.newBookmarkDescription = ''
+          this.showBookmarkTitleInput = false
+          this.show = false
         })
         .catch((error) => {
           this.$toast.error(this.$strings.ToastBookmarkCreateFailed)
           console.error(error)
         })
 
-      this.newBookmarkTitle = ''
-      this.showBookmarkTitleInput = false
-
-      this.show = false
     },
     createBookmark() {
       this.selectedBookmark = null
       this.newBookmarkTitle = ''
+      this.newBookmarkDescription = ''
       this.showBookmarkTitleInput = true
     },
     async submitBookmark() {
@@ -169,7 +194,8 @@ export default {
       if (this.selectedBookmark) {
         var updatePayload = {
           ...this.selectedBookmark,
-          title: this.newBookmarkTitle
+          title: this.newBookmarkTitle,
+          description: this.newBookmarkDescription
         }
         this.submitUpdateBookmark(updatePayload)
       } else {

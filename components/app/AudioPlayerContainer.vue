@@ -1,10 +1,10 @@
 <template>
   <div>
-    <app-audio-player ref="audioPlayer" :bookmarks="bookmarks" :sleep-timer-running="isSleepTimerRunning" :sleep-time-remaining="sleepTimeRemaining" :serverLibraryItemId="serverLibraryItemId" @selectPlaybackSpeed="showPlaybackSpeedModal = true" @updateTime="(t) => (currentTime = t)" @showSleepTimer="showSleepTimer" @showBookmarks="showBookmarks" />
+    <app-audio-player ref="audioPlayer" :bookmarks="bookmarks" :sleep-timer-running="isSleepTimerRunning" :sleep-time-remaining="sleepTimeRemaining" :serverLibraryItemId="bookmarkLibraryItemId" @selectPlaybackSpeed="showPlaybackSpeedModal = true" @updateTime="(t) => (currentTime = t)" @showSleepTimer="showSleepTimer" @showBookmarks="showBookmarks" />
 
     <modals-playback-speed-modal v-model="showPlaybackSpeedModal" :playback-rate.sync="playbackSpeed" @update:playbackRate="updatePlaybackSpeed" @change="changePlaybackSpeed" />
     <modals-sleep-timer-modal v-model="showSleepTimerModal" :current-time="sleepTimeRemaining" :sleep-timer-running="isSleepTimerRunning" :current-end-of-chapter-time="currentEndOfChapterTime" :is-auto="isAutoSleepTimer" @change="selectSleepTimeout" @cancel="cancelSleepTimer" @increase="increaseSleepTimer" @decrease="decreaseSleepTimer" />
-    <modals-bookmarks-modal v-model="showBookmarksModal" :bookmarks="bookmarks" :current-time="currentTime" :library-item-id="serverLibraryItemId" :playback-rate="playbackSpeed" @select="selectBookmark" />
+    <modals-bookmarks-modal v-model="showBookmarksModal" :bookmarks="bookmarks" :current-time="currentTime" :library-item-id="bookmarkLibraryItemId" :playback-rate="playbackSpeed" @select="selectBookmark" />
   </div>
 </template>
 
@@ -42,9 +42,14 @@ export default {
   },
   mixins: [CellularPermissionHelpers],
   computed: {
+    bookmarkLibraryItemId() {
+      const localItem = this.currentPlaybackSession?.localLibraryItem
+      if (localItem) return this.$store.getters['bookmarks/accountMatches'](localItem) ? localItem.libraryItemId : null
+      return this.serverLibraryItemId || this.currentPlaybackSession?.libraryItemId || null
+    },
     bookmarks() {
-      if (!this.serverLibraryItemId) return []
-      return this.$store.getters['user/getUserBookmarksForItem'](this.serverLibraryItemId)
+      if (!this.bookmarkLibraryItemId) return []
+      return this.$store.getters['bookmarks/forItem'](this.bookmarkLibraryItemId)
     },
     isIos() {
       return this.$platform === 'ios'
@@ -210,7 +215,11 @@ export default {
 
       // When playing local library item and can also play this item from the server
       //   then store the server library item id so it can be used if a cast is made
-      const serverLibraryItemId = payload.serverLibraryItemId || null
+      let serverLibraryItemId = payload.serverLibraryItemId || null
+      if (isLocal) {
+        const localItem = await this.$db.getLocalLibraryItem(libraryItemId)
+        serverLibraryItemId = this.$store.getters['bookmarks/accountMatches'](localItem) ? localItem.libraryItemId : null
+      }
       const serverEpisodeId = payload.serverEpisodeId || null
 
       if (isLocal && this.$store.state.isCasting) {
