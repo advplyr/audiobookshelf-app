@@ -62,7 +62,7 @@ export default {
       if (!bookmark || isNaN(bookmark.time)) return
       const bookmarkTime = Number(bookmark.time)
       if (this.$refs.audioPlayer) {
-        this.$refs.audioPlayer.seek(bookmarkTime)
+        this.$refs.audioPlayer.seekWithUndo(bookmarkTime)
       }
     },
     onSleepTimerEnded({ value: currentPosition }) {
