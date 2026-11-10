@@ -264,7 +264,7 @@
   "LabelSleepTimerAlmostDoneChimeHelp": "Spela upp ett ljud när 30 sekunder återstår av insomningstimern",
   "LabelSleepTimerResumeAction": "Efter insomningstimer",
   "LabelSleepTimerResumeAsk": "Fråga mig",
-  "LabelSleepTimerResumeAuto": "Spola tillbaka automatiskt",
+  "LabelSleepTimerResumeAuto": "Automatiskt",
   "LabelSleepTimerResumeRewind": "Erbjud återspolning efter insomningstimer",
   "LabelSleepTimerResumeRewindHelp": "När en insomningstimer tar slut visas ett förslag om att spola tillbaka till där du somnade. Utan detta fortsätter uppspelningen där timern stoppade.",
   "LabelSleepTimerResumeTitle": "Insomningstimern stoppade",

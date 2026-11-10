@@ -264,7 +264,7 @@
   "LabelSleepTimerAlmostDoneChimeHelp": "Play a chime when the sleep timer has 30 seconds remaining",
   "LabelSleepTimerResumeAction": "After sleep timer",
   "LabelSleepTimerResumeAsk": "Ask me",
-  "LabelSleepTimerResumeAuto": "Rewind automatically",
+  "LabelSleepTimerResumeAuto": "Automatic",
   "LabelSleepTimerResumeRewind": "Offer to rewind after sleep timer",
   "LabelSleepTimerResumeRewindHelp": "When a sleep timer finishes, show a prompt to rewind to where you fell asleep. Without this, playback resumes where the timer stopped.",
   "LabelSleepTimerResumeTitle": "Sleep timer stopped",

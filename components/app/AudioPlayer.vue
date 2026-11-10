@@ -122,6 +122,7 @@
           :aria-valuenow="Math.round(displayTime)"
           aria-orientation="horizontal"
           @click.stop="clickTrack"
+          @touchstart="touchstartCursor"
           @keydown.left.prevent="keyboardSeek(-1)"
           @keydown.right.prevent="keyboardSeek(1)"
           @keydown.enter.prevent
@@ -135,7 +136,7 @@
             <div ref="playedTrack" class="h-full bg-track-cursor absolute top-0 left-0 rounded-full pointer-events-none" />
           </div>
           <!-- Playhead handle. Kept outside the track so the full touch target is not clipped. -->
-          <div ref="trackCursor" class="h-7 w-7 rounded-full absolute pointer-events-auto flex items-center justify-center" :style="{ top: '-11px' }" :class="{ 'opacity-0': playerSettings.lockUi || !showFullscreen }" @touchstart="touchstartCursor">
+          <div ref="trackCursor" class="h-7 w-7 rounded-full absolute pointer-events-auto flex items-center justify-center" :style="{ top: '-11px' }" :class="{ 'opacity-0': playerSettings.lockUi || !showFullscreen }">
             <div class="bg-track-cursor rounded-full w-3.5 h-3.5 pointer-events-none" />
           </div>
         </div>
@@ -229,8 +230,6 @@ export default {
       isLoading: false,
       isCheckingServerProgress: false,
       isDraggingCursor: false,
-      draggingTouchStartX: 0,
-      draggingTouchStartTime: 0,
       draggingCurrentTime: 0,
       isSwipeSeeking: false,
       swipeAxis: null,
@@ -766,15 +765,26 @@ export default {
       this.showSeekNotice(text, previousTime)
       return true
     },
-    async touchstartCursor(e) {
+    touchstartCursor(e) {
       if (!e || !e.touches || !this.$refs.track || !this.showFullscreen || this.playerSettings.lockUi) return
 
-      await this.$hapticsImpact()
+      // Set the state before the haptic call so a quick tap cannot leave the drag flag set
       this.isDraggingCursor = true
-      this.draggingTouchStartX = e.touches[0].pageX
-      this.draggingTouchStartTime = this.currentTime
-      this.draggingCurrentTime = this.currentTime
+      // Jump straight to the pressed position so the whole bar is scrubbable, not just the handle
+      this.draggingCurrentTime = this.timeForTrackPosition(e.touches[0].pageX)
+      this.updateTimestamp()
       this.updateTrack()
+      this.$hapticsImpact()
+    },
+    /** Maps a page X coordinate to a playback time inside the current track bounds. */
+    timeForTrackPosition(pageX) {
+      if (!this.$refs.track) return this.currentTime
+      const rect = this.$refs.track.getBoundingClientRect()
+      if (!rect.width) return this.currentTime
+
+      const bounds = this.trackBounds
+      const percent = Math.min(1, Math.max(0, (pageX - rect.left) / rect.width))
+      return bounds.min + percent * (bounds.max - bounds.min)
     },
     /**
      * Maps a horizontal drag distance to a playback time. A full screen width equals
@@ -782,7 +792,8 @@ export default {
      */
     swipeTimeForDistance(distanceX) {
       const secondsPerScreen = 300
-      const screenWidth = this.windowWidth || window.innerWidth || 390
+      // Use the live viewport width: the cached windowWidth can be from the folded cover screen
+      const screenWidth = window.innerWidth || this.windowWidth || 390
       const bounds = this.trackBounds
       const time = this.swipeStartPlaybackTime + (distanceX / screenWidth) * secondsPerScreen
       return Math.min(bounds.max, Math.max(bounds.min, time))
@@ -981,20 +992,8 @@ export default {
         return
       }
 
-      const distanceMoved = e.touches[0].pageX - this.draggingTouchStartX
-      let duration = this.totalDuration
-      let minTime = 0
-      let maxTime = duration
-      if (this.playerSettings.useChapterTrack && this.currentChapter) {
-        duration = this.currentChapterDuration
-        minTime = this.currentChapter.start
-        maxTime = minTime + duration
-      }
-
-      const trackWidth = this.$refs.track?.clientWidth || this.trackWidth
-      const timePerPixel = duration / trackWidth
-      const newTime = this.draggingTouchStartTime + timePerPixel * distanceMoved
-      this.draggingCurrentTime = Math.min(maxTime, Math.max(minTime, newTime))
+      // Follow the finger: the bar is a scrubber, not a relative nudge
+      this.draggingCurrentTime = this.timeForTrackPosition(e.touches[0].pageX)
 
       this.updateTimestamp()
       this.updateTrack()
