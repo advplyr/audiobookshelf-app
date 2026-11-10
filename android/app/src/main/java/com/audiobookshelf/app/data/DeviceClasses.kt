@@ -164,6 +164,9 @@ data class DeviceSettings(
         var autoSleepTimerEndTime: String,
         var autoSleepTimerAutoRewind: Boolean,
         var autoSleepTimerAutoRewindTime: Long, // Time in milliseconds
+        var sleepTimerResumeRewind: Boolean = true, // Rewind after a sleep timer has finished
+        var sleepTimerResumeAction: String? = "ASK", // ASK or AUTO. Null on settings saved before v0.14.3
+        var sleepTimerResumeRewindTime: Long = 300000L, // Time in milliseconds
         var sleepTimerLength: Long, // Time in milliseconds
         var disableSleepTimerFadeOut: Boolean,
         var disableSleepTimerResetFeedback: Boolean,
@@ -194,6 +197,9 @@ data class DeviceSettings(
               sleepTimerLength = 900000L, // 15 minutes
               autoSleepTimerAutoRewind = false,
               autoSleepTimerAutoRewindTime = 300000L, // 5 minutes
+              sleepTimerResumeRewind = true,
+              sleepTimerResumeAction = "ASK",
+              sleepTimerResumeRewindTime = 300000L, // 5 minutes
               disableSleepTimerFadeOut = false,
               disableSleepTimerResetFeedback = false,
               enableSleepTimerAlmostDoneChime = false,

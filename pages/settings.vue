@@ -144,6 +144,31 @@
       </div>
     </div>
 
+    <!-- Rewind after the sleep timer finished -->
+    <template v-if="!isiOS">
+      <div class="flex items-center py-3">
+        <div class="w-10 flex justify-center" @click="toggleSleepTimerResumeRewind">
+          <ui-toggle-switch v-model="settings.sleepTimerResumeRewind" @input="saveSettings" />
+        </div>
+        <p class="pl-4">{{ $strings.LabelSleepTimerResumeRewind }}</p>
+        <span class="material-symbols text-xl ml-2" @click.stop="showInfo('sleepTimerResumeRewind')">info</span>
+      </div>
+      <template v-if="settings.sleepTimerResumeRewind">
+        <div class="py-3 flex items-center">
+          <p class="pr-4 w-36">{{ $strings.LabelSleepTimerResumeAction }}</p>
+          <div @click.stop="showSleepTimerResumeActionOptions">
+            <ui-text-input :value="sleepTimerResumeActionOption" readonly append-icon="expand_more" style="width: 145px; max-width: 145px" />
+          </div>
+        </div>
+        <div v-if="settings.sleepTimerResumeAction === 'AUTO'" class="py-3 flex items-center">
+          <p class="pr-4 w-36">{{ $strings.LabelAutoRewindTime }}</p>
+          <div @click.stop="showSleepTimerResumeRewindOptions">
+            <ui-text-input :value="sleepTimerResumeRewindOption" readonly append-icon="expand_more" style="width: 145px; max-width: 145px" />
+          </div>
+        </div>
+      </template>
+    </template>
+
     <!-- Data settings -->
     <p class="uppercase text-xs font-semibold text-fg-muted mb-2 mt-10">{{ $strings.HeaderDataSettings }}</p>
     <div class="py-3 flex items-center">
@@ -182,6 +207,7 @@
     <modals-dialog v-model="showMoreMenuDialog" :items="moreMenuItems" :selected="moreMenuSelected" @action="clickMenuAction" />
     <modals-sleep-timer-length-modal v-model="showSleepTimerLengthModal" @change="sleepTimerLengthModalSelection" />
     <modals-auto-sleep-timer-rewind-length-modal v-model="showAutoSleepTimerRewindLengthModal" @change="showAutoSleepTimerRewindLengthModalSelection" />
+    <modals-auto-sleep-timer-rewind-length-modal v-model="showSleepTimerResumeRewindLengthModal" @change="sleepTimerResumeRewindSelection" />
   </div>
 </template>
 
@@ -198,6 +224,7 @@ export default {
       showMoreMenuDialog: false,
       showSleepTimerLengthModal: false,
       showAutoSleepTimerRewindLengthModal: false,
+      showSleepTimerResumeRewindLengthModal: false,
       moreMenuSetting: '',
       settings: {
         disableAutoRewind: false,
@@ -219,6 +246,9 @@ export default {
         enableSleepTimerAlmostDoneChime: false,
         autoSleepTimerAutoRewind: false,
         autoSleepTimerAutoRewindTime: 300000, // 5 minutes
+        sleepTimerResumeRewind: true,
+        sleepTimerResumeAction: 'ASK',
+        sleepTimerResumeRewindTime: 300000, // 5 minutes
         languageCode: 'en-us',
         downloadUsingCellular: 'ALWAYS',
         streamingUsingCellular: 'ALWAYS',
@@ -251,6 +281,10 @@ export default {
         autoSleepTimerAutoRewind: {
           name: this.$strings.LabelAutoSleepTimerAutoRewind,
           message: this.$strings.LabelAutoSleepTimerAutoRewindHelp
+        },
+        sleepTimerResumeRewind: {
+          name: this.$strings.LabelSleepTimerResumeRewind,
+          message: this.$strings.LabelSleepTimerResumeRewindHelp
         },
         enableMp3IndexSeeking: {
           name: this.$strings.LabelEnableMp3IndexSeeking,
@@ -338,6 +372,16 @@ export default {
           text: this.$strings.LabelSequenceDescending,
           value: 'DESC'
         }
+      ],
+      sleepTimerResumeActionItems: [
+        {
+          text: this.$strings.LabelSleepTimerResumeAsk,
+          value: 'ASK'
+        },
+        {
+          text: this.$strings.LabelSleepTimerResumeAuto,
+          value: 'AUTO'
+        }
       ]
     }
   },
@@ -408,6 +452,14 @@ export default {
       const minutes = Number(this.settings.autoSleepTimerAutoRewindTime) / 1000 / 60
       return `${minutes} min`
     },
+    sleepTimerResumeActionOption() {
+      const item = this.sleepTimerResumeActionItems.find((i) => i.value === this.settings.sleepTimerResumeAction)
+      return item?.text || 'Error'
+    },
+    sleepTimerResumeRewindOption() {
+      const minutes = Number(this.settings.sleepTimerResumeRewindTime) / 1000 / 60
+      return `${minutes} min`
+    },
     downloadUsingCellularOption() {
       const item = this.downloadUsingCellularItems.find((i) => i.value === this.settings.downloadUsingCellular)
       return item?.text || 'Error'
@@ -428,6 +480,7 @@ export default {
       else if (this.moreMenuSetting === 'downloadUsingCellular') return this.downloadUsingCellularItems
       else if (this.moreMenuSetting === 'streamingUsingCellular') return this.streamingUsingCellularItems
       else if (this.moreMenuSetting === 'androidAutoBrowseSeriesSequenceOrder') return this.androidAutoBrowseSeriesSequenceOrderItems
+      else if (this.moreMenuSetting === 'sleepTimerResumeAction') return this.sleepTimerResumeActionItems
       else if (this.moreMenuSetting === 'jumpForward')
         return this.jumpForwardSecondsOptions.map((value) => ({
           text: this.getJumpLabel(value),
@@ -448,6 +501,7 @@ export default {
       if (this.moreMenuSetting === 'downloadUsingCellular') return this.settings.downloadUsingCellular
       if (this.moreMenuSetting === 'streamingUsingCellular') return this.settings.streamingUsingCellular
       if (this.moreMenuSetting === 'androidAutoBrowseSeriesSequenceOrder') return this.settings.androidAutoBrowseSeriesSequenceOrder
+      if (this.moreMenuSetting === 'sleepTimerResumeAction') return this.settings.sleepTimerResumeAction
       if (this.moreMenuSetting === 'shakeSensitivity') return this.settings.shakeSensitivity
       if (this.moreMenuSetting === 'hapticFeedback') return this.settings.hapticFeedback
       return null
@@ -460,6 +514,21 @@ export default {
     },
     showAutoSleepTimerRewindLengthModalSelection(value) {
       this.settings.autoSleepTimerAutoRewindTime = value
+      this.saveSettings()
+    },
+    sleepTimerResumeRewindSelection(value) {
+      this.settings.sleepTimerResumeRewindTime = value
+      this.saveSettings()
+    },
+    showSleepTimerResumeRewindOptions() {
+      this.showSleepTimerResumeRewindLengthModal = true
+    },
+    showSleepTimerResumeActionOptions() {
+      this.moreMenuSetting = 'sleepTimerResumeAction'
+      this.showMoreMenuDialog = true
+    },
+    toggleSleepTimerResumeRewind() {
+      this.settings.sleepTimerResumeRewind = !this.settings.sleepTimerResumeRewind
       this.saveSettings()
     },
     showSleepTimerOptions() {
@@ -526,6 +595,9 @@ export default {
         this.saveSettings()
       } else if (this.moreMenuSetting === 'androidAutoBrowseSeriesSequenceOrder') {
         this.settings.androidAutoBrowseSeriesSequenceOrder = action
+        this.saveSettings()
+      } else if (this.moreMenuSetting === 'sleepTimerResumeAction') {
+        this.settings.sleepTimerResumeAction = action
         this.saveSettings()
       } else if (this.moreMenuSetting === 'jumpForward') {
         this.settings.jumpForwardTime = action
@@ -663,6 +735,9 @@ export default {
 
       this.settings.autoSleepTimerAutoRewind = !!deviceSettings.autoSleepTimerAutoRewind
       this.settings.autoSleepTimerAutoRewindTime = !isNaN(deviceSettings.autoSleepTimerAutoRewindTime) ? deviceSettings.autoSleepTimerAutoRewindTime : 300000 // 5 minutes
+      this.settings.sleepTimerResumeRewind = deviceSettings.sleepTimerResumeRewind !== false
+      this.settings.sleepTimerResumeAction = deviceSettings.sleepTimerResumeAction || 'ASK'
+      this.settings.sleepTimerResumeRewindTime = Number(deviceSettings.sleepTimerResumeRewindTime) > 0 ? deviceSettings.sleepTimerResumeRewindTime : 300000 // 5 minutes
 
       this.settings.languageCode = deviceSettings.languageCode || 'en-us'
 
