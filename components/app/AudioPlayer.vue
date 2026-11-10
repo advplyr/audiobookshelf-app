@@ -158,6 +158,18 @@
       <button v-if="seekNotice.undoTime !== null" class="seek-notice-undo px-2 py-1 pointer-events-auto" @click="undoSeek">{{ $strings.ButtonUndo }}</button>
     </div>
 
+    <!-- Sleep timer resume sheet -->
+    <div v-if="showResumeSheet" class="fixed inset-0 z-40 pointer-events-auto" style="background: rgba(0, 0, 0, 0.55)" @click="dismissResume" />
+    <div v-if="showResumeSheet" class="sleep-resume-sheet fixed left-0 right-0 bottom-0 z-50 rounded-t-2xl px-5 pt-3 pb-8 pointer-events-auto">
+      <div class="w-10 h-1 rounded-full bg-white bg-opacity-30 mx-auto mb-4" />
+      <p class="resume-title">{{ $strings.LabelSleepTimerResumeTitle }}</p>
+      <p class="resume-subtitle">{{ resumeSubtitle }}</p>
+      <div class="grid grid-cols-4 gap-2">
+        <button v-for="opt in resumeOptions" :key="opt" class="resume-option" @click="resumeRewind(opt)">{{ resumeOptionLabel(opt) }}</button>
+      </div>
+      <button class="resume-continue w-full mt-3" @click="dismissResume">{{ $strings.ButtonContinueHere }}</button>
+    </div>
+
     <!-- Chapters modal - lists chapters for navigation -->
     <modals-chapters-modal v-model="showChapterModal" :current-chapter="currentChapter" :chapters="chapters" :playback-rate="currentPlaybackRate" @select="selectChapter" />
     <!-- More menu dialog - player settings and options -->
@@ -181,7 +193,11 @@ export default {
     },
     sleepTimerRunning: Boolean,
     sleepTimeRemaining: Number,
-    serverLibraryItemId: String
+    serverLibraryItemId: String,
+    sleepTimerResume: {
+      type: Object,
+      default: null
+    }
   },
   mixins: [jumpLabelMixin],
   data() {
@@ -223,6 +239,7 @@ export default {
       suppressTrackClick: false,
       seekNotice: null,
       seekNoticeTimeout: null,
+      resumeOptions: [30, 60, 300, 600],
       syncStatus: 0,
       showMoreMenuDialog: false,
       coverRgb: 'rgb(55, 56, 56)',
@@ -483,6 +500,16 @@ export default {
     },
     swipeTargetPretty() {
       return this.$secondsToTimestamp(this.swipeTargetTime)
+    },
+    showResumeSheet() {
+      return !!this.sleepTimerResume && this.showFullscreen
+    },
+    resumeSubtitle() {
+      if (!this.sleepTimerResume) return ''
+      const endedAt = Number(this.sleepTimerResume.endedAt)
+      const time = endedAt ? new Date(endedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''
+      if (!time) return this.$strings.MessageSleepTimerResume
+      return this.$getString('MessageSleepTimerResumeTime', [time])
     }
   },
   methods: {
@@ -836,6 +863,16 @@ export default {
       this.seekNotice = null
       clearTimeout(this.seekNoticeTimeout)
     },
+    resumeOptionLabel(seconds) {
+      if (seconds < 60) return this.$getString('LabelSecondsShort', [seconds])
+      return this.$getString('LabelMinutesShort', [seconds / 60])
+    },
+    resumeRewind(seconds) {
+      this.$emit('resumeRewind', seconds)
+    },
+    dismissResume() {
+      this.$emit('resumeDismiss')
+    },
     async playPauseClick() {
       await this.$hapticsImpact()
       if (this.showLoadingState) return
@@ -889,7 +926,7 @@ export default {
 
       // Do not start a swipe on interactive elements (buttons, progress bar, modals)
       const target = e.target
-      const canSwipe = this.showFullscreen && !this.playerSettings.lockUi && !(target && target.closest && target.closest('button, a, input, [role="slider"], [data-no-swipe]'))
+      const canSwipe = this.showFullscreen && !this.playerSettings.lockUi && !this.showResumeSheet && !(target && target.closest && target.closest('button, a, input, [role="slider"], [data-no-swipe]'))
       this.swipeStartX = canSwipe ? e.changedTouches[0].pageX : null
     },
     touchend(e) {
@@ -936,7 +973,7 @@ export default {
       if (!e.touches) return
       if (!this.isDraggingCursor) {
         // Horizontal swipe anywhere on the fullscreen player seeks
-        if (this.swipeStartX === null || !this.showFullscreen || this.playerSettings.lockUi || this.$store.state.globals.isModalOpen) return
+        if (this.swipeStartX === null || !this.showFullscreen || this.playerSettings.lockUi || this.showResumeSheet || this.$store.state.globals.isModalOpen) return
 
         const touch = e.touches[0]
         const distanceX = touch.pageX - this.swipeStartX
@@ -1500,5 +1537,46 @@ export default {
   font-size: 0.85rem;
   font-weight: 600;
   color: #7fd4c1;
+}
+
+/* Sleep timer resume sheet */
+.sleep-resume-sheet {
+  background-color: rgba(14, 22, 21, 0.98);
+  box-shadow: 0 -18px 50px rgba(0, 0, 0, 0.55);
+  padding-bottom: calc(2rem + env(safe-area-inset-bottom));
+}
+.resume-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #f4f4f5;
+}
+.resume-subtitle {
+  margin-top: 0.25rem;
+  margin-bottom: 1rem;
+  font-size: 0.85rem;
+  line-height: 1.4;
+  color: #a9aaaE;
+}
+.resume-option {
+  padding: 0.75rem 0;
+  border-radius: 0.75rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #eef4f2;
+  background-color: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  font-variant-numeric: tabular-nums;
+}
+.resume-option:active {
+  background-color: rgba(255, 255, 255, 0.16);
+}
+.resume-continue {
+  padding: 0.85rem 0;
+  border-radius: 0.75rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #eef4f2;
+  background-color: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
 }
 </style>
