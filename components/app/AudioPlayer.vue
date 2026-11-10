@@ -152,9 +152,9 @@
     </div>
 
     <!-- Seek confirmation with undo -->
-    <div v-if="seekNotice" class="seek-notice fixed left-4 right-4 z-50 flex items-center gap-3 rounded-xl px-4 py-3" :class="{ fullscreen: showFullscreen }">
+    <div v-if="seekNotice" class="seek-notice fixed left-4 right-4 z-50 flex items-center gap-3 rounded-xl px-4 py-3 pointer-events-none" :class="{ fullscreen: showFullscreen }">
       <p class="seek-notice-text flex-1">{{ seekNotice.text }}</p>
-      <button v-if="seekNotice.undoTime !== null" class="seek-notice-undo px-2 py-1" @click="undoSeek">{{ $strings.ButtonUndo }}</button>
+      <button v-if="seekNotice.undoTime !== null" class="seek-notice-undo px-2 py-1 pointer-events-auto" @click="undoSeek">{{ $strings.ButtonUndo }}</button>
     </div>
 
     <!-- Sleep timer resume sheet -->
@@ -546,7 +546,7 @@ export default {
     },
     async selectChapter(chapter) {
       await this.$hapticsImpact()
-      this.seek(chapter.start)
+      this.seekWithUndo(chapter.start)
       this.showChapterModal = false
     },
     async castClick() {
@@ -578,7 +578,7 @@ export default {
       await this.$hapticsImpact()
       if (this.showLoadingState) return
       if (!this.nextChapter) return
-      this.seek(this.nextChapter.start)
+      this.seekWithUndo(this.nextChapter.start)
     },
     async jumpChapterStart() {
       await this.$hapticsImpact()
@@ -592,10 +592,10 @@ export default {
         const currChapterIndex = this.chapters.findIndex((ch) => Number(ch.start) <= this.currentTime && Number(ch.end) >= this.currentTime)
         if (currChapterIndex > 0) {
           const prevChapter = this.chapters[currChapterIndex - 1]
-          this.seek(prevChapter.start)
+          this.seekWithUndo(prevChapter.start)
         }
       } else {
-        this.seek(this.currentChapter.start)
+        this.seekWithUndo(this.currentChapter.start)
       }
     },
     showSleepTimerModal() {
@@ -608,7 +608,7 @@ export default {
       AbsAudioPlayer.setPlaybackSpeed({ value: speed })
     },
     restart() {
-      this.seek(0)
+      this.seekWithUndo(0)
     },
     async jumpBackwards() {
       await this.$hapticsImpact()
@@ -727,10 +727,10 @@ export default {
       }
     },
     seek(time) {
-      if (this.showLoadingState) return
+      if (this.showLoadingState) return false
       if (this.seekLoading) {
         console.error('Already seek loading', this.seekedTime)
-        return
+        return false
       }
 
       this.seekedTime = time
@@ -746,6 +746,25 @@ export default {
         this.$refs.playedTrack.classList.remove('bg-gray-200')
         this.$refs.playedTrack.classList.add('bg-yellow-300')
       }
+      return true
+    },
+    /**
+     * Seek and offer to undo the jump. Used for user initiated seeks (swipe, tap on the bar,
+     * chapter jumps, bookmarks) where landing in the wrong place is easy.
+     * @param time Number - target position in seconds
+     * @param previousTime Number - position to go back to if the user undoes the seek
+     */
+    seekWithUndo(time, previousTime = this.currentTime) {
+      const target = Math.max(0, Number(time))
+      const didSeek = this.seek(target)
+      if (!didSeek) return false
+
+      // Small jumps are intentional nudges, they do not need an undo
+      if (Math.abs(target - previousTime) < 15) return true
+
+      const text = this.$getString('MessageSeekedToTime', [this.$secondsToTimestamp(target)])
+      this.showSeekNotice(text, previousTime)
+      return true
     },
     async touchstartCursor(e) {
       if (!e || !e.touches || !this.$refs.track || !this.showFullscreen || this.playerSettings.lockUi) return
@@ -782,15 +801,16 @@ export default {
     },
     finishSwipeSeeking() {
       const target = this.swipeTargetTime
+      const previousTime = this.currentTime
       const canSeek = !this.showLoadingState && !this.seekLoading
-      const changed = canSeek && Math.abs(target - this.currentTime) >= 1
+      const changed = canSeek && Math.abs(target - previousTime) >= 1
       this.isSwipeSeeking = false
       this.swipeAxis = null
       if (changed) {
         // Show the new position right away, the player confirms it on the next update
         this.currentTime = target
         this.$hapticsImpact()
-        this.seek(target)
+        this.seekWithUndo(target, previousTime)
       }
       this.updateTimestamp()
       this.updateTrack()
@@ -811,13 +831,13 @@ export default {
       const percent = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width))
       const bounds = this.trackBounds
       this.$hapticsImpact()
-      this.seek(bounds.min + percent * (bounds.max - bounds.min))
+      this.seekWithUndo(bounds.min + percent * (bounds.max - bounds.min))
     },
     keyboardSeek(direction) {
       if (this.showLoadingState || this.playerSettings.lockUi) return
       const amount = direction < 0 ? this.jumpBackwardsTime : this.jumpForwardTime
       const bounds = this.trackBounds
-      this.seek(Math.min(bounds.max, Math.max(bounds.min, this.currentTime + direction * amount)))
+      this.seekWithUndo(Math.min(bounds.max, Math.max(bounds.min, this.currentTime + direction * amount)))
     },
     showSeekNotice(text, undoTime = null) {
       clearTimeout(this.seekNoticeTimeout)
@@ -917,7 +937,7 @@ export default {
 
       if (this.isDraggingCursor) {
         if (this.draggingCurrentTime !== this.currentTime) {
-          this.seek(this.draggingCurrentTime)
+          this.seekWithUndo(this.draggingCurrentTime)
           // Prevent the click that follows a drag from seeking again
           this.suppressTrackClick = true
           setTimeout(() => (this.suppressTrackClick = false), 400)
@@ -1048,6 +1068,8 @@ export default {
       this.isEnded = false
       this.isLoading = false
       this.playbackSession = null
+      clearTimeout(this.seekNoticeTimeout)
+      this.seekNotice = null
     },
     async loadPlayerSettings() {
       const savedPlayerSettings = await this.$localStore.getPlayerSettings()
@@ -1113,6 +1135,9 @@ export default {
       this.isEnded = false
       this.isLoading = true
       this.syncStatus = 0
+      // The undo target belongs to the previous book, never offer it for a new session
+      clearTimeout(this.seekNoticeTimeout)
+      this.seekNotice = null
       this.$store.commit('setPlaybackSession', this.playbackSession)
 
       // Set track width

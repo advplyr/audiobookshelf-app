@@ -365,6 +365,7 @@
   "MessageProgressSyncFailed": "Det senaste försöket att skicka uppspelningspositionen till servern misslyckades. Appen fortsätter att försöka synkronisera positionen med 15 sekunders till en minuts mellanrum medan mediet spelas upp.",
   "MessageReportBugsAndContribute": "Rapportera fel, föreslå funktioner och bidra på",
   "MessageRewoundTime": "Spolade tillbaka {0}",
+  "MessageSeekedToTime": "Spolade till {0}",
   "MessageSeriesAlreadyDownloaded": "Du har redan hämtat alla böcker i serien.",
   "MessageSleepTimerResume": "Insomningstimern stoppade uppspelningen medan du sov. Spola tillbaka till där du tappade tråden?",
   "MessageSleepTimerResumeTime": "Uppspelningen stoppade {0} medan du sov. Spola tillbaka till där du tappade tråden?",

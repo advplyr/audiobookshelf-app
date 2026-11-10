@@ -365,6 +365,7 @@
   "MessageProgressSyncFailed": "The most recent attempt to report your listening progress to the server has failed. Progress sync requests will continue to be attempted every 15 seconds to 1 minute while media is playing.",
   "MessageReportBugsAndContribute": "Report bugs, request features, and contribute on",
   "MessageRewoundTime": "Rewound {0}",
+  "MessageSeekedToTime": "Jumped to {0}",
   "MessageSeriesAlreadyDownloaded": "You have already downloaded all books in this series.",
   "MessageSleepTimerResume": "The sleep timer stopped playback while you were asleep. Rewind to where you lost track?",
   "MessageSleepTimerResumeTime": "Playback stopped at {0} while you were asleep. Rewind to where you lost track?",
