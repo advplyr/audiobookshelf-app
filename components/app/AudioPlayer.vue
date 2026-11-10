@@ -63,7 +63,7 @@
 
     <div id="playerContent" class="playerContainer w-full z-20 absolute bottom-0 left-0 right-0 p-2 pointer-events-auto transition-all" :style="{ backgroundColor: showFullscreen ? '' : coverRgb }" @click="clickContainer">
       <!-- Top controls bar - fullscreen only: bookmarks, speed, sleep timer, chapters -->
-      <div v-if="showFullscreen" class="absolute bottom-4 left-0 right-0 w-full pb-4 pt-2 mx-auto px-6" style="max-width: 414px">
+      <div v-if="showFullscreen" class="absolute bottom-4 left-0 right-0 w-full pb-4 pt-2 mx-auto px-6" style="max-width: 414px" data-no-swipe>
         <div class="flex items-center justify-between pointer-events-auto">
           <span v-if="!isPodcast && serverLibraryItemId && socketConnected" class="material-symbols text-3xl text-fg-muted cursor-pointer" :class="{ fill: bookmarks.length }" @click="$emit('showBookmarks')">bookmark</span>
           <!-- hidden for podcasts but still using this as a placeholder -->
@@ -83,7 +83,7 @@
       <div v-else class="w-full h-full absolute top-0 left-0 pointer-events-none" style="background: var(--gradient-minimized-audio-player)" />
 
       <!-- Playback controls - jump buttons, play/pause, chapter navigation -->
-      <div id="playerControls" class="absolute right-0 bottom-0 mx-auto" style="max-width: 414px">
+      <div id="playerControls" class="absolute right-0 bottom-0 mx-auto" style="max-width: 414px" data-no-swipe>
         <div class="flex items-center max-w-full" :class="playerSettings.lockUi ? 'justify-center' : 'justify-between'">
           <span v-show="showFullscreen && !playerSettings.lockUi" class="material-symbols next-icon text-fg cursor-pointer" :class="showLoadingState ? 'text-opacity-10' : 'text-opacity-75'" @click.stop="jumpChapterStart">first_page</span>
           <div v-show="!playerSettings.lockUi" class="jump-icon text-fg cursor-pointer flex flex-col items-center" :class="showLoadingState ? 'text-opacity-10' : 'text-opacity-75'" @click.stop="jumpBackwards">
@@ -111,15 +111,51 @@
           <div class="flex-grow" />
           <p class="font-mono text-fg" style="font-size: 0.8rem">{{ timeRemainingPretty }}</p>
         </div>
-        <div ref="track" class="h-1.5 w-full bg-track/50 relative rounded-full overflow-hidden" :class="{ 'animate-pulse': showLoadingState }" @click.stop>
-          <div ref="readyTrack" class="h-full bg-track-buffered absolute top-0 left-0 rounded-full pointer-events-none" />
-          <div ref="bufferedTrack" class="h-full bg-track absolute top-0 left-0 rounded-full pointer-events-none" />
-          <div ref="playedTrack" class="h-full bg-track-cursor absolute top-0 left-0 rounded-full pointer-events-none" />
-          <div ref="trackCursor" class="h-7 w-7 rounded-full absolute pointer-events-auto flex items-center justify-center" :style="{ top: '-11px' }" :class="{ 'opacity-0': playerSettings.lockUi || !showFullscreen }" @touchstart="touchstartCursor">
+        <div
+          ref="track"
+          class="w-full relative cursor-pointer"
+          role="slider"
+          tabindex="0"
+          :aria-label="$strings.LabelPlaybackPosition"
+          :aria-valuemin="Math.round(trackBounds.min)"
+          :aria-valuemax="Math.round(trackBounds.max)"
+          :aria-valuenow="Math.round(displayTime)"
+          aria-orientation="horizontal"
+          @click.stop="clickTrack"
+          @touchstart="touchstartCursor"
+          @keydown.left.prevent="keyboardSeek(-1)"
+          @keydown.right.prevent="keyboardSeek(1)"
+          @keydown.enter.prevent
+          @keydown.space.prevent
+        >
+          <!-- Enlarged touch target (44px) for the thin progress bar -->
+          <div v-if="showFullscreen" class="absolute -top-[19px] -bottom-[19px] -left-2 -right-2" aria-hidden="true" />
+          <div class="h-1.5 w-full bg-track/50 relative rounded-full overflow-hidden" :class="{ 'animate-pulse': showLoadingState }">
+            <div ref="readyTrack" class="h-full bg-track-buffered absolute top-0 left-0 rounded-full pointer-events-none" />
+            <div ref="bufferedTrack" class="h-full bg-track absolute top-0 left-0 rounded-full pointer-events-none" />
+            <div ref="playedTrack" class="h-full bg-track-cursor absolute top-0 left-0 rounded-full pointer-events-none" />
+          </div>
+          <!-- Playhead handle. Kept outside the track so the full touch target is not clipped. -->
+          <div ref="trackCursor" class="h-7 w-7 rounded-full absolute pointer-events-auto flex items-center justify-center" :style="{ top: '-11px' }" :class="{ 'opacity-0': playerSettings.lockUi || !showFullscreen }">
             <div class="bg-track-cursor rounded-full w-3.5 h-3.5 pointer-events-none" />
           </div>
         </div>
       </div>
+    </div>
+
+    <!-- Swipe-to-seek preview -->
+    <div v-if="isSwipeSeeking" class="fixed inset-x-0 z-40 flex justify-center pointer-events-none" style="top: 42%">
+      <div class="seek-preview rounded-2xl px-7 py-4 text-center">
+        <p class="seek-preview-delta" :class="swipeDelta < 0 ? 'text-warning' : 'text-success'">{{ swipeDeltaPretty }}</p>
+        <p class="seek-preview-target">{{ swipeTargetPretty }}</p>
+        <p class="seek-preview-hint">{{ $strings.LabelReleaseToSeek }}</p>
+      </div>
+    </div>
+
+    <!-- Seek confirmation with undo -->
+    <div v-if="seekNotice" class="seek-notice fixed left-4 right-4 z-50 flex items-center gap-3 rounded-xl px-4 py-3 pointer-events-none" :class="{ fullscreen: showFullscreen }">
+      <p class="seek-notice-text flex-1">{{ seekNotice.text }}</p>
+      <button v-if="seekNotice.undoTime !== null" class="seek-notice-undo px-2 py-1 pointer-events-auto" @click="undoSeek">{{ $strings.ButtonUndo }}</button>
     </div>
 
     <!-- Chapters modal - lists chapters for navigation -->
@@ -178,9 +214,15 @@ export default {
       isLoading: false,
       isCheckingServerProgress: false,
       isDraggingCursor: false,
-      draggingTouchStartX: 0,
-      draggingTouchStartTime: 0,
       draggingCurrentTime: 0,
+      isSwipeSeeking: false,
+      swipeAxis: null,
+      swipeStartX: null,
+      swipeStartPlaybackTime: 0,
+      swipeTargetTime: 0,
+      suppressTrackClick: false,
+      seekNotice: null,
+      seekNoticeTimeout: null,
       syncStatus: 0,
       showMoreMenuDialog: false,
       coverRgb: 'rgb(55, 56, 56)',
@@ -364,14 +406,14 @@ export default {
       return this.$secondsToTimestamp(this.totalDuration)
     },
     currentTimePretty() {
-      let currentTimeToUse = this.isDraggingCursor ? this.draggingCurrentTime : this.currentTime
+      let currentTimeToUse = this.displayTime
       if (this.playerSettings.scaleElapsedTimeBySpeed) {
         currentTimeToUse = currentTimeToUse / this.currentPlaybackRate
       }
       return this.$secondsToTimestamp(currentTimeToUse)
     },
     timeRemaining() {
-      let currentTimeToUse = this.isDraggingCursor ? this.draggingCurrentTime : this.currentTime
+      let currentTimeToUse = this.displayTime
       if (this.playerSettings.useChapterTrack && this.currentChapter) {
         var currChapTime = currentTimeToUse - this.currentChapter.start
         return (this.currentChapterDuration - currChapTime) / this.currentPlaybackRate
@@ -379,7 +421,7 @@ export default {
       return this.totalTimeRemaining
     },
     totalTimeRemaining() {
-      let currentTimeToUse = this.isDraggingCursor ? this.draggingCurrentTime : this.currentTime
+      let currentTimeToUse = this.displayTime
       return (this.totalDuration - currentTimeToUse) / this.currentPlaybackRate
     },
     totalTimeRemainingPretty() {
@@ -415,6 +457,32 @@ export default {
       if (!localLibraryItem) return null
 
       return this.playbackSession.localEpisodeId ? `${localLibraryItem.id}-${this.playbackSession.localEpisodeId}` : localLibraryItem.id
+    },
+    // Playback time currently shown in the UI (including an in-progress seek or swipe)
+    displayTime() {
+      if (this.isDraggingCursor) return this.draggingCurrentTime
+      if (this.isSwipeSeeking) return this.swipeTargetTime
+      return this.currentTime
+    },
+    // Bounds used when seeking. With the chapter track enabled the seek is limited to the chapter.
+    trackBounds() {
+      if (this.playerSettings.useChapterTrack && this.currentChapter) {
+        return { min: Number(this.currentChapter.start), max: Number(this.currentChapter.end) }
+      }
+      return { min: 0, max: this.totalDuration }
+    },
+    // Start of the current chapter/track, used so a rewind does not jump into the previous chapter
+    seekMinTime() {
+      return this.currentChapter ? Number(this.currentChapter.start) : 0
+    },
+    swipeDelta() {
+      return this.swipeTargetTime - this.swipeStartPlaybackTime
+    },
+    swipeDeltaPretty() {
+      return (this.swipeDelta < 0 ? '−' : '+') + this.$secondsToTimestamp(Math.abs(this.swipeDelta))
+    },
+    swipeTargetPretty() {
+      return this.$secondsToTimestamp(this.swipeTargetTime)
     }
   },
   methods: {
@@ -450,7 +518,7 @@ export default {
     },
     async selectChapter(chapter) {
       await this.$hapticsImpact()
-      this.seek(chapter.start)
+      this.seekWithUndo(chapter.start)
       this.showChapterModal = false
     },
     async castClick() {
@@ -482,7 +550,7 @@ export default {
       await this.$hapticsImpact()
       if (this.showLoadingState) return
       if (!this.nextChapter) return
-      this.seek(this.nextChapter.start)
+      this.seekWithUndo(this.nextChapter.start)
     },
     async jumpChapterStart() {
       await this.$hapticsImpact()
@@ -496,10 +564,10 @@ export default {
         const currChapterIndex = this.chapters.findIndex((ch) => Number(ch.start) <= this.currentTime && Number(ch.end) >= this.currentTime)
         if (currChapterIndex > 0) {
           const prevChapter = this.chapters[currChapterIndex - 1]
-          this.seek(prevChapter.start)
+          this.seekWithUndo(prevChapter.start)
         }
       } else {
-        this.seek(this.currentChapter.start)
+        this.seekWithUndo(this.currentChapter.start)
       }
     },
     showSleepTimerModal() {
@@ -512,7 +580,7 @@ export default {
       AbsAudioPlayer.setPlaybackSpeed({ value: speed })
     },
     restart() {
-      this.seek(0)
+      this.seekWithUndo(0)
     },
     async jumpBackwards() {
       await this.$hapticsImpact()
@@ -569,7 +637,7 @@ export default {
         return
       }
 
-      let currentTime = this.isDraggingCursor ? this.draggingCurrentTime : this.currentTime
+      let currentTime = this.displayTime
       if (this.playerSettings.useChapterTrack && this.currentChapter) {
         currentTime = Math.max(0, currentTime - this.currentChapter.start)
       }
@@ -599,7 +667,7 @@ export default {
     },
     updateTrack() {
       // Update progress track UI
-      let currentTimeToUse = this.isDraggingCursor ? this.draggingCurrentTime : this.currentTime
+      let currentTimeToUse = this.displayTime
       let percentDone = currentTimeToUse / this.totalDuration
       const totalPercentDone = percentDone
       let bufferedPercent = this.bufferedTime / this.totalDuration
@@ -631,10 +699,10 @@ export default {
       }
     },
     seek(time) {
-      if (this.showLoadingState) return
+      if (this.showLoadingState) return false
       if (this.seekLoading) {
         console.error('Already seek loading', this.seekedTime)
-        return
+        return false
       }
 
       this.seekedTime = time
@@ -650,16 +718,123 @@ export default {
         this.$refs.playedTrack.classList.remove('bg-gray-200')
         this.$refs.playedTrack.classList.add('bg-yellow-300')
       }
+      return true
     },
-    async touchstartCursor(e) {
+    /**
+     * Seek and offer to undo the jump. Used for user initiated seeks (swipe, tap on the bar,
+     * chapter jumps, bookmarks) where landing in the wrong place is easy.
+     * @param time Number - target position in seconds
+     * @param previousTime Number - position to go back to if the user undoes the seek
+     */
+    seekWithUndo(time, previousTime = this.currentTime) {
+      const target = Math.max(0, Number(time))
+      const didSeek = this.seek(target)
+      if (!didSeek) return false
+
+      // Small jumps are intentional nudges, they do not need an undo
+      if (Math.abs(target - previousTime) < 15) return true
+
+      const text = this.$getString('MessageSeekedToTime', [this.$secondsToTimestamp(target)])
+      this.showSeekNotice(text, previousTime)
+      return true
+    },
+    touchstartCursor(e) {
       if (!e || !e.touches || !this.$refs.track || !this.showFullscreen || this.playerSettings.lockUi) return
 
-      await this.$hapticsImpact()
+      // Set the state before the haptic call so a quick tap cannot leave the drag flag set
       this.isDraggingCursor = true
-      this.draggingTouchStartX = e.touches[0].pageX
-      this.draggingTouchStartTime = this.currentTime
-      this.draggingCurrentTime = this.currentTime
+      // Jump straight to the pressed position so the whole bar is scrubbable, not just the handle
+      this.draggingCurrentTime = this.timeForTrackPosition(e.touches[0].pageX)
+      this.updateTimestamp()
       this.updateTrack()
+      this.$hapticsImpact()
+    },
+    /** Maps a page X coordinate to a playback time inside the current track bounds. */
+    timeForTrackPosition(pageX) {
+      if (!this.$refs.track) return this.currentTime
+      const rect = this.$refs.track.getBoundingClientRect()
+      if (!rect.width) return this.currentTime
+
+      const bounds = this.trackBounds
+      const percent = Math.min(1, Math.max(0, (pageX - rect.left) / rect.width))
+      return bounds.min + percent * (bounds.max - bounds.min)
+    },
+    /**
+     * Maps a horizontal drag distance to a playback time. A full screen width equals
+     * 5 minutes so small deliberate swipes move seconds and long swipes move minutes.
+     */
+    swipeTimeForDistance(distanceX) {
+      const secondsPerScreen = 300
+      // Use the live viewport width: the cached windowWidth can be from the folded cover screen
+      const screenWidth = window.innerWidth || this.windowWidth || 390
+      const bounds = this.trackBounds
+      const time = this.swipeStartPlaybackTime + (distanceX / screenWidth) * secondsPerScreen
+      return Math.min(bounds.max, Math.max(bounds.min, time))
+    },
+    startSwipeSeeking(pageX) {
+      this.isSwipeSeeking = true
+      this.swipeStartPlaybackTime = this.currentTime
+      this.swipeTargetTime = this.currentTime
+      this.swipeStartX = pageX
+      this.$hapticsImpact()
+    },
+    updateSwipeSeeking(pageX) {
+      this.swipeTargetTime = this.swipeTimeForDistance(pageX - this.swipeStartX)
+      this.updateTimestamp()
+      this.updateTrack()
+    },
+    finishSwipeSeeking() {
+      const target = this.swipeTargetTime
+      const previousTime = this.currentTime
+      const canSeek = !this.showLoadingState && !this.seekLoading
+      const changed = canSeek && Math.abs(target - previousTime) >= 1
+      this.isSwipeSeeking = false
+      this.swipeAxis = null
+      if (changed) {
+        // Show the new position right away, the player confirms it on the next update
+        this.currentTime = target
+        this.$hapticsImpact()
+        this.seekWithUndo(target, previousTime)
+      }
+      this.updateTimestamp()
+      this.updateTrack()
+    },
+    clickTrack(e) {
+      if (this.suppressTrackClick) {
+        this.suppressTrackClick = false
+        return
+      }
+      if (!this.showFullscreen) {
+        this.expandToFullscreen()
+        return
+      }
+      if (this.showLoadingState || this.playerSettings.lockUi || !this.$refs.track) return
+      const rect = this.$refs.track.getBoundingClientRect()
+      if (!rect.width) return
+
+      const percent = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width))
+      const bounds = this.trackBounds
+      this.$hapticsImpact()
+      this.seekWithUndo(bounds.min + percent * (bounds.max - bounds.min))
+    },
+    keyboardSeek(direction) {
+      if (this.showLoadingState || this.playerSettings.lockUi) return
+      const amount = direction < 0 ? this.jumpBackwardsTime : this.jumpForwardTime
+      const bounds = this.trackBounds
+      this.seekWithUndo(Math.min(bounds.max, Math.max(bounds.min, this.currentTime + direction * amount)))
+    },
+    showSeekNotice(text, undoTime = null) {
+      clearTimeout(this.seekNoticeTimeout)
+      this.seekNotice = { text, undoTime: undoTime === null ? null : Number(undoTime) }
+      this.seekNoticeTimeout = setTimeout(() => {
+        this.seekNotice = null
+      }, 8000)
+    },
+    undoSeek() {
+      if (!this.seekNotice || this.seekNotice.undoTime === null) return
+      this.seek(this.seekNotice.undoTime)
+      this.seekNotice = null
+      clearTimeout(this.seekNoticeTimeout)
     },
     async playPauseClick() {
       await this.$hapticsImpact()
@@ -710,6 +885,12 @@ export default {
 
       this.touchStartY = touchPosY
       this.touchStartTime = Date.now()
+      this.swipeAxis = null
+
+      // Do not start a swipe on interactive elements (buttons, progress bar, modals)
+      const target = e.target
+      const canSwipe = this.showFullscreen && !this.playerSettings.lockUi && !(target && target.closest && target.closest('button, a, input, [role="slider"], [data-no-swipe]'))
+      this.swipeStartX = canSwipe ? e.changedTouches[0].pageX : null
     },
     touchend(e) {
       if (!e.changedTouches) return
@@ -720,10 +901,20 @@ export default {
       // reset touch start data
       this.touchStartTime = 0
       this.touchStartY = 0
+      this.swipeStartX = null
+
+      if (this.isSwipeSeeking) {
+        this.finishSwipeSeeking()
+        return
+      }
+      this.swipeAxis = null
 
       if (this.isDraggingCursor) {
         if (this.draggingCurrentTime !== this.currentTime) {
-          this.seek(this.draggingCurrentTime)
+          this.seekWithUndo(this.draggingCurrentTime)
+          // Prevent the click that follows a drag from seeking again
+          this.suppressTrackClick = true
+          setTimeout(() => (this.suppressTrackClick = false), 400)
         }
         this.isDraggingCursor = false
       } else {
@@ -742,23 +933,42 @@ export default {
       }
     },
     touchmove(e) {
-      if (!this.isDraggingCursor || !e.touches) return
+      if (!e.touches) return
+      if (!this.isDraggingCursor) {
+        // Horizontal swipe anywhere on the fullscreen player seeks
+        if (this.swipeStartX === null || !this.showFullscreen || this.playerSettings.lockUi || this.$store.state.globals.isModalOpen) return
 
-      const distanceMoved = e.touches[0].pageX - this.draggingTouchStartX
-      let duration = this.totalDuration
-      let minTime = 0
-      let maxTime = duration
-      if (this.playerSettings.useChapterTrack && this.currentChapter) {
-        duration = this.currentChapterDuration
-        minTime = this.currentChapter.start
-        maxTime = minTime + duration
+        const touch = e.touches[0]
+        const distanceX = touch.pageX - this.swipeStartX
+        const distanceY = touch.pageY - this.touchStartY
+
+        if (this.swipeAxis === null) {
+          // Wait until the gesture direction is clear
+          if (Math.abs(distanceX) < 10 && Math.abs(distanceY) < 10) return
+          this.swipeAxis = Math.abs(distanceX) > Math.abs(distanceY) ? 'x' : 'y'
+          if (this.swipeAxis === 'x') this.startSwipeSeeking(this.swipeStartX)
+        }
+
+        if (this.swipeAxis !== 'x') return
+        if (e.cancelable) e.preventDefault()
+        this.updateSwipeSeeking(touch.pageX)
+        return
       }
 
-      const trackWidth = this.$refs.track?.clientWidth || this.trackWidth
-      const timePerPixel = duration / trackWidth
-      const newTime = this.draggingTouchStartTime + timePerPixel * distanceMoved
-      this.draggingCurrentTime = Math.min(maxTime, Math.max(minTime, newTime))
+      // Follow the finger: the bar is a scrubber, not a relative nudge
+      this.draggingCurrentTime = this.timeForTrackPosition(e.touches[0].pageX)
 
+      this.updateTimestamp()
+      this.updateTrack()
+    },
+    // Reset gesture state if the system cancels the touch (e.g. notification shade)
+    touchcancel() {
+      this.isSwipeSeeking = false
+      this.isDraggingCursor = false
+      this.swipeAxis = null
+      this.swipeStartX = null
+      this.touchStartY = 0
+      this.touchStartTime = 0
       this.updateTimestamp()
       this.updateTrack()
     },
@@ -820,6 +1030,8 @@ export default {
       this.isEnded = false
       this.isLoading = false
       this.playbackSession = null
+      clearTimeout(this.seekNoticeTimeout)
+      this.seekNotice = null
     },
     async loadPlayerSettings() {
       const savedPlayerSettings = await this.$localStore.getPlayerSettings()
@@ -885,6 +1097,9 @@ export default {
       this.isEnded = false
       this.isLoading = true
       this.syncStatus = 0
+      // The undo target belongs to the previous book, never offer it for a new session
+      clearTimeout(this.seekNoticeTimeout)
+      this.seekNotice = null
       this.$store.commit('setPlaybackSession', this.playbackSession)
 
       // Set track width
@@ -1002,7 +1217,8 @@ export default {
     this.$eventBus.$on('minimize-player', this.minimizePlayerEvt)
     document.body.addEventListener('touchstart', this.touchstart, { passive: false })
     document.body.addEventListener('touchend', this.touchend)
-    document.body.addEventListener('touchmove', this.touchmove)
+    document.body.addEventListener('touchmove', this.touchmove, { passive: false })
+    document.body.addEventListener('touchcancel', this.touchcancel)
     this.$nextTick(this.init)
   },
   beforeDestroy() {
@@ -1024,6 +1240,8 @@ export default {
     document.body.removeEventListener('touchstart', this.touchstart)
     document.body.removeEventListener('touchend', this.touchend)
     document.body.removeEventListener('touchmove', this.touchmove)
+    document.body.removeEventListener('touchcancel', this.touchcancel)
+    clearTimeout(this.seekNoticeTimeout)
 
     if (AbsAudioPlayer.removeAllListeners) {
       AbsAudioPlayer.removeAllListeners()
@@ -1235,5 +1453,52 @@ export default {
 }
 .fullscreen #playerControls .play-btn .material-symbols {
   font-size: 2.1rem;
+}
+
+/* Swipe-to-seek preview */
+.seek-preview {
+  background-color: rgba(12, 20, 19, 0.92);
+  border: 1px solid rgba(127, 212, 193, 0.35);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.6);
+}
+.seek-preview-delta {
+  font-size: 1.9rem;
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+.seek-preview-target {
+  margin-top: 0.25rem;
+  font-family: 'Ubuntu Mono', ui-monospace, monospace;
+  font-size: 0.85rem;
+  color: #a9c2bb;
+}
+.seek-preview-hint {
+  margin-top: 0.5rem;
+  font-size: 0.6rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #7f9a94;
+}
+
+/* Seek confirmation snackbar */
+.seek-notice {
+  bottom: 128px;
+  background-color: rgba(20, 28, 27, 0.96);
+  border: 1px solid rgba(127, 212, 193, 0.3);
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.5);
+}
+.seek-notice.fullscreen {
+  bottom: 208px;
+}
+.seek-notice-text {
+  font-size: 0.85rem;
+  color: #e8f4f0;
+}
+.seek-notice-undo {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #7fd4c1;
 }
 </style>
