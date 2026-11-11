@@ -119,7 +119,7 @@
           <div v-if="genres.length" class="text-fg-muted uppercase text-sm">{{ $strings.LabelGenres }}</div>
           <div v-if="genres.length" class="text-sm">
             <template v-for="(genre, index) in genres">
-              <nuxt-link :key="genre" :to="`/bookshelf/library?filter=genres.${$encode(genre)}`" class="underline whitespace-nowrap">{{ genre }}</nuxt-link
+              <nuxt-link :key="genre" :to="`/bookshelf/library?filter=genres.${$encode(genre)}`" class="underline break-words">{{ genre }}</nuxt-link
               ><span :key="index" v-if="index < genres.length - 1">, </span>
             </template>
           </div>
