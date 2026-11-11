@@ -26,6 +26,10 @@ constructor(private val playerNotificationService: PlayerNotificationService) {
   private var sleepTimerElapsed: Long = 0L
   private var sleepTimerFinishedAt: Long = 0L
   private var isAutoSleepTimer: Boolean = false // When timer was auto-set
+  // Start of the auto sleep timer period that an auto timer was last set for. A new period starts
+  // while the user is still listening (the clock simply enters the time window), so entering it
+  // must not rewind playback.
+  private var autoSleepTimerPeriodStart: Long = 0L
   private var autoTimerDisabled: Boolean = false // Disable until out of auto timer period
   private var sleepTimerSessionId: String = ""
 
@@ -456,9 +460,13 @@ constructor(private val playerNotificationService: PlayerNotificationService) {
       val startCalendar = Calendar.getInstance()
       startCalendar.set(Calendar.HOUR_OF_DAY, deviceSettings.autoSleepTimerStartHour)
       startCalendar.set(Calendar.MINUTE, deviceSettings.autoSleepTimerStartMinute)
+      startCalendar.set(Calendar.SECOND, 0)
+      startCalendar.set(Calendar.MILLISECOND, 0)
       val endCalendar = Calendar.getInstance()
       endCalendar.set(Calendar.HOUR_OF_DAY, deviceSettings.autoSleepTimerEndHour)
       endCalendar.set(Calendar.MINUTE, deviceSettings.autoSleepTimerEndMinute)
+      endCalendar.set(Calendar.SECOND, 0)
+      endCalendar.set(Calendar.MILLISECOND, 0)
 
       val currentCalendar = Calendar.getInstance()
 
@@ -497,12 +505,20 @@ constructor(private val playerNotificationService: PlayerNotificationService) {
           val currentMin = currentCalendar.get(Calendar.MINUTE)
           Log.i(tag, "Starting auto sleep timer at $currentHour:$currentMin")
 
-          // Automatically rewind in the book if settings is enabled
-          tryRewindAutoSleepTimer()
+          // Automatically rewind in the book if settings is enabled. Only do this when an auto
+          // sleep timer already ran in this period: the first start of a period happens while the
+          // user is listening, and rewinding there would move playback for no reason (see #1693).
+          val periodStart = startCalendar.timeInMillis
+          if (autoSleepTimerPeriodStart == periodStart) {
+            tryRewindAutoSleepTimer()
+          } else {
+            Log.d(tag, "First auto sleep timer of this period, not rewinding")
+          }
 
           // Set `isAutoSleepTimer` to true to indicate that the timer was set automatically
           // and to not cause the timer to rewind
           isAutoSleepTimer = true
+          autoSleepTimerPeriodStart = periodStart
           setSleepTimer(deviceSettings.sleepTimerLength)
         } else {
           Log.d(tag, "Not in auto sleep time period")
