@@ -1,6 +1,6 @@
 <template>
   <div>
-    <app-audio-player ref="audioPlayer" :bookmarks="bookmarks" :sleep-timer-running="isSleepTimerRunning" :sleep-time-remaining="sleepTimeRemaining" :serverLibraryItemId="serverLibraryItemId" @selectPlaybackSpeed="showPlaybackSpeedModal = true" @updateTime="(t) => (currentTime = t)" @showSleepTimer="showSleepTimer" @showBookmarks="showBookmarks" />
+    <app-audio-player ref="audioPlayer" :bookmarks="bookmarks" :sleep-timer-running="isSleepTimerRunning" :sleep-time-remaining="sleepTimeRemaining" :sleep-timer-resume="sleepTimerResume" :serverLibraryItemId="serverLibraryItemId" @selectPlaybackSpeed="showPlaybackSpeedModal = true" @updateTime="(t) => (currentTime = t)" @showSleepTimer="showSleepTimer" @showBookmarks="showBookmarks" @resumeRewind="rewindAfterSleepTimer" @resumeDismiss="dismissSleepTimerResume" />
 
     <modals-playback-speed-modal v-model="showPlaybackSpeedModal" :playback-rate.sync="playbackSpeed" @update:playbackRate="updatePlaybackSpeed" @change="changePlaybackSpeed" />
     <modals-sleep-timer-modal v-model="showSleepTimerModal" :current-time="sleepTimeRemaining" :sleep-timer-running="isSleepTimerRunning" :current-end-of-chapter-time="currentEndOfChapterTime" :is-auto="isAutoSleepTimer" @change="selectSleepTimeout" @cancel="cancelSleepTimer" @increase="increaseSleepTimer" @decrease="decreaseSleepTimer" />
@@ -30,8 +30,11 @@ export default {
       sleepTimerEndTime: 0,
       sleepTimeRemaining: 0,
       isAutoSleepTimer: false,
+      sleepTimerResume: null,
+      checkedResumeEndedAt: 0,
       onLocalMediaProgressUpdateListener: null,
       onSleepTimerEndedListener: null,
+      onSleepTimerRewindListener: null,
       onSleepTimerSetListener: null,
       onMediaPlayerChangedListener: null,
       sleepInterval: null,
@@ -51,6 +54,22 @@ export default {
     },
     currentPlaybackSession() {
       return this.$store.state.currentPlaybackSession
+    },
+    deviceData() {
+      return this.$store.state.deviceData
+    }
+  },
+  watch: {
+    currentPlaybackSession() {
+      this.$nextTick(this.checkSleepTimerResume)
+    },
+    deviceData() {
+      this.$nextTick(this.checkSleepTimerResume)
+    },
+    currentTime(val) {
+      // Close the prompt once listening has moved on from where the timer stopped
+      if (!this.sleepTimerResume || !val) return
+      if (Math.abs(val - this.sleepTimerResume.position) > 60) this.dismissSleepTimerResume()
     }
   },
   methods: {
@@ -62,7 +81,7 @@ export default {
       if (!bookmark || isNaN(bookmark.time)) return
       const bookmarkTime = Number(bookmark.time)
       if (this.$refs.audioPlayer) {
-        this.$refs.audioPlayer.seek(bookmarkTime)
+        this.$refs.audioPlayer.seekWithUndo(bookmarkTime)
       }
     },
     onSleepTimerEnded({ value: currentPosition }) {
@@ -70,6 +89,86 @@ export default {
       if (currentPosition) {
         console.log('Sleep Timer Ended Current Position: ' + currentPosition)
       }
+      this.$nextTick(this.checkSleepTimerResume)
+    },
+    /**
+     * When the OS rewound playback after a sleep timer finished, show a confirmation
+     * with the option to undo it.
+     */
+    onSleepTimerRewind(payload) {
+      const { before, seconds } = payload || {}
+      if (!Number.isFinite(before)) return
+      const text = this.$getString('MessageRewoundTime', [this.rewindAmountLabel(seconds)])
+      this.$refs.audioPlayer?.showSeekNotice(text, before)
+    },
+    rewindAmountLabel(seconds) {
+      if (!Number.isFinite(seconds)) return ''
+      if (seconds < 60) return this.$getString('LabelSecondsShort', [Math.round(seconds)])
+      return this.$getString('LabelMinutesShort', [Math.round(seconds / 60)])
+    },
+    /**
+     * Reads the state saved by the native sleep timer and shows the resume prompt when the
+     * setting is to ask the user. The auto variant is handled natively while playing.
+     */
+    async checkSleepTimerResume() {
+      if (this.$platform !== 'android') return
+      const settings = this.$store.state.deviceData?.deviceSettings
+      if (!settings?.sleepTimerResumeRewind || settings.sleepTimerResumeAction !== 'ASK') {
+        this.sleepTimerResume = null
+        return
+      }
+      if (!this.currentPlaybackSession || !this.$refs.audioPlayer) return
+
+      const info = await AbsAudioPlayer.getSleepTimerResumeInfo()
+      if (!info?.pending) {
+        this.sleepTimerResume = null
+        return
+      }
+      if (this.checkedResumeEndedAt === info.endedAt) return
+
+      // A new playback session is created on every play, so compare the media instead
+      const session = this.currentPlaybackSession
+      const libraryItemId = session.libraryItemId || session.localLibraryItem?.id || ''
+      if (info.libraryItemId && libraryItemId && info.libraryItemId !== libraryItemId) return
+      const episodeId = session.episodeId || session.localEpisodeId || ''
+      if (info.episodeId && episodeId && info.episodeId !== episodeId) return
+
+      // Do not prompt when playback has moved well past where the timer stopped
+      const currentTime = await this.getNativeCurrentTime()
+      if (currentTime > 0 && Math.abs(currentTime - info.position) > 300) return
+
+      this.checkedResumeEndedAt = info.endedAt
+      this.sleepTimerResume = info
+    },
+    async getNativeCurrentTime() {
+      if (this.$platform !== 'android') return 0
+      try {
+        const { value } = await AbsAudioPlayer.getCurrentTime()
+        return Number(value) || 0
+      } catch (error) {
+        return 0
+      }
+    },
+    async rewindAfterSleepTimer(seconds) {
+      const info = this.sleepTimerResume
+      this.sleepTimerResume = null
+      if (!info) return
+
+      const player = this.$refs.audioPlayer
+      const previousTime = player ? player.currentTime : info.position
+      // Rewind from where the timer stopped, not from the pause seek-back that may just have run,
+      // and do not rewind into the previous chapter
+      const base = info.position > 0 ? info.position : previousTime
+      const minTime = player?.seekMinTime || 0
+      player?.seek(Math.max(minTime, Math.max(0, base - seconds)))
+      await AbsAudioPlayer.clearSleepTimerResume()
+
+      const text = this.$getString('MessageRewoundTime', [this.rewindAmountLabel(seconds)])
+      player?.showSeekNotice(text, previousTime)
+    },
+    async dismissSleepTimerResume() {
+      this.sleepTimerResume = null
+      await AbsAudioPlayer.clearSleepTimerResume()
     },
     onSleepTimerSet(payload) {
       const { value: sleepTimeRemaining, isAuto } = payload
@@ -404,6 +503,7 @@ export default {
      */
     async deviceFocused(hasFocus) {
       if (!this.currentPlaybackSession || !hasFocus) return
+      this.checkSleepTimerResume()
       // dont update timestamps if player is playing
       if (this.$refs.audioPlayer?.isPlaying) return
 
@@ -438,6 +538,7 @@ export default {
   async mounted() {
     this.onLocalMediaProgressUpdateListener = await AbsAudioPlayer.addListener('onLocalMediaProgressUpdate', this.onLocalMediaProgressUpdate)
     this.onSleepTimerEndedListener = await AbsAudioPlayer.addListener('onSleepTimerEnded', this.onSleepTimerEnded)
+    this.onSleepTimerRewindListener = await AbsAudioPlayer.addListener('onSleepTimerRewind', this.onSleepTimerRewind)
     this.onSleepTimerSetListener = await AbsAudioPlayer.addListener('onSleepTimerSet', this.onSleepTimerSet)
     this.onMediaPlayerChangedListener = await AbsAudioPlayer.addListener('onMediaPlayerChanged', this.onMediaPlayerChanged)
 
@@ -457,6 +558,7 @@ export default {
   beforeDestroy() {
     this.onLocalMediaProgressUpdateListener?.remove()
     this.onSleepTimerEndedListener?.remove()
+    this.onSleepTimerRewindListener?.remove()
     this.onSleepTimerSetListener?.remove()
     this.onMediaPlayerChangedListener?.remove()
 
