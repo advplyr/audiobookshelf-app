@@ -13,6 +13,7 @@
     </div>
 
     <p class="text-lg font-semibold">{{ title }}</p>
+    <p v-if="episode.duration > 0" class="text-sm text-fg-muted mt-1">{{ $strings.LabelDuration }}: {{ duration }}</p>
 
     <div v-if="episodeNumber || season || episodeType" class="flex py-2 items-center -mx-0.5">
       <div v-if="episodeNumber" class="px-2 pt-px pb-0.5 mx-0.5 bg-primary bg-opacity-60 rounded-full text-xs font-light text-fg">{{ $strings.LabelEpisode }} #{{ episodeNumber }}</div>
