@@ -172,7 +172,10 @@ data class DeviceSettings(
         var downloadUsingCellular: DownloadUsingCellularSetting,
         var streamingUsingCellular: StreamingUsingCellularSetting,
         var androidAutoBrowseLimitForGrouping: Int,
-        var androidAutoBrowseSeriesSequenceOrder: AndroidAutoBrowseSeriesSequenceOrderSetting
+        var androidAutoBrowseSeriesSequenceOrder: AndroidAutoBrowseSeriesSequenceOrderSetting,
+        // Seconds of already played audio kept in memory so rewinding does not re-stream it.
+        // Default value lets Jackson fill it in for settings saved before this field existed.
+        var streamingBackBufferTime: Int = 300
 ) {
   companion object {
     // Static method to get default device settings
@@ -201,7 +204,8 @@ data class DeviceSettings(
               downloadUsingCellular = DownloadUsingCellularSetting.ALWAYS,
               streamingUsingCellular = StreamingUsingCellularSetting.ALWAYS,
               androidAutoBrowseLimitForGrouping = 100,
-              androidAutoBrowseSeriesSequenceOrder = AndroidAutoBrowseSeriesSequenceOrderSetting.ASC
+              androidAutoBrowseSeriesSequenceOrder = AndroidAutoBrowseSeriesSequenceOrderSetting.ASC,
+              streamingBackBufferTime = 300 // 5 minutes
       )
     }
   }
@@ -212,6 +216,9 @@ data class DeviceSettings(
   @get:JsonIgnore
   val jumpForwardTimeMs
     get() = jumpForwardTime * 1000L
+  @get:JsonIgnore
+  val streamingBackBufferTimeMs
+    get() = streamingBackBufferTime.coerceAtLeast(0) * 1000
   @get:JsonIgnore
   val autoSleepTimerStartHour
     get() = autoSleepTimerStartTime.split(":")[0].toInt()
