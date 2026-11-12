@@ -71,14 +71,30 @@
             <span class="px-1 text-base">{{ $strings.LabelMissing }}</span>
           </ui-btn>
 
-          <div v-if="!isPodcast && (progressPercent > 0 || currentChapter)" class="px-4 py-2 bg-primary text-sm font-semibold rounded-md text-fg mt-4 text-center">
-            <p>{{ $strings.LabelYourProgress }}: {{ Math.round(progressPercent * 100) }}%</p>
+          <div v-if="!isPodcast && (progressPercent > 0 || currentChapter)" class="px-4 py-3 bg-primary text-sm rounded-md text-fg mt-4" :class="currentChapter ? 'text-left' : 'text-center'">
             <template v-if="currentChapter">
-              <p class="mt-1 break-words">{{ $getString('LabelCurrentChapter', [currentChapter.title || currentChapterIndex + 1]) }}</p>
-              <p class="text-fg-muted text-xs">{{ $getString('LabelChapterTimeElapsed', [$secondsToTimestamp(audioPosition - currentChapter.start)]) }} · {{ $getString('LabelTimeRemaining', [$secondsToTimestamp(currentChapter.end - audioPosition)]) }}</p>
+              <div class="flex items-center justify-between gap-2">
+                <p class="text-fg-muted text-xs">{{ $strings.LabelYourProgress }}</p>
+                <p class="font-semibold">{{ Math.round(progressPercent * 100) }}%</p>
+              </div>
+              <p class="text-fg-muted text-xs">{{ $getString('LabelBookTimeRemaining', [$elapsedPretty(userTimeRemaining)]) }}</p>
+              <div class="mt-3 pt-3 border-t border-fg/10">
+                <p class="text-fg-muted text-xs">{{ $strings.LabelCurrentChapter }}</p>
+                <p class="mt-1 font-semibold break-words">{{ currentChapter.title || currentChapterIndex + 1 }}</p>
+                <div aria-hidden="true" class="mt-3 h-1 rounded-full bg-fg/10 overflow-hidden">
+                  <div class="h-full bg-yellow-400" :style="{ width: chapterProgressPercent + '%' }"></div>
+                </div>
+                <div class="mt-2 flex flex-wrap justify-between gap-x-3 gap-y-1 text-fg-muted text-xs">
+                  <p>{{ $getString('LabelChapterTimeElapsed', [$secondsToTimestamp(audioPosition - currentChapter.start)]) }}</p>
+                  <p>{{ $getString('LabelTimeRemaining', [$secondsToTimestamp(currentChapter.end - audioPosition)]) }}</p>
+                </div>
+              </div>
             </template>
-            <p v-if="!useEBookProgress && !userIsFinished" class="text-fg-muted text-xs">{{ $getString('LabelTimeRemaining', [$elapsedPretty(userTimeRemaining)]) }}</p>
-            <p v-else-if="userIsFinished" class="text-fg-muted text-xs">{{ $strings.LabelFinished }} {{ $formatDate(userProgressFinishedAt) }}</p>
+            <template v-else>
+              <p class="font-semibold">{{ $strings.LabelYourProgress }}: {{ Math.round(progressPercent * 100) }}%</p>
+              <p v-if="!useEBookProgress && !userIsFinished" class="text-fg-muted text-xs">{{ $getString('LabelTimeRemaining', [$elapsedPretty(userTimeRemaining)]) }}</p>
+              <p v-else-if="userIsFinished" class="text-fg-muted text-xs">{{ $strings.LabelFinished }} {{ $formatDate(userProgressFinishedAt) }}</p>
+            </template>
           </div>
         </div>
 
@@ -396,10 +412,13 @@ export default {
     currentChapter() {
       return this.currentChapterIndex < 0 ? null : this.media.chapters[this.currentChapterIndex]
     },
+    chapterProgressPercent() {
+      if (!this.currentChapter) return 0
+      return Math.max(0, Math.min(100, ((this.audioPosition - this.currentChapter.start) / (this.currentChapter.end - this.currentChapter.start)) * 100))
+    },
     userTimeRemaining() {
-      if (!this.userItemProgress) return 0
-      const duration = this.userItemProgress.duration || this.duration
-      return duration - this.userItemProgress.currentTime
+      const duration = this.userItemProgress?.duration || this.duration
+      return Math.max(0, duration - this.audioPosition)
     },
     useEBookProgress() {
       if (!this.userItemProgress || this.userItemProgress.progress) return false
