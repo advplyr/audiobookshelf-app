@@ -114,7 +114,7 @@ export default {
             to: '/bookshelf/narrators',
             routeName: 'bookshelf-narrators',
             iconPack: 'material-symbols',
-            icon: 'mic',
+            icon: 'record_voice_over',
             iconClass: 'text-2xl',
             text: this.$strings.LabelNarrators
           }

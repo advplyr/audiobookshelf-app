@@ -9,7 +9,7 @@
     <ul v-else class="space-y-2">
       <li v-for="narrator in sortedNarrators" :key="narrator.name">
         <nuxt-link :to="`/bookshelf/library?filter=narrators.${$encode(narrator.name)}`" class="flex items-center w-full bg-primary rounded-md p-4 focus-visible:ring-2 focus-visible:ring-yellow-300">
-          <span class="material-symbols text-2xl mr-4 text-fg-muted" aria-hidden="true">mic</span>
+          <span class="material-symbols text-2xl mr-4 text-fg-muted" aria-hidden="true">record_voice_over</span>
           <div class="min-w-0 flex-1">
             <p class="font-semibold break-words">{{ narrator.name }}</p>
             <p class="text-sm text-fg-muted">{{ narrator.numBooks }} {{ $strings.LabelBooks }}</p>
