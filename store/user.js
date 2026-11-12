@@ -10,6 +10,8 @@ export const state = () => ({
     mobileOrderBy: 'addedAt',
     mobileOrderDesc: true,
     mobileFilterBy: 'all',
+    mobileAuthorSortBy: 'name',
+    mobileAuthorSortDesc: false,
     playbackRate: 1,
     collapseSeries: false,
     collapseBookSeries: false,

@@ -17,6 +17,7 @@ export default {
       loading: true,
       authors: [],
       loadedLibraryId: null,
+      loadRequestId: 0,
       cardWidth: 200
     }
   },
@@ -26,49 +27,58 @@ export default {
     },
     cardHeight() {
       return this.cardWidth * 1.25
+    },
+    sortBy() {
+      return this.$store.state.user.settings.mobileAuthorSortBy || 'name'
+    },
+    sortDesc() {
+      return this.$store.state.user.settings.mobileAuthorSortDesc === true
+    },
+    sortKey() {
+      return `${this.sortBy}|${this.sortDesc}`
+    }
+  },
+  watch: {
+    sortKey() {
+      this.init()
     }
   },
   methods: {
     async init() {
+      const requestId = ++this.loadRequestId
       this.cardWidth = (window.innerWidth - 64) / 2
       if (!this.currentLibraryId) {
         return
       }
       this.loadedLibraryId = this.currentLibraryId
-      this.authors = await this.$nativeHttp
-        .get(`/api/libraries/${this.currentLibraryId}/authors?sort=name`)
+      const authors = await this.$nativeHttp
+        .get(`/api/libraries/${this.currentLibraryId}/authors?sort=${this.sortBy}&desc=${this.sortDesc ? 1 : 0}`)
         .then((response) => response.authors)
         .catch((error) => {
           console.error('Failed to load authors', error)
           return []
         })
+      if (requestId !== this.loadRequestId) return
+      this.authors = authors
       console.log('Loaded authors', this.authors)
       this.$eventBus.$emit('bookshelf-total-entities', this.authors.length)
       this.loading = false
     },
     authorAdded(author) {
-      if (!this.authors.some((au) => au.id === author.id)) {
-        this.authors.push(author)
-        this.sortAuthors()
-        this.$eventBus.$emit('bookshelf-total-entities', this.authors.length)
-      }
+      if (this.authors.some((au) => au.id === author.id)) return
+      // Reload instead of pushing, so the new author lands in the sorted position for any sort option
+      this.init()
     },
     authorUpdated(author) {
-      this.authors = this.authors.map((au) => {
-        if (au.id === author.id) {
-          return author
-        }
-        return au
-      })
-      this.sortAuthors()
-    },
-    /** Keeps the same alphabetical order the API returns when the list is loaded. */
-    sortAuthors() {
-      this.authors.sort((a, b) => a.name.localeCompare(b.name))
+      if (!this.authors.some((au) => au.id === author.id)) return
+      this.init()
     },
     authorRemoved(author) {
+      // Invalidate pending responses that may still contain the removed author.
+      this.loadRequestId++
       this.authors = this.authors.filter((au) => au.id !== author.id)
       this.$eventBus.$emit('bookshelf-total-entities', this.authors.length)
+      this.init()
     },
     libraryChanged(libraryId) {
       if (libraryId !== this.loadedLibraryId) {
@@ -88,6 +98,7 @@ export default {
     this.$eventBus.$on('library-changed', this.libraryChanged)
   },
   beforeDestroy() {
+    this.loadRequestId++
     this.$socket.$off('author_added', this.authorAdded)
     this.$socket.$off('author_updated', this.authorUpdated)
     this.$socket.$off('author_removed', this.authorRemoved)

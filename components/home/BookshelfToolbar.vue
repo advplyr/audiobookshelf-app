@@ -14,11 +14,13 @@
           <span class="material-symbols text-2xl px-2" @click="showSortModal = true">sort</span>
         </template>
         <span v-if="seriesBookPage" class="material-symbols text-2xl px-2" @click="downloadSeries">download</span>
+        <span v-if="page === 'authors'" class="material-symbols text-2xl px-2" @click="showAuthorSortModal = true">sort</span>
         <span v-if="(page == 'library' && isBookLibrary) || seriesBookPage" class="material-symbols text-2xl px-2" @click="showMoreMenuDialog = true">more_vert</span>
       </div>
     </div>
 
     <modals-order-modal v-model="showSortModal" :order-by.sync="settings.mobileOrderBy" :descending.sync="settings.mobileOrderDesc" @change="updateOrder" />
+    <modals-order-modal v-model="showAuthorSortModal" authors :order-by.sync="settings.mobileAuthorSortBy" :descending.sync="settings.mobileAuthorSortDesc" @change="updateOrder" />
     <modals-filter-modal v-model="showFilterModal" :filter-by.sync="settings.mobileFilterBy" @change="updateFilter" />
     <modals-dialog v-model="showMoreMenuDialog" :items="menuItems" @action="clickMenuAction" />
   </div>
@@ -29,6 +31,7 @@ export default {
   data() {
     return {
       showSortModal: false,
+      showAuthorSortModal: false,
       showFilterModal: false,
       settings: {},
       totalEntities: 0,

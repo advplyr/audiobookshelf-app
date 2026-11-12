@@ -23,7 +23,8 @@ export default {
     value: Boolean,
     orderBy: String,
     descending: Boolean,
-    episodes: Boolean
+    episodes: Boolean,
+    authors: Boolean
   },
   data() {
     return {
@@ -136,6 +137,24 @@ export default {
           text: this.$strings.LabelFilename,
           value: 'audioFile.metadata.filename'
         }
+      ],
+      authorItems: [
+        {
+          text: this.$strings.LabelFirstName,
+          value: 'name'
+        },
+        {
+          text: this.$strings.LabelLastName,
+          value: 'lastFirst'
+        },
+        {
+          text: this.$strings.LabelAddedAt,
+          value: 'addedAt'
+        },
+        {
+          text: this.$strings.LabelNumberOfBooks,
+          value: 'numBooks'
+        }
       ]
     }
   },
@@ -169,6 +188,7 @@ export default {
     },
     items() {
       if (this.episodes) return this.episodeItems
+      if (this.authors) return this.authorItems
       if (this.isPodcast) return this.podcastItems
       return this.bookItems
     }
@@ -179,7 +199,12 @@ export default {
       if (this.selected === val) {
         this.selectedDesc = !this.selectedDesc
       } else {
-        if (val === 'recent' || val === 'addedAt') this.selectedDesc = true // Progress defaults to descending
+        if (this.authors) {
+          // Dates and counts read best newest/largest first, names A-Z
+          this.selectedDesc = val === 'addedAt' || val === 'numBooks'
+        } else if (val === 'recent' || val === 'addedAt') {
+          this.selectedDesc = true // Progress defaults to descending
+        }
         this.selected = val
       }
       this.show = false
