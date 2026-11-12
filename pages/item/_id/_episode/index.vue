@@ -202,7 +202,7 @@ export default {
       return this.episode.episodeType
     },
     duration() {
-      return this.$secondsToTimestamp(this.episode.duration)
+      return this.$elapsedPretty(this.episode.duration)
     },
     coverUrl() {
       if (this.isLocal) {
