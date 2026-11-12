@@ -54,7 +54,12 @@ export default {
       const requestId = ++this.loadRequestId
       this.loading = true
       this.loadFailed = false
-      if (!this.currentLibraryId) return
+      if (!this.currentLibraryId) {
+        this.narrators = []
+        this.loading = false
+        this.$eventBus.$emit('bookshelf-total-entities', 0)
+        return
+      }
       try {
         const response = await this.$nativeHttp.get(`/api/libraries/${this.currentLibraryId}/narrators`)
         if (!Array.isArray(response?.narrators) || response.narrators.some((n) => typeof n?.name !== 'string' || !Number.isFinite(n.numBooks) || n.numBooks < 0)) {

@@ -78,3 +78,12 @@ test('socket updates invalidate in-flight responses before the debounced reload'
   assert.equal(state.narrators.length, 0)
   clearTimeout(state.reloadTimer)
 })
+
+test('no selected library shows an empty state without fetching or endless loading', async () => {
+  const { state, pending } = page()
+  state.currentLibraryId = null
+  await state.init()
+  assert.equal(state.loading, false)
+  assert.equal(state.loadFailed, false)
+  assert.equal(pending.length, 0)
+})
