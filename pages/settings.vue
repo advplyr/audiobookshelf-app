@@ -61,6 +61,13 @@
       <p class="pl-4">{{ $strings.LabelEnableMp3IndexSeeking }}</p>
       <span class="material-symbols text-xl ml-2" @click.stop="showConfirmMp3IndexSeeking">info</span>
     </div>
+    <div v-if="!isiOS" class="py-3 flex items-center">
+      <p class="pr-4 w-36">{{ $strings.LabelStreamingRewindCache }}</p>
+      <div @click.stop="showStreamingBackBufferOptions">
+        <ui-text-input :value="streamingBackBufferOption" readonly append-icon="expand_more" style="width: 145px; max-width: 145px" />
+      </div>
+      <span class="material-symbols text-xl ml-2" @click.stop="showInfo('streamingBackBufferTime')">info</span>
+    </div>
     <div class="flex items-center py-3">
       <div class="w-10 flex justify-center" @click="toggleAllowSeekingOnMediaControls">
         <ui-toggle-switch v-model="settings.allowSeekingOnMediaControls" @input="saveSettings" />
@@ -223,7 +230,8 @@ export default {
         downloadUsingCellular: 'ALWAYS',
         streamingUsingCellular: 'ALWAYS',
         androidAutoBrowseLimitForGrouping: 100,
-        androidAutoBrowseSeriesSequenceOrder: 'ASC'
+        androidAutoBrowseSeriesSequenceOrder: 'ASC',
+        streamingBackBufferTime: 300 // 5 minutes
       },
       theme: 'dark',
       lockCurrentOrientation: false,
@@ -255,6 +263,10 @@ export default {
         enableMp3IndexSeeking: {
           name: this.$strings.LabelEnableMp3IndexSeeking,
           message: this.$strings.LabelEnableMp3IndexSeekingHelp
+        },
+        streamingBackBufferTime: {
+          name: this.$strings.LabelStreamingRewindCache,
+          message: this.$strings.LabelStreamingRewindCacheHelp
         },
         androidAutoBrowseLimitForGrouping: {
           name: this.$strings.LabelAndroidAutoBrowseLimitForGrouping,
@@ -416,6 +428,16 @@ export default {
       const item = this.streamingUsingCellularItems.find((i) => i.value === this.settings.streamingUsingCellular)
       return item?.text || 'Error'
     },
+    streamingBackBufferItems() {
+      return [0, 60, 120, 300, 600].map((value) => ({
+        text: value ? `${value / 60} min` : this.$strings.LabelOff,
+        value
+      }))
+    },
+    streamingBackBufferOption() {
+      const item = this.streamingBackBufferItems.find((i) => i.value === this.settings.streamingBackBufferTime)
+      return item?.text || `${Math.round(this.settings.streamingBackBufferTime / 60)} min`
+    },
     androidAutoBrowseSeriesSequenceOrderOption() {
       const item = this.androidAutoBrowseSeriesSequenceOrderItems.find((i) => i.value === this.settings.androidAutoBrowseSeriesSequenceOrder)
       return item?.text || 'Error'
@@ -428,6 +450,7 @@ export default {
       else if (this.moreMenuSetting === 'downloadUsingCellular') return this.downloadUsingCellularItems
       else if (this.moreMenuSetting === 'streamingUsingCellular') return this.streamingUsingCellularItems
       else if (this.moreMenuSetting === 'androidAutoBrowseSeriesSequenceOrder') return this.androidAutoBrowseSeriesSequenceOrderItems
+      else if (this.moreMenuSetting === 'streamingBackBuffer') return this.streamingBackBufferItems
       else if (this.moreMenuSetting === 'jumpForward')
         return this.jumpForwardSecondsOptions.map((value) => ({
           text: this.getJumpLabel(value),
@@ -448,6 +471,7 @@ export default {
       if (this.moreMenuSetting === 'downloadUsingCellular') return this.settings.downloadUsingCellular
       if (this.moreMenuSetting === 'streamingUsingCellular') return this.settings.streamingUsingCellular
       if (this.moreMenuSetting === 'androidAutoBrowseSeriesSequenceOrder') return this.settings.androidAutoBrowseSeriesSequenceOrder
+      if (this.moreMenuSetting === 'streamingBackBuffer') return this.settings.streamingBackBufferTime
       if (this.moreMenuSetting === 'shakeSensitivity') return this.settings.shakeSensitivity
       if (this.moreMenuSetting === 'hapticFeedback') return this.settings.hapticFeedback
       return null
@@ -500,6 +524,10 @@ export default {
       this.moreMenuSetting = 'streamingUsingCellular'
       this.showMoreMenuDialog = true
     },
+    showStreamingBackBufferOptions() {
+      this.moreMenuSetting = 'streamingBackBuffer'
+      this.showMoreMenuDialog = true
+    },
     showAndroidAutoBrowseSeriesSequenceOrderOptions() {
       this.moreMenuSetting = 'androidAutoBrowseSeriesSequenceOrder'
       this.showMoreMenuDialog = true
@@ -526,6 +554,9 @@ export default {
         this.saveSettings()
       } else if (this.moreMenuSetting === 'androidAutoBrowseSeriesSequenceOrder') {
         this.settings.androidAutoBrowseSeriesSequenceOrder = action
+        this.saveSettings()
+      } else if (this.moreMenuSetting === 'streamingBackBuffer') {
+        this.settings.streamingBackBufferTime = action
         this.saveSettings()
       } else if (this.moreMenuSetting === 'jumpForward') {
         this.settings.jumpForwardTime = action
@@ -671,6 +702,7 @@ export default {
 
       this.settings.androidAutoBrowseLimitForGrouping = deviceSettings.androidAutoBrowseLimitForGrouping
       this.settings.androidAutoBrowseSeriesSequenceOrder = deviceSettings.androidAutoBrowseSeriesSequenceOrder || 'ASC'
+      this.settings.streamingBackBufferTime = !isNaN(deviceSettings.streamingBackBufferTime) ? deviceSettings.streamingBackBufferTime : 300 // 5 minutes
     },
     async init() {
       this.loading = true

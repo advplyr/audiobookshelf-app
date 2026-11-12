@@ -267,6 +267,8 @@
   "LabelStatsMinutes": "minutes",
   "LabelStatsMinutesListening": "Minutes Listening",
   "LabelStatsWeekListening": "Week Listening",
+  "LabelStreamingRewindCache": "Rewind cache",
+  "LabelStreamingRewindCacheHelp": "When streaming, keep this much already played audio in memory so rewinding does not download it again. Uses roughly 1 MB of memory per minute at typical audiobook bitrates. Takes effect after restarting the app.",
   "LabelStreamingUsingCellular": "Streaming using Cellular",
   "LabelTag": "Tag",
   "LabelTags": "Tags",
