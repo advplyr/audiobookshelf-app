@@ -9,7 +9,7 @@
           <div class="flex items-center gap-1">
             <p class="truncate text-sm">{{ bookTitle }}</p>
             <span v-if="userIsFinished" class="inline-flex flex-shrink-0" :title="$strings.LabelFinished">
-              <span class="material-symbols text-success text-base" aria-hidden="true">check_circle</span>
+              <span class="material-symbols fill text-success text-base" aria-hidden="true">beenhere</span>
               <span class="sr-only">{{ $strings.LabelFinished }}</span>
             </span>
             <span v-if="localLibraryItem" class="material-symbols text-success text-base flex-shrink-0">download_done</span>
