@@ -119,6 +119,8 @@
   "LabelByAuthor": "av {0}",
   "LabelChapterTrack": "Kapitelspår",
   "LabelChapters": "Kapitel",
+  "LabelChapterTimeElapsed": "{0} in i kapitlet",
+  "LabelCurrentChapter": "Aktuellt kapitel: {0}",
   "LabelClosePlayer": "Stäng spelaren",
   "LabelCollapseSeries": "Fäll ihop serier",
   "LabelComplete": "Slutförd",

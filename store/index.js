@@ -5,6 +5,7 @@ import { PlayMethod } from '@/plugins/constants'
 export const state = () => ({
   deviceData: null,
   currentPlaybackSession: null,
+  playerCurrentTime: null,
   playerIsPlaying: false,
   playerIsFullscreen: false,
   playerIsStartingPlayback: false, // When pressing play before native play response
@@ -137,8 +138,12 @@ export const mutations = {
   },
   setPlaybackSession(state, playbackSession) {
     state.currentPlaybackSession = playbackSession
+    state.playerCurrentTime = playbackSession?.currentTime ?? null
 
     state.isCasting = playbackSession?.mediaPlayer === 'cast-player'
+  },
+  setPlayerCurrentTime(state, currentTime) {
+    state.playerCurrentTime = state.currentPlaybackSession ? currentTime : null
   },
   setMediaPlayer(state, mediaPlayer) {
     state.isCasting = mediaPlayer === 'cast-player'

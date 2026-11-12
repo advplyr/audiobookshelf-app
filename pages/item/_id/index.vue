@@ -71,8 +71,12 @@
             <span class="px-1 text-base">{{ $strings.LabelMissing }}</span>
           </ui-btn>
 
-          <div v-if="!isPodcast && progressPercent > 0" class="px-4 py-2 bg-primary text-sm font-semibold rounded-md text-fg mt-4 text-center">
+          <div v-if="!isPodcast && (progressPercent > 0 || currentChapter)" class="px-4 py-2 bg-primary text-sm font-semibold rounded-md text-fg mt-4 text-center">
             <p>{{ $strings.LabelYourProgress }}: {{ Math.round(progressPercent * 100) }}%</p>
+            <template v-if="currentChapter">
+              <p class="mt-1 break-words">{{ $getString('LabelCurrentChapter', [currentChapter.title || currentChapterIndex + 1]) }}</p>
+              <p class="text-fg-muted text-xs">{{ $getString('LabelChapterTimeElapsed', [$secondsToTimestamp(audioPosition - currentChapter.start)]) }} · {{ $getString('LabelTimeRemaining', [$secondsToTimestamp(currentChapter.end - audioPosition)]) }}</p>
+            </template>
             <p v-if="!useEBookProgress && !userIsFinished" class="text-fg-muted text-xs">{{ $getString('LabelTimeRemaining', [$elapsedPretty(userTimeRemaining)]) }}</p>
             <p v-else-if="userIsFinished" class="text-fg-muted text-xs">{{ $strings.LabelFinished }} {{ $formatDate(userProgressFinishedAt) }}</p>
           </div>
@@ -379,6 +383,18 @@ export default {
     },
     userIsFinished() {
       return !!this.userItemProgress?.isFinished
+    },
+    audioPosition() {
+      const playerTime = this.$store.state.playerCurrentTime
+      if (this.isPlaying && Number.isFinite(playerTime)) return playerTime
+      return this.userItemProgress?.currentTime ?? 0
+    },
+    currentChapterIndex() {
+      if (this.isPodcast || !this.numTracks || this.useEBookProgress || this.userIsFinished || !Number.isFinite(this.audioPosition)) return -1
+      return (this.media.chapters || []).findIndex((chapter) => Number.isFinite(chapter.start) && Number.isFinite(chapter.end) && chapter.start <= this.audioPosition && this.audioPosition < chapter.end)
+    },
+    currentChapter() {
+      return this.currentChapterIndex < 0 ? null : this.media.chapters[this.currentChapterIndex]
     },
     userTimeRemaining() {
       if (!this.userItemProgress) return 0

@@ -119,6 +119,8 @@
   "LabelByAuthor": "by {0}",
   "LabelChapterTrack": "Chapter Track",
   "LabelChapters": "Chapters",
+  "LabelChapterTimeElapsed": "{0} into chapter",
+  "LabelCurrentChapter": "Current chapter: {0}",
   "LabelClosePlayer": "Close player",
   "LabelCollapseSeries": "Collapse Series",
   "LabelComplete": "Complete",
