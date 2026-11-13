@@ -947,6 +947,24 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
     return false
   }
 
+  // A streaming player reads each file's index once, when it loads. If the file is replaced on the
+  // server after that, new byte-range requests fetch the new file's bytes at the old index's offsets
+  // and decode silence or static, so start a fresh session for the replaced file instead.
+  fun reloadIfAudioFilesChanged() {
+    val playbackSession = currentPlaybackSession ?: return
+    if (playbackSession.isLocal || playbackSession.isHLS || playbackSession.mediaPlayer == PLAYER_CAST) return
+    val libraryItemId = playbackSession.libraryItemId ?: return
+    apiHandler.getLibraryItem(libraryItemId) { libraryItem ->
+      if (libraryItem == null || !playbackSession.hasStaleAudioFiles(libraryItem)) return@getLibraryItem
+      Handler(Looper.getMainLooper()).post {
+        if (currentPlaybackSession?.id != playbackSession.id) return@post // switched items meanwhile
+        AbsLogger.info("PlayerNotificationService", "reloadIfAudioFilesChanged: audio file of ${playbackSession.displayTitle} changed on server, starting a new playback session")
+        currentPlayer.pause()
+        startNewPlaybackSession()
+      }
+    }
+  }
+
   fun play() {
     if (currentPlayer.isPlaying) {
       Log.d(tag, "Already playing")
