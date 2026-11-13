@@ -304,6 +304,19 @@ class PlaybackSession(
     return metadataBuilder.build()
   }
 
+  /** True when a server file this session loaded no longer matches the server's copy. */
+  @JsonIgnore
+  fun hasStaleAudioFiles(libraryItem: LibraryItem): Boolean {
+    if (isLocal || !episodeId.isNullOrEmpty()) return false
+    val onServer = libraryItem.media.getAudioTracks().associateBy { it.metadata?.path }
+    return audioTracks.any { track ->
+      val loaded = track.metadata ?: return@any false // nothing to compare against
+      val current = onServer[loaded.path]?.metadata ?: return@any false // can't match it up, don't guess
+      // Compare only fields both sides carry: sessions saved before mtimeMs was kept have none
+      bothDiffer(loaded.size, current.size) || bothDiffer(loaded.mtimeMs, current.mtimeMs)
+    }
+  }
+
   @JsonIgnore
   fun getMediaItems(ctx: Context): List<MediaItem> {
     val mediaItems: MutableList<MediaItem> = mutableListOf()
@@ -447,3 +460,5 @@ class PlaybackSession(
     )
   }
 }
+
+private fun bothDiffer(a: Long?, b: Long?) = a != null && b != null && a != b

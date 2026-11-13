@@ -349,7 +349,8 @@ data class FileMetadata(
   var ext:String,
   var path:String,
   var relPath:String,
-  var size:Long?
+  var size:Long?,
+  var mtimeMs:Long? = null
 )
 
 @JsonIgnoreProperties(ignoreUnknown = true)
