@@ -120,6 +120,7 @@
         </div>
         <p class="pl-4">{{ $strings.LabelMultiChapterSleep }}</p>
         <span class="material-symbols text-xl ml-2" @click.stop="showInfo('multiChapterSleep')">info</span>
+      </div>
     </div>
     </template>
     <!-- Auto Sleep timer settings -->
