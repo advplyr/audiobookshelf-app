@@ -62,6 +62,19 @@ android {
   }
 }
 
+// Gradle packages src/main/assets/public as-is. A native-only rebuild can
+// otherwise ship an old WebView bundle that has no Android Auto import code.
+tasks.register('verifyAndroidAutoBookmarkWebAssets') {
+  doLast {
+    def bundles = fileTree('src/main/assets/public/_nuxt') { include '**/*.js' }
+    def marker = 'abs-android-auto-bookmark-import-v2'
+    if (!bundles.files.any { it.getText('UTF-8').contains(marker) }) {
+      throw new GradleException('Android Auto bookmark web assets are stale. Run npm run generate and npx cap sync android before building the APK.')
+    }
+  }
+}
+tasks.matching { it.name == 'preBuild' }.configureEach { dependsOn('verifyAndroidAutoBookmarkWebAssets') }
+
 repositories {
   flatDir {
     dirs '../capacitor-cordova-android-plugins/src/main/libs', 'libs'

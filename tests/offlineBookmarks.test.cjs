@@ -4,12 +4,13 @@ const fs = require('node:fs')
 const path = require('node:path')
 const vm = require('node:vm')
 const rules = require('../utils/offlineBookmarks')
+const autoBookmarkRules = require('../utils/androidAutoBookmarks')
 
 const source = fs.readFileSync(path.join(__dirname, '../store/bookmarks.js'), 'utf8')
   .replace(/^import .*$/gm, '')
   .replace(/export const /g, 'const ') + '\nmodule.exports = { state, getters, mutations, actions }'
 
-function harness(storage = new Map()) {
+function harness(storage = new Map(), nativeQueue = []) {
   const server = { bookmarks: [] }
   const requests = []
   const preferences = {
@@ -19,11 +20,27 @@ function harness(storage = new Map()) {
   let failAfterCreate = false
   let failAfterDelete = false
   let failNextSave = false
+  let failNextReadback = false
   let holdNextPost = false
   let releasePost = null
+  let platform = 'web'
+  let failNextAck = false
+  const nativePlayer = {
+    async getPendingAndroidAutoBookmarks() { return { value: nativeQueue.map((entry) => ({ ...entry })) } },
+    async acknowledgeAndroidAutoBookmark({ id }) {
+      if (failNextAck) { failNextAck = false; throw new Error('Acknowledgement interrupted') }
+      const index = nativeQueue.findIndex((entry) => entry.id === id)
+      if (index >= 0) nativeQueue.splice(index, 1)
+    },
+    async refreshAndroidAutoBookmarks() {}
+  }
   preferences.set = async ({ key, value }) => {
     if (failNextSave) { failNextSave = false; throw new Error('Storage unavailable') }
     storage.set(key, value)
+  }
+  preferences.get = async ({ key }) => {
+    if (failNextReadback) { failNextReadback = false; return { value: null } }
+    return { value: storage.get(key) || null }
   }
   const http = {
     async get(url) {
@@ -58,7 +75,7 @@ function harness(storage = new Map()) {
       if (failAfterDelete) { failAfterDelete = false; throw new Error('Response lost') }
     }
   }
-  const sandbox = { module: { exports: {} }, Preferences: preferences, bookmarkRules: rules, console: { warn() {} }, setTimeout() { return 1 } }
+  const sandbox = { module: { exports: {} }, Preferences: preferences, bookmarkRules: rules, Capacitor: { getPlatform: () => platform }, AbsAudioPlayer: nativePlayer, AbsLogger: { async info() {}, async error() {} }, console: { warn() {}, info() {} }, setTimeout() { return 1 } }
   vm.runInNewContext(source, sandbox, { filename: 'store/bookmarks.js' })
   const mod = sandbox.module.exports
   const state = mod.state()
@@ -70,13 +87,16 @@ function harness(storage = new Map()) {
     dispatch(name, payload) { return Promise.resolve(mod.actions[name].call(app, context, payload)) }
   }
   return {
-    state, rootState, server, requests, storage, context,
+    state, rootState, server, requests, storage, context, nativeQueue, nativePlayer,
     dispatch: context.dispatch,
     visible: (id = 'book') => mod.getters.forItem(state)(id),
     match: (item) => mod.getters.accountMatches(state)(item),
     loseCreateResponse() { failAfterCreate = true },
     loseDeleteResponse() { failAfterDelete = true },
     failSave() { failNextSave = true },
+    failReadback() { failNextReadback = true },
+    failAck() { failNextAck = true },
+    useAndroid() { platform = 'android' },
     holdPost() { holdNextPost = true },
     releasePost() { if (releasePost) releasePost() },
     postIsHeld() { return !!releasePost },
@@ -309,4 +329,189 @@ test('an edit made during an in-flight create is preserved and sent next', async
   assert.equal(app.state.pending.length, 0)
   assert.equal(app.requests.filter((request) => request[0] === 'POST').length, 1)
   assert.equal(app.requests.filter((request) => request[0] === 'PATCH').length, 1)
+})
+
+test('Android Auto request is durably imported into the existing queue and synced', async () => {
+  const app = harness()
+  app.useAndroid()
+  await app.activate()
+  app.nativeQueue.push({ id: 'car-1', serverConnectionConfigId: 'server-a', serverAddress: 'https://a', userId: 'alice', libraryItemId: 'book', time: 42, title: 'Bookmark 00:00:42' })
+  await app.dispatch('importAndroidAuto')
+  assert.equal(app.nativeQueue.length, 0)
+  assert.equal(app.visible()[0].time, 42)
+  assert.equal(app.state.pending.length, 1)
+  const restarted = harness(app.storage)
+  await restarted.activate()
+  assert.equal(restarted.state.pending.length, 1)
+  restarted.connect()
+  await restarted.dispatch('sync')
+  assert.equal(restarted.server.bookmarks.length, 1)
+})
+
+test('interrupted Android Auto acknowledgement does not duplicate the imported change', async () => {
+  const app = harness()
+  app.useAndroid()
+  await app.activate()
+  app.nativeQueue.push({ id: 'car-2', serverConnectionConfigId: 'server-a', serverAddress: 'https://a', userId: 'alice', libraryItemId: 'book', time: 55, title: 'Bookmark 00:00:55' })
+  app.failAck()
+  await assert.rejects(app.dispatch('importAndroidAuto'), /Acknowledgement interrupted/)
+  assert.equal(app.state.pending.length, 1)
+  assert.equal(app.state.nativeReceipts.length, 1)
+  await app.dispatch('importAndroidAuto')
+  assert.equal(app.nativeQueue.length, 0)
+  assert.equal(app.state.pending.length, 1)
+})
+
+test('Android Auto request remains native until its account is active', async () => {
+  const app = harness()
+  app.useAndroid()
+  await app.activate({ id: 'server-a', address: 'https://a', userId: 'bob' })
+  app.nativeQueue.push({ id: 'car-3', serverConnectionConfigId: 'server-a', serverAddress: 'https://a', userId: 'alice', libraryItemId: 'book', time: 60, title: 'Bookmark 00:01:00' })
+  await app.dispatch('importAndroidAuto')
+  assert.equal(app.nativeQueue.length, 1)
+  assert.equal(app.state.pending.length, 0)
+  await app.activate()
+  await app.dispatch('importAndroidAuto')
+  assert.equal(app.nativeQueue.length, 0)
+  assert.equal(app.state.pending.length, 1)
+})
+
+test('account switch during Android Auto import does not acknowledge or misfile the request', async () => {
+  const app = harness()
+  app.useAndroid()
+  await app.activate()
+  const request = { id: 'car-4', serverConnectionConfigId: 'server-a', serverAddress: 'https://a', userId: 'alice', libraryItemId: 'book', time: 75, title: 'Bookmark 00:01:15' }
+  app.nativeQueue.push(request)
+  let releaseRead
+  const originalRead = app.nativePlayer.getPendingAndroidAutoBookmarks
+  app.nativePlayer.getPendingAndroidAutoBookmarks = () => new Promise((resolve) => {
+    releaseRead = () => resolve({ value: [request] })
+  })
+  const importing = app.dispatch('importAndroidAuto')
+  await app.activate({ id: 'server-a', address: 'https://a', userId: 'bob' })
+  releaseRead()
+  await importing
+  app.nativePlayer.getPendingAndroidAutoBookmarks = originalRead
+  assert.equal(app.nativeQueue.length, 1)
+  assert.equal(app.state.pending.length, 0)
+  await app.activate()
+  await app.dispatch('importAndroidAuto')
+  assert.equal(app.state.pending.length, 1)
+  assert.equal(app.nativeQueue.length, 0)
+})
+
+test('a user edit at the same position wins over the generated Android Auto title', async () => {
+  const app = harness()
+  app.useAndroid()
+  await app.activate()
+  await app.dispatch('change', { type: 'create', bookmark: bookmark(90, 'My edited title') })
+  app.nativeQueue.push({ id: 'car-5', serverConnectionConfigId: 'server-a', serverAddress: 'https://a', userId: 'alice', libraryItemId: 'book', time: 90, title: 'Bookmark 00:01:30' })
+  await app.dispatch('importAndroidAuto')
+  assert.equal(app.nativeQueue.length, 0)
+  assert.equal(app.state.pending.length, 1)
+  assert.equal(app.visible()[0].title, 'My edited title')
+})
+
+test('duplicate Android Auto deliveries at one position produce one server bookmark', async () => {
+  const app = harness()
+  app.useAndroid()
+  await app.activate()
+  for (const id of ['car-6a', 'car-6b']) {
+    app.nativeQueue.push({ id, serverConnectionConfigId: 'server-a', serverAddress: 'https://a', userId: 'alice', libraryItemId: 'book', time: 105, title: 'Bookmark 00:01:45' })
+  }
+  await app.dispatch('importAndroidAuto')
+  assert.equal(app.nativeQueue.length, 0)
+  assert.equal(app.state.pending.length, 1)
+  app.connect()
+  await app.dispatch('sync')
+  assert.equal(app.server.bookmarks.length, 1)
+  assert.equal(app.requests.filter((request) => request[0] === 'POST').length, 1)
+})
+
+test('failed Android Auto handoff leaves native request for retry', async () => {
+  const app = harness()
+  app.useAndroid()
+  await app.activate()
+  app.nativeQueue.push({ id: 'car-7', serverConnectionConfigId: 'server-a', serverAddress: 'https://a', userId: 'alice', libraryItemId: 'book', time: 120, title: 'Bookmark 00:02:00' })
+  app.failSave()
+  await assert.rejects(app.dispatch('importAndroidAuto'), /Storage unavailable/)
+  assert.equal(app.nativeQueue.length, 1)
+  assert.equal(app.state.pending.length, 0)
+  await app.dispatch('importAndroidAuto')
+  assert.equal(app.nativeQueue.length, 0)
+  assert.equal(app.state.pending.length, 1)
+})
+
+test('Android Auto requests can be imported after the bookmark account loads', async () => {
+  const app = harness()
+  app.useAndroid()
+  app.nativeQueue.push({ id: 'car-8', serverConnectionConfigId: 'server-a', serverAddress: 'https://a', userId: 'alice', libraryItemId: 'book', time: 135, title: 'Bookmark 00:02:15' })
+  await app.dispatch('importAndroidAuto')
+  assert.equal(app.nativeQueue.length, 1)
+  await app.activate()
+  await app.dispatch('importAndroidAuto')
+  assert.equal(app.nativeQueue.length, 0)
+  assert.equal(app.visible()[0].time, 135)
+})
+
+test('Android Auto request from a known old user ID imports into the current account', async () => {
+  const app = harness()
+  app.useAndroid()
+  await app.activate()
+  await app.dispatch('rememberUserAlias', 'old-alice')
+  app.nativeQueue.push({ id: 'car-9', serverConnectionConfigId: 'server-a', serverAddress: 'https://a', userId: 'old-alice', libraryItemId: 'book', time: 150, title: 'Bookmark 00:02:30' })
+  await app.dispatch('importAndroidAuto')
+  assert.equal(app.nativeQueue.length, 0)
+  assert.equal(app.visible()[0].time, 150)
+  assert.equal(app.state.pending.length, 1)
+})
+
+test('pending deletion is not replaced or acknowledged by a native create at the same position', async () => {
+  const app = harness()
+  app.useAndroid()
+  await app.activate()
+  app.server.bookmarks.push(bookmark(165, 'Old'))
+  await app.dispatch('receiveServer', app.server.bookmarks)
+  await app.dispatch('change', { type: 'delete', bookmark: bookmark(165, 'Old') })
+  app.nativeQueue.push({ id: 'car-10', serverConnectionConfigId: 'server-a', serverAddress: 'https://a', userId: 'alice', libraryItemId: 'book', time: 165, title: 'Bookmark 00:02:45' })
+  await app.dispatch('importAndroidAuto')
+  assert.equal(app.nativeQueue.length, 1)
+  assert.equal(app.state.pending[0].type, 'delete')
+  assert.equal(app.visible().length, 0)
+})
+
+test('offline startup restores the sole bookmark account without a last server ID', () => {
+  const config = { id: 'server-a', address: 'https://a', userId: 'alice' }
+  assert.equal(autoBookmarkRules.startupBookmarkConfig({ lastServerConnectionConfigId: null, serverConnectionConfigs: [config] }), config)
+  assert.equal(autoBookmarkRules.startupBookmarkConfig({ lastServerConnectionConfigId: null, serverConnectionConfigs: [config, { id: 'server-b' }] }), null)
+  assert.equal(autoBookmarkRules.startupBookmarkConfig({ lastServerConnectionConfigId: 'server-a', serverConnectionConfigs: [config, { id: 'server-b' }] }), config)
+  assert.equal(autoBookmarkRules.startupBookmarkConfig({ lastServerConnectionConfigId: 'unknown', serverConnectionConfigs: [config] }), null)
+})
+
+test('Android Auto requests left by an earlier app process import after restart', async () => {
+  const storage = new Map()
+  const nativeQueue = [{ id: 'car-11', serverConnectionConfigId: 'server-a', serverAddress: 'https://a', userId: 'alice', libraryItemId: 'book', time: 1138, title: 'Bookmark 00:18:58' }]
+  const restarted = harness(storage, nativeQueue)
+  restarted.useAndroid()
+  await restarted.activate()
+  await restarted.dispatch('importAndroidAuto')
+  assert.equal(nativeQueue.length, 0)
+  assert.equal(restarted.visible()[0].time, 1138)
+  const nextRestart = harness(storage, nativeQueue)
+  await nextRestart.activate()
+  assert.equal(nextRestart.visible()[0].time, 1138)
+})
+
+test('native request is acknowledged only after Preferences readback confirms its receipt', async () => {
+  const app = harness()
+  app.useAndroid()
+  await app.activate()
+  app.nativeQueue.push({ id: 'car-12', serverConnectionConfigId: 'server-a', serverAddress: 'https://a', userId: 'alice', libraryItemId: 'book', time: 180, title: 'Bookmark 00:03:00' })
+  app.failReadback()
+  await assert.rejects(app.dispatch('importAndroidAuto'), /could not be verified/)
+  assert.equal(app.nativeQueue.length, 1)
+  assert.equal(app.state.pending.length, 1)
+  await app.dispatch('importAndroidAuto')
+  assert.equal(app.nativeQueue.length, 0)
+  assert.equal(app.state.pending.length, 1)
 })
