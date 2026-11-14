@@ -110,6 +110,10 @@ class MediaSessionCallback(var playerNotificationService:PlayerNotificationServi
 
   override fun onPlayFromMediaId(mediaId: String?, extras: Bundle?) {
     Log.d(tag, "ON PLAY FROM MEDIA ID $mediaId")
+    if (mediaId?.startsWith(ANDROID_AUTO_BOOKMARK_MEDIA_PREFIX) == true) {
+      playerNotificationService.seekToAndroidAutoBookmark(mediaId, true)
+      return
+    }
     val libraryItemWrapper: LibraryItemWrapper?
     var podcastEpisode: PodcastEpisode? = null
 
@@ -273,6 +277,7 @@ class MediaSessionCallback(var playerNotificationService:PlayerNotificationServi
   }
 
   override fun onCustomAction(action: String?, extras: Bundle?) {
+    Log.i(tag, "MediaSession custom action received: $action")
     super.onCustomAction(action, extras)
 
     when (action) {
@@ -281,6 +286,10 @@ class MediaSessionCallback(var playerNotificationService:PlayerNotificationServi
       CUSTOM_ACTION_SKIP_FORWARD -> onSkipToNext()
       CUSTOM_ACTION_SKIP_BACKWARD -> onSkipToPrevious()
       CUSTOM_ACTION_CHANGE_SPEED -> onChangeSpeed()
+      CUSTOM_ACTION_CREATE_BOOKMARK -> {
+        Log.i(tag, "Android Auto bookmark custom action received by MediaSessionCallback")
+        playerNotificationService.createAndroidAutoBookmark()
+      }
     }
   }
 }

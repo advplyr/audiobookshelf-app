@@ -1,4 +1,7 @@
 import { Preferences } from '@capacitor/preferences'
+import { Capacitor } from '@capacitor/core'
+import { AbsAudioPlayer } from '@/plugins/capacitor/AbsAudioPlayer'
+import { AbsLogger } from '@/plugins/capacitor/AbsLogger'
 import bookmarkRules from '@/utils/offlineBookmarks'
 
 const { key, position, overlay, coalesce, classify, sameContent, afterConfirmed } = bookmarkRules
@@ -8,6 +11,11 @@ const inFlight = new Set()
 let retryTimer = null
 let retryDelay = 5000
 let resyncRequested = false
+
+function logAndroidAutoImport(message) {
+  console.info(`[bookmarks] ${message}`)
+  AbsLogger.info({ tag: 'bookmarks', message: `Android Auto import: ${message}` }).catch((error) => console.warn('[bookmarks] Import log failed', error))
+}
 
 function storageKey(context) {
   return `offlineBookmarks:v1:${encodeURIComponent(context.id)}:${encodeURIComponent(context.userId)}`
@@ -22,7 +30,7 @@ function validContext(config) {
 }
 
 function record(state) {
-  return { version: 1, address: state.context.address, snapshot: state.snapshot, pending: state.pending, notes: state.notes, aliases: state.aliases }
+  return { version: 1, address: state.context.address, snapshot: state.snapshot, pending: state.pending, notes: state.notes, aliases: state.aliases, nativeReceipts: state.nativeReceipts }
 }
 
 function retainedNotes(current, snapshot) {
@@ -42,6 +50,7 @@ function persist(store, update, expectedAccount = null) {
     const next = { ...record(store.state), ...update(store.state) }
     await Preferences.set({ key: storageKey(store.state.context), value: JSON.stringify({ version: 1, address: store.state.context.address, ...next }) })
     store.commit('setRecord', next)
+    if (Capacitor.getPlatform() === 'android') AbsAudioPlayer.refreshAndroidAutoBookmarks().catch(() => {})
   })
   writeChain = task.catch(() => {})
   return task
@@ -57,6 +66,7 @@ export const state = () => ({
   pending: [],
   notes: {},
   aliases: [],
+  nativeReceipts: [],
   loaded: false
 })
 
@@ -74,6 +84,7 @@ export const mutations = {
     state.pending = []
     state.notes = {}
     state.aliases = []
+    state.nativeReceipts = []
     state.loaded = false
   },
   setRecord(state, data) {
@@ -81,6 +92,7 @@ export const mutations = {
     state.pending = data.pending
     state.notes = data.notes || {}
     state.aliases = data.aliases || []
+    state.nativeReceipts = data.nativeReceipts || []
     state.loaded = true
   },
   clear(state) {
@@ -89,6 +101,7 @@ export const mutations = {
     state.pending = []
     state.notes = {}
     state.aliases = []
+    state.nativeReceipts = []
     state.loaded = false
   }
 }
@@ -106,7 +119,7 @@ export const actions = {
     commit('setContext', context)
     const saved = await Preferences.get({ key: storageKey(context) })
     if (!saved.value) {
-      commit('setRecord', { snapshot: [], pending: [], notes: {}, aliases: [] })
+      commit('setRecord', { snapshot: [], pending: [], notes: {}, aliases: [], nativeReceipts: [] })
       return
     }
     const parsed = JSON.parse(saved.value)
@@ -123,6 +136,83 @@ export const actions = {
   rememberUserAlias({ state, commit }, oldUserId) {
     if (!state.loaded || !oldUserId || oldUserId === state.context.userId || state.aliases.includes(oldUserId)) return
     return persist({ state, commit }, (current) => ({ aliases: [...current.aliases, oldUserId] }))
+  },
+  async importAndroidAuto({ state, commit, dispatch }) {
+    if (Capacitor.getPlatform() !== 'android') return
+    try {
+      logAndroidAutoImport(`abs-android-auto-bookmark-import-v2 start; accountLoaded=${state.loaded}`)
+      if (!state.loaded) {
+        logAndroidAutoImport('deferred: no bookmark account loaded')
+        return
+      }
+      const account = storageKey(state.context)
+      const response = await AbsAudioPlayer.getPendingAndroidAutoBookmarks()
+      if (!Array.isArray(response?.value)) throw new Error('Invalid Android Auto bookmark response')
+      logAndroidAutoImport(`native requests=${response.value.length}`)
+      let imported = 0
+      let deferred = 0
+      for (const request of response.value) {
+        if (!state.context || storageKey(state.context) !== account) {
+          logAndroidAutoImport('deferred: active bookmark account changed during import')
+          return
+        }
+        const configMatches = request.serverConnectionConfigId === state.context.id
+        const addressMatches = request.serverAddress === state.context.address
+        const userMatches = [state.context.userId, ...state.aliases].includes(request.userId)
+        if (!configMatches || !addressMatches || !userMatches) {
+          deferred++
+          logAndroidAutoImport(`deferred request at ${request.time}s: configMatch=${configMatches}, addressMatch=${addressMatches}, userMatch=${userMatches}`)
+          continue
+        }
+        if (!request.id || !request.libraryItemId || !Number.isInteger(request.time) || request.time < 0) {
+          deferred++
+          logAndroidAutoImport('deferred: invalid native request')
+          continue
+        }
+        let accepted = false
+        await persist({ state, commit }, (current) => {
+          if (current.nativeReceipts.includes(request.id)) {
+            accepted = true
+            return {}
+          }
+          const bookmark = { libraryItemId: request.libraryItemId, time: request.time, title: request.title }
+          const existing = current.pending.find((entry) => key(entry.bookmark) === key(bookmark))
+          const serverBookmark = current.snapshot.find((entry) => key(entry) === key(bookmark))
+          if (existing?.type === 'delete') {
+            logAndroidAutoImport(`deferred request at ${request.time}s: deletion pending at the same position`)
+            return {}
+          }
+          if (existing) {
+            // The native title is generated. A later user edit at this position
+            // takes precedence over it without replacing the queued operation.
+            accepted = true
+            return { nativeReceipts: [...current.nativeReceipts, request.id] }
+          }
+          if (serverBookmark && sameContent(serverBookmark, bookmark)) {
+            accepted = true
+            return { nativeReceipts: [...current.nativeReceipts, request.id] }
+          }
+          const pending = coalesce(current.pending, 'create', bookmark, serverBookmark, operationId())
+          accepted = true
+          return { pending, nativeReceipts: [...current.nativeReceipts, request.id] }
+        }, account)
+        if (!accepted) {
+          deferred++
+          continue
+        }
+        const saved = await Preferences.get({ key: account })
+        const verified = saved.value && JSON.parse(saved.value).nativeReceipts?.includes(request.id)
+        if (!verified) throw new Error('Android Auto bookmark import could not be verified in Preferences')
+        logAndroidAutoImport(`persisted request at ${request.time}s; acknowledging native copy`)
+        await AbsAudioPlayer.acknowledgeAndroidAutoBookmark({ id: request.id })
+        imported++
+      }
+      logAndroidAutoImport(`completed; acknowledged=${imported}, deferred=${deferred}`)
+      dispatch('sync')
+    } catch (error) {
+      await AbsLogger.error({ tag: 'bookmarks', message: `Android Auto import failed: ${error.message}` }).catch(() => {})
+      throw error
+    }
   },
   change({ state, commit, dispatch }, { type, bookmark }) {
     if (!state.loaded) return Promise.reject(new Error('Bookmark account is not ready'))

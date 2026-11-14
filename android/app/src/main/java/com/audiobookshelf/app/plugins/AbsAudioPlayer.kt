@@ -19,6 +19,7 @@ import com.google.android.gms.cast.CastDevice
 import com.google.android.gms.common.ConnectionResult
 import com.google.android.gms.common.GoogleApiAvailability
 import org.json.JSONObject
+import org.json.JSONArray
 
 @CapacitorPlugin(name = "AbsAudioPlayer")
 class AbsAudioPlayer : Plugin() {
@@ -52,6 +53,10 @@ class AbsAudioPlayer : Plugin() {
       playerNotificationService.clientEventEmitter = (object : PlayerNotificationService.ClientEventEmitter {
         override fun onPlaybackSession(playbackSession: PlaybackSession) {
           notifyListeners("onPlaybackSession", JSObject(jacksonMapper.writeValueAsString(playbackSession)))
+        }
+
+        override fun onAndroidAutoBookmarkQueued() {
+          notifyListeners("onAndroidAutoBookmarkQueued", JSObject())
         }
 
         override fun onPlaybackClosed() {
@@ -125,6 +130,45 @@ class AbsAudioPlayer : Plugin() {
     val ret = JSObject()
     ret.put("value", value)
     notifyListeners(evtName, ret)
+  }
+
+  @PluginMethod
+  fun getPendingAndroidAutoBookmarks(call: PluginCall) {
+    try {
+      val requests = DeviceManager.dbManager.getAndroidAutoBookmarkRequests()
+      Log.i(tag, "Android Auto bookmark handoff read: ${requests.size} native request(s) pending")
+      val result = JSObject()
+      result.put("value", JSONArray(jacksonMapper.writeValueAsString(requests)))
+      call.resolve(result)
+    } catch (error: Exception) {
+      Log.e(tag, "Could not read Android Auto bookmark requests", error)
+      call.reject("Could not read Android Auto bookmarks", error)
+    }
+  }
+
+  @PluginMethod
+  fun acknowledgeAndroidAutoBookmark(call: PluginCall) {
+    val id = call.getString("id")
+    if (id.isNullOrBlank()) return call.reject("Missing bookmark request ID")
+    try {
+      DeviceManager.dbManager.removeAndroidAutoBookmarkRequest(id)
+      Log.i(tag, "Android Auto bookmark handoff: native request acknowledged")
+      if (::playerNotificationService.isInitialized) {
+        Handler(Looper.getMainLooper()).post { playerNotificationService.refreshAndroidAutoBookmarks() }
+      }
+      call.resolve()
+    } catch (error: Exception) {
+      Log.e(tag, "Could not acknowledge Android Auto bookmark request", error)
+      call.reject("Could not acknowledge Android Auto bookmark", error)
+    }
+  }
+
+  @PluginMethod
+  fun refreshAndroidAutoBookmarks(call: PluginCall) {
+    if (::playerNotificationService.isInitialized) {
+      Handler(Looper.getMainLooper()).post { playerNotificationService.refreshAndroidAutoBookmarks() }
+    }
+    call.resolve()
   }
 
   override fun handleOnDestroy() {

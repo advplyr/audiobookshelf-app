@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.Log
 import com.audiobookshelf.app.data.*
 import com.audiobookshelf.app.models.DownloadItem
+import com.audiobookshelf.app.player.AndroidAutoBookmarkRequest
 import com.audiobookshelf.app.plugins.AbsLog
 import com.audiobookshelf.app.plugins.AbsLogger
 import io.paperdb.Paper
@@ -28,6 +29,17 @@ class DbManager {
   }
   fun saveDeviceData(deviceData: DeviceData) {
     Paper.book("device").write("data", deviceData)
+  }
+
+  fun saveAndroidAutoBookmarkRequest(request: AndroidAutoBookmarkRequest) {
+    Paper.book("androidAutoBookmarks").write(request.id, request)
+  }
+
+  fun getAndroidAutoBookmarkRequests(): List<AndroidAutoBookmarkRequest> =
+    Paper.book("androidAutoBookmarks").allKeys.mapNotNull { Paper.book("androidAutoBookmarks").read<AndroidAutoBookmarkRequest>(it) }
+
+  fun removeAndroidAutoBookmarkRequest(id: String) {
+    Paper.book("androidAutoBookmarks").delete(id)
   }
 
   fun getLocalLibraryItems(mediaType: String? = null): MutableList<LocalLibraryItem> {

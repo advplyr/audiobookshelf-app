@@ -92,6 +92,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
     fun onNetworkMeteredChanged(isUnmetered: Boolean)
     fun onMediaItemHistoryUpdated(mediaItemHistory: MediaItemHistory)
     fun onPlaybackSpeedChanged(playbackSpeed: Float)
+    fun onAndroidAutoBookmarkQueued()
   }
   private val binder = LocalBinder()
 
@@ -119,6 +120,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
   private var channelName = "Audiobookshelf Channel"
 
   var currentPlaybackSession: PlaybackSession? = null
+  private lateinit var androidAutoBookmarks: AndroidAutoBookmarks
   private var initialPlaybackRate: Float? = null
 
   private val metadataScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
@@ -223,6 +225,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
     Log.d(tag, "onCreate")
     super.onCreate()
     ctx = this
+    androidAutoBookmarks = AndroidAutoBookmarks(this)
 
     // Initialize Paper
     DbManager.initialize(ctx)
@@ -449,9 +452,6 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
     val playbackRateToUse = playbackRate ?: initialPlaybackRate ?: 1f
     initialPlaybackRate = playbackRate
 
-    // Set actions on Android Auto like jump forward/backward
-    setMediaSessionConnectorCustomActions(playbackSession)
-
     playbackSession.mediaPlayer = getMediaPlayer()
 
     if (playbackSession.mediaPlayer == PLAYER_CAST && playbackSession.isLocal) {
@@ -460,6 +460,9 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
       switchToPlayer(false)
       playbackSession.mediaPlayer = getMediaPlayer()
     }
+
+    // The action list depends on the player selected for this session.
+    setMediaSessionConnectorCustomActions(playbackSession)
 
     if (playbackSession.mediaPlayer == PLAYER_CAST) {
       // If cast-player is the first player to be used
@@ -482,6 +485,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
     AbsLogger.info("PlayerNotificationService", "preparePlayer: Started playback session for item ${currentPlaybackSession?.mediaItemId}. MediaPlayer ${currentPlaybackSession?.mediaPlayer}")
     // Notify client
     clientEventEmitter?.onPlaybackSession(playbackSession)
+    notifyChildrenChanged(BOOKMARKS_ROOT)
 
     // Update widget
     DeviceManager.widgetUpdater?.onPlayerChanged(this)
@@ -582,12 +586,11 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
 
   private fun setMediaSessionConnectorCustomActions(playbackSession: PlaybackSession) {
     val mediaItems = playbackSession.getMediaItems(ctx)
-    val customActionProviders =
-            mutableListOf(
-                    JumpBackwardCustomActionProvider(),
-                    JumpForwardCustomActionProvider(),
-                    ChangePlaybackSpeedCustomActionProvider() // Will be pushed to far left
-            )
+    val customActionProviders = mutableListOf<CustomActionProvider>()
+    if (playbackSession.mediaPlayer != PLAYER_CAST && androidAutoBookmarks.canUse(playbackSession)) customActionProviders.add(CreateBookmarkCustomActionProvider())
+    customActionProviders.add(JumpBackwardCustomActionProvider())
+    customActionProviders.add(JumpForwardCustomActionProvider())
+    customActionProviders.add(ChangePlaybackSpeedCustomActionProvider())
     if (playbackSession.mediaPlayer != PLAYER_CAST && mediaItems.size > 1) {
       customActionProviders.addAll(
               listOf(
@@ -992,6 +995,52 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
     }
   }
 
+  fun createAndroidAutoBookmark() {
+    val session = currentPlaybackSession ?: run {
+      Log.w(tag, "Android Auto bookmark ignored: no playback session")
+      return
+    }
+    if (session.mediaPlayer == PLAYER_CAST || !this::currentPlayer.isInitialized) {
+      Log.w(tag, "Android Auto bookmark ignored: no local player")
+      return
+    }
+    try {
+      val positionMs = getCurrentTime()
+      Log.i(tag, "Android Auto bookmark action: position=${positionMs}ms, playerState=${currentPlayer.playbackState}")
+      val request = androidAutoBookmarks.create(session, positionMs / 1000L) ?: return
+      Log.i(tag, "Android Auto bookmark saved in native queue at ${request.time}s")
+      notifyChildrenChanged(BOOKMARKS_ROOT)
+      clientEventEmitter?.onAndroidAutoBookmarkQueued()
+    } catch (error: Exception) {
+      Log.e(tag, "Could not save Android Auto bookmark", error)
+    }
+  }
+
+  fun refreshAndroidAutoBookmarks() {
+    notifyChildrenChanged(BOOKMARKS_ROOT)
+  }
+
+  fun seekToAndroidAutoBookmark(mediaId: String, playWhenReady: Boolean): Boolean {
+    if (!mediaId.startsWith(ANDROID_AUTO_BOOKMARK_MEDIA_PREFIX)) return false
+    val session = currentPlaybackSession ?: return true
+    if (session.mediaPlayer == PLAYER_CAST) return true
+    val value = mediaId.removePrefix(ANDROID_AUTO_BOOKMARK_MEDIA_PREFIX)
+    val separator = value.lastIndexOf(':')
+    if (separator < 0 || value.substring(0, separator) != session.id) return true
+    val time = value.substring(separator + 1).toLongOrNull() ?: return true
+    val available = try {
+      androidAutoBookmarks.visible(session).any { it.time == time }
+    } catch (error: Exception) {
+      AbsLogger.error(tag, "Could not read Android Auto bookmarks: ${error.message}")
+      false
+    }
+    if (!available) return true
+    if (time < 0 || time > session.totalDurationMs / 1000L) return true
+    seekPlayer(time * 1000L)
+    if (playWhenReady) play()
+    return true
+  }
+
   fun skipToPrevious() {
     currentPlayer.seekToPrevious()
   }
@@ -1141,6 +1190,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
   private val LIBRARIES_ROOT = "__LIBRARIES__"
   private val RECENTLY_ROOT = "__RECENTLY__"
   private val DOWNLOADS_ROOT = "__DOWNLOADS__"
+  private val BOOKMARKS_ROOT = ANDROID_AUTO_BOOKMARKS_ROOT
   private val CONTINUE_ROOT = "__CONTINUE__"
   private lateinit var browseTree: BrowseTree
   private val browseTreeInitListeners = mutableListOf<() -> Unit>()
@@ -1220,12 +1270,30 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
     result.detach()
 
     // Prevent crashing if app is restarted while browsing
-    if ((parentMediaId != DOWNLOADS_ROOT && parentMediaId != AUTO_MEDIA_ROOT) && !firstLoadDone) {
+    if ((parentMediaId != DOWNLOADS_ROOT && parentMediaId != BOOKMARKS_ROOT && parentMediaId != AUTO_MEDIA_ROOT) && !firstLoadDone) {
       result.sendResult(null)
       return
     }
 
-    if (parentMediaId == DOWNLOADS_ROOT) { // Load downloads
+    if (parentMediaId == BOOKMARKS_ROOT) {
+      val session = currentPlaybackSession
+      val bookmarks = try {
+        androidAutoBookmarks.visible(session)
+      } catch (error: Exception) {
+        AbsLogger.error(tag, "Could not load Android Auto bookmarks: ${error.message}")
+        emptyList()
+      }
+      val children = bookmarks.map { bookmark ->
+        val description = MediaDescriptionCompat.Builder()
+          .setMediaId("$ANDROID_AUTO_BOOKMARK_MEDIA_PREFIX${session?.id}:${bookmark.time}")
+          .setTitle(bookmark.title)
+          .setSubtitle(AndroidAutoBookmarks.formatTime(bookmark.time))
+          .setIconUri(getUriToDrawable(ctx, R.drawable.md_bookmark))
+          .build()
+        MediaBrowserCompat.MediaItem(description, MediaBrowserCompat.MediaItem.FLAG_PLAYABLE)
+      }.toMutableList()
+      result.sendResult(children)
+    } else if (parentMediaId == DOWNLOADS_ROOT) { // Load downloads
       val localBooks = DeviceManager.dbManager.getLocalLibraryItems("book")
       val localPodcasts = DeviceManager.dbManager.getLocalLibraryItems("podcast")
       val localBrowseItems: MutableList<MediaBrowserCompat.MediaItem> = mutableListOf()
@@ -2110,6 +2178,22 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
               }
             }
           }
+
+  inner class CreateBookmarkCustomActionProvider : CustomActionProvider {
+    override fun onCustomAction(player: Player, action: String, extras: Bundle?) {
+      // Some controllers invoke the provider, others the compat callback.
+      // Native storage rejects a second bookmark at the same second.
+      Log.i(tag, "Android Auto bookmark custom action received by provider")
+      createAndroidAutoBookmark()
+    }
+
+    override fun getCustomAction(player: Player): PlaybackStateCompat.CustomAction =
+      PlaybackStateCompat.CustomAction.Builder(
+        CUSTOM_ACTION_CREATE_BOOKMARK,
+        getString(R.string.action_create_bookmark),
+        R.drawable.md_bookmark_plus
+      ).build()
+  }
 
   inner class JumpBackwardCustomActionProvider : CustomActionProvider {
     override fun onCustomAction(player: Player, action: String, extras: Bundle?) {

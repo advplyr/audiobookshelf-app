@@ -904,6 +904,7 @@ export default {
         await this.$store.dispatch('bookmarks/activate', serverConnectionConfig)
         if (user.oldUserId) await this.$store.dispatch('bookmarks/rememberUserAlias', user.oldUserId)
         await this.$store.dispatch('bookmarks/receiveServer', user.bookmarks)
+        await this.$store.dispatch('bookmarks/importAndroidAuto').catch((error) => console.error('[bookmarks] Android Auto handoff failed', error))
         this.$store.dispatch('bookmarks/sync')
       } catch (error) {
         console.error('[bookmarks] Could not load saved bookmarks', error)

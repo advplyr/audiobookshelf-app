@@ -16,7 +16,8 @@
 
 <script>
 import { CapacitorHttp } from '@capacitor/core'
-import { AbsLogger } from '@/plugins/capacitor'
+import { AbsLogger, AbsAudioPlayer } from '@/plugins/capacitor'
+import autoBookmarkRules from '@/utils/androidAutoBookmarks'
 
 export default {
   data() {
@@ -26,7 +27,8 @@ export default {
       disconnectTime: 0,
       socketDisconnectedTime: 0,
       timeLostFocus: 0,
-      currentLang: null
+      currentLang: null,
+      androidAutoBookmarkListener: null
     }
   },
   watch: {
@@ -43,6 +45,7 @@ export default {
           } else if (!this.currentLibraryId) {
             this.initLibraries()
           } else {
+            this.$store.dispatch('bookmarks/importAndroidAuto').catch((error) => console.error('[bookmarks] Android Auto handoff failed', error))
             this.$store.dispatch('bookmarks/sync')
             var timeSinceDisconnect = Date.now() - this.disconnectTime
             if (timeSinceDisconnect > 5000) {
@@ -65,6 +68,7 @@ export default {
           return
         }
         if (newVal) {
+          this.$store.dispatch('bookmarks/importAndroidAuto').catch((error) => console.error('[bookmarks] Android Auto handoff failed', error))
           this.$store.dispatch('bookmarks/sync')
           // if we havent been receiving socket events then external progress updates may have been missed
           const timeSinceDisconnect = Date.now() - this.socketDisconnectedTime
@@ -119,6 +123,7 @@ export default {
         await this.$store.dispatch('bookmarks/activate', config)
         if (user?.oldUserId) await this.$store.dispatch('bookmarks/rememberUserAlias', user.oldUserId)
         if (user) await this.$store.dispatch('bookmarks/receiveServer', user.bookmarks)
+        await this.$store.dispatch('bookmarks/importAndroidAuto').catch((error) => console.error('[bookmarks] Android Auto handoff failed', error))
         this.$store.dispatch('bookmarks/sync')
       } catch (error) {
         console.error('[bookmarks] Could not load saved bookmarks', error)
@@ -353,6 +358,7 @@ export default {
           // Reload local media progresses
           await this.$store.dispatch('globals/loadLocalMediaProgress')
         }
+        await this.$store.dispatch('bookmarks/importAndroidAuto').catch((error) => console.error('[bookmarks] Android Auto handoff failed', error))
         this.$store.dispatch('bookmarks/sync')
         if (document.visibilityState === 'visible') {
           this.$eventBus.$emit('device-focus-update', true)
@@ -370,6 +376,9 @@ export default {
     }
   },
   async mounted() {
+    this.androidAutoBookmarkListener = await AbsAudioPlayer.addListener('onAndroidAutoBookmarkQueued', () => {
+      this.$store.dispatch('bookmarks/importAndroidAuto').catch((error) => console.error('[bookmarks] Android Auto handoff failed', error))
+    })
     this.$eventBus.$on('change-lang', this.changeLanguage)
     document.addEventListener('visibilitychange', this.visibilityChanged)
 
@@ -384,7 +393,10 @@ export default {
 
       const deviceData = await this.$db.getDeviceData()
       this.$store.commit('setDeviceData', deviceData)
-      const savedConfig = deviceData?.serverConnectionConfigs?.find((config) => config.id === deviceData.lastServerConnectionConfigId)
+      const savedConfig = autoBookmarkRules.startupBookmarkConfig(deviceData)
+      if (savedConfig && !deviceData.lastServerConnectionConfigId) {
+        console.info('[bookmarks] Restoring the sole saved bookmark account for offline access')
+      }
       if (savedConfig) await this.initializeBookmarks(savedConfig)
 
       this.$setOrientationLock(this.$store.getters['getOrientationLockSetting'])
@@ -408,6 +420,7 @@ export default {
     }
   },
   beforeDestroy() {
+    this.androidAutoBookmarkListener?.remove()
     this.$eventBus.$off('change-lang', this.changeLanguage)
     document.removeEventListener('visibilitychange', this.visibilityChanged)
     this.$socket.off('user_updated', this.userUpdated)

@@ -20,6 +20,14 @@ class AbsAudioPlayerWeb extends WebPlugin {
     this.trackStartTime = 0
   }
 
+  async getPendingAndroidAutoBookmarks() {
+    return { value: [] }
+  }
+
+  async acknowledgeAndroidAutoBookmark() {}
+
+  async refreshAndroidAutoBookmarks() {}
+
   // Use startTime to find current track index
   get currentTrackIndex() {
     return Math.max(

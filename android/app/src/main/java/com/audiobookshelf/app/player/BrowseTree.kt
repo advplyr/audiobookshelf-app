@@ -36,6 +36,12 @@ class BrowseTree(
       putString(MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, getUriToDrawable(context, R.drawable.exo_icon_downloaddone).toString())
     }.build()
 
+    val bookmarksMetadata = MediaMetadataCompat.Builder().apply {
+      putString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID, ANDROID_AUTO_BOOKMARKS_ROOT)
+      putString(MediaMetadataCompat.METADATA_KEY_TITLE, context.getString(R.string.android_auto_bookmarks))
+      putString(MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, getUriToDrawable(context, R.drawable.md_bookmark).toString())
+    }.build()
+
     val librariesMetadata = MediaMetadataCompat.Builder().apply {
       putString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID, LIBRARIES_ROOT)
       putString(MediaMetadataCompat.METADATA_KEY_TITLE, "Libraries")
@@ -72,6 +78,7 @@ class BrowseTree(
       }
     }
 
+    rootList += bookmarksMetadata
     rootList += downloadsMetadata
 
     mediaIdToChildren[AUTO_BROWSE_ROOT] = rootList
