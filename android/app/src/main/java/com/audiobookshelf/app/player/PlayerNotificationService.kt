@@ -475,7 +475,11 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
     metadataArtJob?.cancel()
     metadataArtJob =
             playbackSession.resolveCoverBitmapAsync(ctx, metadataScope) {
-              mediaSessionConnector.invalidateMediaSessionMetadata()
+              if (currentPlaybackSession === playbackSession) {
+                playbackSession.mediaSessionCoverUri?.let { grantMediaSessionCoverUri(it) }
+                Log.i(tag, "MediaSession cover ready: uriScheme=${playbackSession.mediaSessionCoverUri?.scheme ?: "fallback"}")
+                mediaSessionConnector.invalidateMediaSessionMetadata()
+              }
             }
     mediaSessionConnector.invalidateMediaSessionMetadata()
 
@@ -1136,6 +1140,21 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
                   ANDROID_GSEARCH_PKG_NAME,
                   ANDROID_AUTOMOTIVE_PKG_NAME
           )
+
+  private fun grantMediaSessionCoverUri(uri: Uri) {
+    listOf(
+      "com.android.systemui",
+      ANDROID_AUTO_PKG_NAME,
+      ANDROID_AUTO_SIMULATOR_PKG_NAME,
+      ANDROID_AUTOMOTIVE_PKG_NAME
+    ).forEach { packageName ->
+      try {
+        grantUriPermission(packageName, uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+      } catch (error: Exception) {
+        Log.d(tag, "Could not grant cover URI to $packageName: ${error.message}")
+      }
+    }
+  }
 
   private val AUTO_MEDIA_ROOT = "/"
   private val LIBRARIES_ROOT = "__LIBRARIES__"

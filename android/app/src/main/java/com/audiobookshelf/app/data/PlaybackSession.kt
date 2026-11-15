@@ -6,6 +6,7 @@ import android.graphics.ImageDecoder
 import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
+import android.util.Log
 import android.support.v4.media.MediaMetadataCompat
 import androidx.core.content.FileProvider
 import androidx.core.net.toFile
@@ -22,8 +23,11 @@ import com.google.android.gms.cast.MediaInfo
 import com.google.android.gms.cast.MediaQueueItem
 import com.google.android.gms.common.images.WebImage
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 class PlaybackSession(
@@ -209,13 +213,17 @@ class PlaybackSession(
   /** Bitmap for the cover art, once resolved */
   @JsonIgnore
   private var resolvedCoverBitmap: Bitmap? = null
+  @get:JsonIgnore
+  var mediaSessionCoverUri: Uri? = null
+    private set
 
   /**
    * Builds the current session metadata, including the cover art bitmap if it has already been resolved.
    */
   @JsonIgnore
   fun getMediaMetadataCompat(ctx: Context): MediaMetadataCompat {
-    val coverUri = getCoverUri(ctx)
+    val coverUri = mediaSessionCoverUri
+            ?: Uri.parse("android.resource://${BuildConfig.APPLICATION_ID}/" + R.drawable.icon)
 
     val metadataBuilder =
             MediaMetadataCompat.Builder()
@@ -233,54 +241,58 @@ class PlaybackSession(
                             MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON_URI,
                             coverUri.toString()
                     )
+                    .putString(MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, coverUri.toString())
+                    .putString(MediaMetadataCompat.METADATA_KEY_ART_URI, coverUri.toString())
 
-    if (resolvedCoverBitmap != null) {
+    // Android Auto hosts may use either the display icon or album art fields. Keep the URI
+    // fields available after the bitmap arrives so each host can choose its supported path.
+    resolvedCoverBitmap?.let { bitmap ->
       metadataBuilder
-        .putBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART, resolvedCoverBitmap)
-        .putBitmap(MediaMetadataCompat.METADATA_KEY_ART, resolvedCoverBitmap)
-    } else {
-      metadataBuilder
-        .putString(MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, coverUri.toString())
-        .putString(MediaMetadataCompat.METADATA_KEY_ART_URI, coverUri.toString())
+        .putBitmap(MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON, bitmap)
+        .putBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART, bitmap)
+        .putBitmap(MediaMetadataCompat.METADATA_KEY_ART, bitmap)
     }
 
     return metadataBuilder.build()
   }
 
   /**
-   * Resolves the cover art bitmap (local covers are decoded synchronously, server-side covers
-   * are fetched asynchronously) and calls `onArtResolved` once it's available
-   *
-   * Returns the Job for the async fetch, or `null` if the bitmap was resolved synchronously.
+   * Resolves the cover and exposes a local URI that Android Auto can read. Calls
+   * `onArtResolved` once the bitmap and its local copy are ready.
    */
   @JsonIgnore
   fun resolveCoverBitmapAsync(
           ctx: Context,
           coroutineScope: CoroutineScope,
           onArtResolved: () -> Unit
-  ): Job? {
+  ): Job {
     val coverUri = getCoverUri(ctx)
-
-    // Local covers get bitmap synchronously, no async fetch needed
-    if (localLibraryItem?.coverContentUrl != null) {
-      resolvedCoverBitmap =
-              if (Build.VERSION.SDK_INT < 28) {
-                MediaStore.Images.Media.getBitmap(ctx.contentResolver, coverUri)
-              } else {
-                val source: ImageDecoder.Source =
-                        ImageDecoder.createSource(ctx.contentResolver, coverUri)
-                ImageDecoder.decodeBitmap(source)
-              }
-      onArtResolved()
-      return null
-    }
-
-    // Server-side cover: resolve the art bitmap async
     return coroutineScope.launch {
-      val bitmap = resolveUriAsBitmap(ctx, coverUri)
-      bitmap?.let {
-        resolvedCoverBitmap = it
-        onArtResolved()
+      try {
+        val bitmap = if (localLibraryItem?.coverContentUrl != null) {
+          withContext(Dispatchers.IO) {
+            if (Build.VERSION.SDK_INT < 28) {
+              @Suppress("DEPRECATION")
+              MediaStore.Images.Media.getBitmap(ctx.contentResolver, coverUri)
+            } else {
+              val source = ImageDecoder.createSource(ctx.contentResolver, coverUri)
+              ImageDecoder.decodeBitmap(source)
+            }
+          }
+        } else {
+          resolveUriAsBitmap(ctx, coverUri)
+        }
+        bitmap?.let {
+          val bounded = limitMediaSessionCoverBitmap(it)
+          val localUri = cacheMediaSessionCover(ctx, bounded)
+          resolvedCoverBitmap = bounded
+          mediaSessionCoverUri = localUri
+          onArtResolved()
+        }
+      } catch (error: CancellationException) {
+        throw error
+      } catch (error: Exception) {
+        Log.e("PlaybackSession", "Could not prepare MediaSession cover artwork", error)
       }
     }
   }
@@ -446,4 +458,21 @@ class PlaybackSession(
             episodeId
     )
   }
+}
+
+/** Three bitmap metadata fields must fit in a single MediaSession Binder transaction. */
+internal fun limitMediaSessionCoverBitmap(bitmap: Bitmap): Bitmap {
+  val softwareBitmap =
+          if (bitmap.config == Bitmap.Config.ARGB_8888) bitmap
+          else bitmap.copy(Bitmap.Config.ARGB_8888, false)
+  val longestEdge = maxOf(softwareBitmap.width, softwareBitmap.height)
+  if (longestEdge <= 256) return softwareBitmap
+
+  val scale = 256f / longestEdge
+  return Bitmap.createScaledBitmap(
+          softwareBitmap,
+          maxOf(1, (softwareBitmap.width * scale).toInt()),
+          maxOf(1, (softwareBitmap.height * scale).toInt()),
+          true
+  )
 }
