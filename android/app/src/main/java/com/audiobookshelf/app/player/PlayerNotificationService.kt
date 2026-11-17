@@ -230,11 +230,14 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
     // Initialize widget
     DeviceManager.initializeWidgetUpdater(ctx)
 
-    // To listen for network change from metered to unmetered
+    // To listen for network changes, including metered <-> unmetered transitions.
+    // NET_CAPABILITY_NOT_METERED must NOT be requested here: adding it restricts the
+    // callback to unmetered networks only, so no event is ever delivered while on
+    // cellular. That left isUnmeteredNetwork/hasNetworkConnectivity stale and prevented
+    // the Android Auto reload below from running when connectivity returned on cellular.
     val networkRequest =
             NetworkRequest.Builder()
                     .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
-                    .addCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED)
                     .addCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
                     .build()
     val connectivityManager =
