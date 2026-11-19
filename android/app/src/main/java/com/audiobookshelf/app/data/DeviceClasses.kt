@@ -160,6 +160,7 @@ data class DeviceSettings(
         var lockOrientation: LockOrientationSetting,
         var hapticFeedback: HapticFeedbackSetting,
         var autoSleepTimer: Boolean,
+        var multiChapterSleep: Boolean,
         var autoSleepTimerStartTime: String,
         var autoSleepTimerEndTime: String,
         var autoSleepTimerAutoRewind: Boolean,
@@ -189,6 +190,7 @@ data class DeviceSettings(
               lockOrientation = LockOrientationSetting.NONE,
               hapticFeedback = HapticFeedbackSetting.LIGHT,
               autoSleepTimer = false,
+              multiChapterSleep = false,
               autoSleepTimerStartTime = "22:00",
               autoSleepTimerEndTime = "06:00",
               sleepTimerLength = 900000L, // 15 minutes
