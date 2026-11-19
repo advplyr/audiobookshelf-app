@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		7A5D00012F9A000100000001 /* DownloadSpeedTracker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A5D00012F9A000100000002 /* DownloadSpeedTracker.swift */; };
+		7A5D00012F9A000100000003 /* DownloadSpeedTrackerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A5D00012F9A000100000004 /* DownloadSpeedTrackerTests.swift */; };
 		2FAD9763203C412B000D30F8 /* config.xml in Resources */ = {isa = PBXBuildFile; fileRef = 2FAD9762203C412B000D30F8 /* config.xml */; };
 		3A200C1527D64D7E00CBF02E /* AudioPlayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A200C1427D64D7E00CBF02E /* AudioPlayer.swift */; };
 		3A90295F280968E700E1D427 /* PlaybackReport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A90295E280968E700E1D427 /* PlaybackReport.swift */; };
@@ -81,6 +83,8 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		7A5D00012F9A000100000002 /* DownloadSpeedTracker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DownloadSpeedTracker.swift; sourceTree = "<group>"; };
+		7A5D00012F9A000100000004 /* DownloadSpeedTrackerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DownloadSpeedTrackerTests.swift; sourceTree = "<group>"; };
 		2FAD9762203C412B000D30F8 /* config.xml */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = config.xml; sourceTree = "<group>"; };
 		3A200C1427D64D7E00CBF02E /* AudioPlayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioPlayer.swift; sourceTree = "<group>"; };
 		3A90295E280968E700E1D427 /* PlaybackReport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackReport.swift; sourceTree = "<group>"; };
@@ -244,6 +248,7 @@
 		3AFCB5E627EA23F700ECCC05 /* util */ = {
 			isa = PBXGroup;
 			children = (
+				7A5D00012F9A000100000002 /* DownloadSpeedTracker.swift */,
 				4DB441E02E19B8BF0056C8F1 /* SecureStorage.swift */,
 				E9FA07E228C82848005520B0 /* Logger.swift */,
 				3AFCB5E727EA240D00ECCC05 /* NowPlayingInfo.swift */,
@@ -350,6 +355,7 @@
 			isa = PBXGroup;
 			children = (
 				E9E8814428DA5E6000D750C1 /* player */,
+				7A5D00012F9A000100000005 /* util */,
 			);
 			path = Shared;
 			sourceTree = "<group>";
@@ -360,6 +366,14 @@
 				E9E8814B28DA6B6B00D750C1 /* util */,
 			);
 			path = player;
+			sourceTree = "<group>";
+		};
+		7A5D00012F9A000100000005 /* util */ = {
+			isa = PBXGroup;
+			children = (
+				7A5D00012F9A000100000004 /* DownloadSpeedTrackerTests.swift */,
+			);
+			path = util;
 			sourceTree = "<group>";
 		};
 		E9E8814828DA641B00D750C1 /* util */ = {
@@ -526,6 +540,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				7A5D00012F9A000100000001 /* DownloadSpeedTracker.swift in Sources */,
 				E9D5507328AC218300C746DD /* DaoExtensions.swift in Sources */,
 				E9D5506228AC1CC900C746DD /* PlayerState.swift in Sources */,
 				504EC3081FED79650016851F /* AppDelegate.swift in Sources */,
@@ -586,6 +601,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				7A5D00012F9A000100000003 /* DownloadSpeedTrackerTests.swift in Sources */,
 				E9E8814D28DA6B9000D750C1 /* PlayerTimeUtilsTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -781,6 +797,7 @@
 		};
 		E9E8814028DA5DE500D750C1 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = BE96D57E131924D520D57057 /* Pods-Audiobookshelf.debug.xcconfig */;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
@@ -803,6 +820,7 @@
 		};
 		E9E8814128DA5DE500D750C1 /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = D2F7F575384A63F1C47DE984 /* Pods-Audiobookshelf.release.xcconfig */;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
