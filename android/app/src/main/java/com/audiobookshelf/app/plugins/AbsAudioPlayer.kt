@@ -72,6 +72,14 @@ class AbsAudioPlayer : Plugin() {
           emit("onSleepTimerEnded", currentPosition)
         }
 
+        override fun onSleepTimerRewind(beforePosition: Long, afterPosition: Long) {
+          val ret = JSObject()
+          ret.put("before", beforePosition / 1000.0)
+          ret.put("after", afterPosition / 1000.0)
+          ret.put("seconds", (beforePosition - afterPosition) / 1000.0)
+          notifyListeners("onSleepTimerRewind", ret)
+        }
+
         override fun onSleepTimerSet(sleepTimeRemaining: Int, isAutoSleepTimer:Boolean) {
           // Skip sleep timer updates when app is backgrounded to prevent event queue buildup
           if (!isInForeground) return
@@ -426,6 +434,40 @@ class AbsAudioPlayer : Plugin() {
       playerNotificationService.sleepTimerManager.cancelSleepTimer()
     }
     call.resolve()
+  }
+
+  /** Returns the state saved when the last sleep timer finished, used to offer a rewind. */
+  @PluginMethod
+  fun getSleepTimerResumeInfo(call: PluginCall) {
+    if (!::playerNotificationService.isInitialized) {
+      call.resolve(JSObject("{\"pending\":false}"))
+      return
+    }
+    Handler(Looper.getMainLooper()).post {
+      val info = playerNotificationService.sleepTimerManager.getResumeInfo()
+      val ret = JSObject()
+      ret.put("pending", info != null)
+      if (info != null) {
+        ret.put("endedAt", info.endedAt)
+        ret.put("position", info.position / 1000.0)
+        ret.put("isAuto", info.isAuto)
+        ret.put("libraryItemId", info.libraryItemId)
+        ret.put("episodeId", info.episodeId)
+      }
+      call.resolve(ret)
+    }
+  }
+
+  @PluginMethod
+  fun clearSleepTimerResume(call: PluginCall) {
+    if (!::playerNotificationService.isInitialized) {
+      call.resolve()
+      return
+    }
+    Handler(Looper.getMainLooper()).post {
+      playerNotificationService.sleepTimerManager.clearResumeInfo()
+      call.resolve()
+    }
   }
 
   @PluginMethod

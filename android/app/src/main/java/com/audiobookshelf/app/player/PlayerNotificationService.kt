@@ -83,6 +83,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
     fun onPlayingUpdate(isPlaying: Boolean)
     fun onMetadata(metadata: PlaybackMetadata)
     fun onSleepTimerEnded(currentPosition: Long)
+    fun onSleepTimerRewind(beforePosition: Long, afterPosition: Long)
     fun onSleepTimerSet(sleepTimeRemaining: Int, isAutoSleepTimer: Boolean)
     fun onLocalMediaProgressUpdate(localMediaProgress: LocalMediaProgress)
     fun onPlaybackFailed(errorMessage: String)

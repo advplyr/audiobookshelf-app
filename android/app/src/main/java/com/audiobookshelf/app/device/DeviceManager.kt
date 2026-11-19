@@ -69,6 +69,14 @@ object DeviceManager {
     if (deviceData.deviceSettings?.enableSleepTimerAlmostDoneChime == null) {
       deviceData.deviceSettings?.enableSleepTimerAlmostDoneChime = false
     }
+    // Initialize sleep timer resume rewind added in v0.14.3.
+    // The action is null for settings saved before this version (Paper does not apply defaults
+    // to stored fields), so it is used as the marker for the whole group.
+    if (deviceData.deviceSettings?.sleepTimerResumeAction == null) {
+      deviceData.deviceSettings?.sleepTimerResumeAction = "ASK"
+      deviceData.deviceSettings?.sleepTimerResumeRewind = true
+      deviceData.deviceSettings?.sleepTimerResumeRewindTime = 300000L // 5 minutes
+    }
 
     // Language added in v0.9.69
     if (deviceData.deviceSettings?.languageCode == null) {

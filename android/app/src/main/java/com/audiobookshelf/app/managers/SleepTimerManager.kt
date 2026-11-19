@@ -14,6 +14,18 @@ import kotlin.concurrent.schedule
 import kotlin.math.roundToInt
 
 const val SLEEP_TIMER_CHIME_SOUND_VOLUME = 0.7f
+const val SLEEP_TIMER_RESUME_PREFS_NAME = "sleep_timer_resume"
+const val SLEEP_TIMER_RESUME_EXPIRATION = 24 * 60 * 60 * 1000L // 24 hours
+const val SLEEP_TIMER_RESUME_MAX_DRIFT = 5 * 60 * 1000L // 5 minutes
+
+/** State saved when a sleep timer finishes so the user can be offered a rewind later. */
+data class SleepTimerResumeInfo(
+        val endedAt: Long,
+        val position: Long,
+        val isAuto: Boolean,
+        val libraryItemId: String,
+        val episodeId: String
+)
 
 class SleepTimerManager
 constructor(private val playerNotificationService: PlayerNotificationService) {
@@ -72,6 +84,71 @@ constructor(private val playerNotificationService: PlayerNotificationService) {
   /** Pauses the player. */
   private fun pause() {
     playerNotificationService.currentPlayer.pause()
+  }
+
+  /** SharedPreferences used to keep the resume state across app restarts. */
+  private fun resumePrefs() =
+          playerNotificationService.getContext()
+                  .getSharedPreferences(SLEEP_TIMER_RESUME_PREFS_NAME, Context.MODE_PRIVATE)
+
+  /**
+   * Saves the position where the sleep timer stopped playback.
+   * @param position Long - the current playback position in milliseconds.
+   */
+  private fun saveResumeInfo(position: Long) {
+    val mediaIdentity = getCurrentMediaIdentity()
+    if (mediaIdentity.first.isEmpty()) return
+
+    Log.d(tag, "Saving sleep timer resume state at $position for ${mediaIdentity.first}")
+    resumePrefs()
+            .edit()
+            .putLong("endedAt", System.currentTimeMillis())
+            .putLong("position", position)
+            .putBoolean("isAuto", isAutoSleepTimer)
+            .putString("libraryItemId", mediaIdentity.first)
+            .putString("episodeId", mediaIdentity.second)
+            .apply()
+  }
+
+  /**
+   * Identifies the media that is currently open. The playback session id is not used because a
+   * new session is created every time playback starts.
+   * @return Pair<String, String> - library item id and episode id (empty when unknown).
+   */
+  private fun getCurrentMediaIdentity(): Pair<String, String> {
+    val session = playerNotificationService.currentPlaybackSession ?: return "" to ""
+    val libraryItemId = session.libraryItemId ?: session.localLibraryItem?.id ?: ""
+    val episodeId = session.episodeId ?: session.localEpisodeId ?: ""
+    return libraryItemId to episodeId
+  }
+
+  /**
+   * Gets the resume state from the last finished sleep timer, if it is still relevant.
+   * @return SleepTimerResumeInfo? - null when no resume state exists or it has expired.
+   */
+  fun getResumeInfo(): SleepTimerResumeInfo? {
+    val prefs = resumePrefs()
+    val endedAt = prefs.getLong("endedAt", 0L)
+    if (endedAt <= 0L) return null
+
+    if (System.currentTimeMillis() - endedAt > SLEEP_TIMER_RESUME_EXPIRATION) {
+      Log.d(tag, "Sleep timer resume state expired")
+      clearResumeInfo()
+      return null
+    }
+
+    return SleepTimerResumeInfo(
+            endedAt,
+            prefs.getLong("position", 0L),
+            prefs.getBoolean("isAuto", false),
+            prefs.getString("libraryItemId", "") ?: "",
+            prefs.getString("episodeId", "") ?: ""
+    )
+  }
+
+  /** Clears the resume state from the last finished sleep timer. */
+  fun clearResumeInfo() {
+    resumePrefs().edit().clear().apply()
   }
 
   /** Plays the player. */
@@ -169,9 +246,11 @@ constructor(private val playerNotificationService: PlayerNotificationService) {
                     Log.d(tag, "Sleep Timer Pausing Player on Chapter")
                     pause()
 
+                    val endPosition = getCurrentTime()
                     playerNotificationService.clientEventEmitter?.onSleepTimerEnded(
-                            getCurrentTime()
+                            endPosition
                     )
+                    saveResumeInfo(endPosition)
                     clearSleepTimer()
                     sleepTimerFinishedAt = System.currentTimeMillis()
                   } else if (sleepTimeSecondsRemaining <= 60 &&
@@ -206,6 +285,8 @@ constructor(private val playerNotificationService: PlayerNotificationService) {
   fun setManualSleepTimer(playbackSessionId: String, time: Long, isChapterTime: Boolean): Boolean {
     sleepTimerSessionId = playbackSessionId
     isAutoSleepTimer = false
+    // A new timer replaces any pending rewind from an earlier timer
+    clearResumeInfo()
     if (isChapterTime) {
       Log.d(tag, "Setting manual sleep timer for end of chapter")
       return setSleepTimer(0L)
@@ -320,17 +401,18 @@ constructor(private val playerNotificationService: PlayerNotificationService) {
   /**
    * Rewind auto sleep timer if setting enabled. To ensure the first rewind of the time period does
    * not take place, make sure to set `isAutoSleepTimer` after calling this function.
+   * @return Boolean - true if a rewind was performed.
    */
-  private fun tryRewindAutoSleepTimer() {
-    DeviceManager.deviceData.deviceSettings?.let { deviceSettings ->
-      if (isAutoSleepTimer && deviceSettings.autoSleepTimerAutoRewind) {
-        Log.i(
-                tag,
-                "Auto sleep timer auto rewind seeking back ${deviceSettings.autoSleepTimerAutoRewindTime}ms"
-        )
-        playerNotificationService.seekBackward(deviceSettings.autoSleepTimerAutoRewindTime)
-      }
-    }
+  private fun tryRewindAutoSleepTimer(): Boolean {
+    val deviceSettings = DeviceManager.deviceData.deviceSettings ?: return false
+    if (!isAutoSleepTimer || !deviceSettings.autoSleepTimerAutoRewind) return false
+
+    Log.i(
+            tag,
+            "Auto sleep timer auto rewind seeking back ${deviceSettings.autoSleepTimerAutoRewindTime}ms"
+    )
+    playerNotificationService.seekBackward(deviceSettings.autoSleepTimerAutoRewindTime)
+    return true
   }
 
   /** Checks if the sleep timer should be reset. */
@@ -364,8 +446,9 @@ constructor(private val playerNotificationService: PlayerNotificationService) {
         return
       }
 
-      // Automatically rewind in the book if settings are enabled
-      tryRewindAutoSleepTimer()
+      // Automatically rewind in the book if settings are enabled. Clearing the pending resume
+      // state here makes sure the resume rewind below does not rewind a second time.
+      if (tryRewindAutoSleepTimer()) clearResumeInfo()
 
       // Set sleep timer
       Log.d(tag, "Resetting stopped sleep timer")
@@ -445,8 +528,11 @@ constructor(private val playerNotificationService: PlayerNotificationService) {
     )
   }
 
-  /** Checks whether the auto sleep timer should be set, and set up auto sleep timer if so. */
-  fun checkAutoSleepTimer() {
+  /**
+   * Checks whether the auto sleep timer should be set, and set up auto sleep timer if so.
+   * @param skipRewind Boolean - true when playback was already rewound by the resume rewind.
+   */
+  fun checkAutoSleepTimer(skipRewind: Boolean = false) {
     if (sleepTimerRunning) { // Sleep timer already running
       return
     }
@@ -497,8 +583,9 @@ constructor(private val playerNotificationService: PlayerNotificationService) {
           val currentMin = currentCalendar.get(Calendar.MINUTE)
           Log.i(tag, "Starting auto sleep timer at $currentHour:$currentMin")
 
-          // Automatically rewind in the book if settings is enabled
-          tryRewindAutoSleepTimer()
+          // Automatically rewind in the book if settings is enabled, unless the resume rewind
+          // already moved playback
+          if (!skipRewind && tryRewindAutoSleepTimer()) clearResumeInfo()
 
           // Set `isAutoSleepTimer` to true to indicate that the timer was set automatically
           // and to not cause the timer to rewind
@@ -525,7 +612,59 @@ constructor(private val playerNotificationService: PlayerNotificationService) {
     } else {}
     sleepTimerSessionId = playbackSessionId
 
-    checkAutoSleepTimer()
+    // Offer the user a way back to where they fell asleep
+    val didResumeRewind = tryResumeRewind()
+
+    // Do not rewind twice when the auto sleep timer starts in the same play event
+    checkAutoSleepTimer(skipRewind = didResumeRewind)
+  }
+
+  /**
+   * Rewinds playback when it is resumed after a sleep timer finished and the setting is set to
+   * rewind automatically. When the setting is set to ask, the client shows a prompt and rewinds
+   * there instead.
+   * @return Boolean - true if a rewind was performed.
+   */
+  private fun tryResumeRewind(): Boolean {
+    val deviceSettings = DeviceManager.deviceData.deviceSettings ?: return false
+    if (deviceSettings.sleepTimerResumeRewind != true) return false
+    if (deviceSettings.sleepTimerResumeAction != "AUTO") return false
+
+    val info = getResumeInfo() ?: return false
+    if (info.libraryItemId.isEmpty()) return false
+
+    val currentIdentity = getCurrentMediaIdentity()
+    if (currentIdentity.first.isNotEmpty() && currentIdentity.first != info.libraryItemId) {
+      Log.d(tag, "Sleep timer resume state belongs to another library item, clearing it")
+      clearResumeInfo()
+      return false
+    }
+    if (info.episodeId.isNotEmpty() && currentIdentity.second.isNotEmpty() && info.episodeId != currentIdentity.second) return false
+
+    val currentTime = getCurrentTime()
+    // If playback has moved on since the timer finished then the position is no longer relevant
+    if (Math.abs(currentTime - info.position) > SLEEP_TIMER_RESUME_MAX_DRIFT) {
+      Log.d(tag, "Sleep timer resume state is stale, clearing it")
+      clearResumeInfo()
+      return false
+    }
+
+    val rewindTime = deviceSettings.sleepTimerResumeRewindTime
+    if (rewindTime <= 0) return false
+
+    // Rewind from where the timer stopped, not from the pause seek-back that may just have run,
+    // and do not rewind into the previous chapter/track
+    val chapterStart = playerNotificationService.getCurrentBookChapter()?.startMs ?: 0L
+    val target = Math.max(chapterStart, Math.max(0L, info.position - rewindTime))
+    if (target >= currentTime) return false
+
+    Log.i(tag, "Sleep timer resume rewind from $currentTime to $target")
+    clearResumeInfo()
+    // This rewind replaces the shake/play reset rewind for this timer
+    sleepTimerFinishedAt = 0L
+    playerNotificationService.seekPlayer(target)
+    playerNotificationService.clientEventEmitter?.onSleepTimerRewind(currentTime, target)
+    return true
   }
 
   /**
