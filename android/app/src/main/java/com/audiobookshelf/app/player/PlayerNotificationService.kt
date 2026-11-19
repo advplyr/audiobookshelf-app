@@ -1069,6 +1069,8 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
     DeviceManager.widgetUpdater?.onPlayerClosed()
     stopForeground(Service.STOP_FOREGROUND_REMOVE)
     stopSelf()
+    PlayerNotificationListener.isForegroundService = false
+    isStarted = false
   }
 
   fun sendClientMetadata(playerState: PlayerState) {

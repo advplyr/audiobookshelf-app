@@ -188,19 +188,27 @@ export default {
         console.error('Invalid media item history', mediaItemHistory)
         return
       }
-      if (mediaItemHistory.id !== this.mediaItemHistory.id) {
+      if (mediaItemHistory.id !== this.$route.params.id) {
         return
       }
       console.log('Media Item History updated')
 
       this.mediaItemHistory = mediaItemHistory
+    },
+    async deviceFocused(hasFocus) {
+      if (!hasFocus) return
+
+      const mediaItemHistory = await this.$db.getMediaItemHistory(this.$route.params.id)
+      if (mediaItemHistory) this.onMediaItemHistoryUpdated(mediaItemHistory)
     }
   },
   async mounted() {
+    this.$eventBus.$on('device-focus-update', this.deviceFocused)
     this.onMediaItemHistoryUpdatedListener = await AbsAudioPlayer.addListener('onMediaItemHistoryUpdated', this.onMediaItemHistoryUpdated)
   },
   beforeDestroy() {
     this.onMediaItemHistoryUpdatedListener?.remove()
+    this.$eventBus.$off('device-focus-update', this.deviceFocused)
   }
 }
 </script>
