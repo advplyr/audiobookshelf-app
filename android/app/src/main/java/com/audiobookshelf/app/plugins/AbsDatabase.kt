@@ -178,7 +178,16 @@ class AbsDatabase : Plugin() {
       }
 
       DeviceManager.serverConnectionConfig = serverConnectionConfig
+      notifyServerConnectionChanged()
       call.resolve(JSObject(jacksonMapper.writeValueAsString(DeviceManager.serverConnectionConfig)))
+    }
+  }
+
+  private fun notifyServerConnectionChanged() {
+    Handler(Looper.getMainLooper()).post {
+      if (mainActivity.isPlayerNotificationServiceInitialized()) {
+        mainActivity.foregroundService.onServerConnectionChanged()
+      }
     }
   }
 
@@ -197,6 +206,7 @@ class AbsDatabase : Plugin() {
       DeviceManager.dbManager.saveDeviceData(DeviceManager.deviceData)
       if (DeviceManager.serverConnectionConfig?.id == serverConnectionConfigId) {
         DeviceManager.serverConnectionConfig = null
+        notifyServerConnectionChanged()
       }
       call.resolve()
     }
@@ -244,6 +254,7 @@ class AbsDatabase : Plugin() {
       DeviceManager.serverConnectionConfig = null
       DeviceManager.deviceData.lastServerConnectionConfigId = null
       DeviceManager.dbManager.saveDeviceData(DeviceManager.deviceData)
+      notifyServerConnectionChanged()
       call.resolve()
     }
   }

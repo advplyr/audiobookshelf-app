@@ -1164,6 +1164,15 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
     browseTreeInitListeners.clear()
   }
 
+  // Call on the main thread after the active server connection is set, switched or cleared
+  fun onServerConnectionChanged() {
+    if (!isBrowseTreeInitialized() || !firstLoadDone || !mediaManager.hasServerConnectionChanged()) return
+    AbsLogger.info(tag, "onServerConnectionChanged: Reloading Android Auto (${DeviceManager.serverConnectionConfigString})")
+    mediaManager.checkResetServerItems()
+    forceReloadingAndroidAuto = true
+    notifyChildrenChanged(AUTO_MEDIA_ROOT)
+  }
+
   // Only allowing android auto or similar to access media browser service
   //  normal loading of audiobooks is handled in webview (not natively)
   private fun isValid(packageName: String, uid: Int): Boolean {
@@ -1320,6 +1329,11 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
       result.sendResult(localBrowseItems)
     } else if (parentMediaId == AUTO_MEDIA_ROOT) {
       Log.d(tag, "Trying to initialize browseTree.")
+      if (this::browseTree.isInitialized && mediaManager.hasServerConnectionChanged()) {
+        AbsLogger.info(tag, "onLoadChildren: Server connection changed since browse tree was built (${DeviceManager.serverConnectionConfigString})")
+        mediaManager.checkResetServerItems()
+        forceReloadingAndroidAuto = true
+      }
       if (!this::browseTree.isInitialized || forceReloadingAndroidAuto) {
         forceReloadingAndroidAuto = false
         AbsLogger.info(tag, "onLoadChildren: Loading Android Auto items")

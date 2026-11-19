@@ -144,6 +144,10 @@ class MediaManager(private var apiHandler: ApiHandler, var ctx: Context) {
     }
   }
 
+  fun hasServerConnectionChanged(): Boolean {
+    return DeviceManager.serverConnectionConfig?.id != serverConfigIdUsed
+  }
+
   fun checkResetServerItems():Boolean {
     // When opening android auto need to check if still connected to server
     //   and reset any server data already set
@@ -887,6 +891,7 @@ class MediaManager(private var apiHandler: ApiHandler, var ctx: Context) {
         }
       } else { // Not connected to server
         Log.d(tag, "loadAndroidAutoItems: Not connected to server")
+        serverConfigIdUsed = null
         onLoadFinished()
       }
     }
