@@ -341,7 +341,7 @@
   "MessageNoNetworkConnection": "Nincs hálózati kapcsolat",
   "MessageNoPodcastsFound": "Nem találhatók podcastok",
   "MessageNoSeries": "Nincsenek sorozatok",
-  "MessageNoUpdatesWereNecessary": "Nem volt szükséges frissítés",
+  "MessageNoUpdatesWereNecessary": "Nincs szükség frissítésre",
   "MessageNoUserPlaylists": "Nincsenek lejátszási listái",
   "MessageOldServerAuthReLoginRequired": "A szerver v2.26.0 verziójában a biztonság érdekében továbbfejlesztettük a hitelesítést. Minden felhasználónak újra be kell jelentkeznie.",
   "MessageOldServerAuthWarning": "A szerver elavult hitelesítést használ",
