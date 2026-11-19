@@ -206,8 +206,12 @@ class PlaybackSession(
     return Uri.parse("$serverAddress${audioTrack.contentUrl}?token=${DeviceManager.token}")
   }
 
-  /** Bitmap for the cover art, once resolved */
+  /**
+   * Bitmap for the cover art, once resolved. Transient so Paper/Kryo never persists it: a Bitmap
+   * links into the runtime's native Cleaner chain, and serializing that freezes every DeviceData save.
+   */
   @JsonIgnore
+  @Transient
   private var resolvedCoverBitmap: Bitmap? = null
 
   /**
