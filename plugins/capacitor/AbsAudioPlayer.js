@@ -154,6 +154,11 @@ class AbsAudioPlayerWeb extends WebPlugin {
   }
 
   // PluginMethod
+  setVolumeBoost({ value }) {
+    this.volumeBoost = value
+  }
+
+  // PluginMethod
   setChapterTrack({ enabled }) {
     this.useChapterTrack = enabled
   }

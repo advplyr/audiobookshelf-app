@@ -35,6 +35,7 @@ class AbsAudioPlayer : Plugin() {
 
   // Track foreground state to avoid flooding WebView with events while backgrounded
   private var isInForeground: Boolean = true
+  private var pendingVolumeBoostDb: Float? = null
 
   override fun load() {
     mainActivity = (activity as MainActivity)
@@ -48,6 +49,10 @@ class AbsAudioPlayer : Plugin() {
 
     val foregroundServiceReady : () -> Unit = {
       playerNotificationService = mainActivity.foregroundService
+      pendingVolumeBoostDb?.let {
+        playerNotificationService.setVolumeBoost(it)
+        pendingVolumeBoostDb = null
+      }
 
       playerNotificationService.clientEventEmitter = (object : PlayerNotificationService.ClientEventEmitter {
         override fun onPlaybackSession(playbackSession: PlaybackSession) {
@@ -362,6 +367,20 @@ class AbsAudioPlayer : Plugin() {
 
     Handler(Looper.getMainLooper()).post {
       playerNotificationService.setPlaybackSpeed(playbackSpeed)
+      call.resolve()
+    }
+  }
+
+  @PluginMethod
+  fun setVolumeBoost(call: PluginCall) {
+    val gainDb: Float = call.getFloat("value", 0.0f) ?: 0.0f
+
+    Handler(Looper.getMainLooper()).post {
+      if (::playerNotificationService.isInitialized) {
+        playerNotificationService.setVolumeBoost(gainDb)
+      } else {
+        pendingVolumeBoostDb = gainDb
+      }
       call.resolve()
     }
   }
