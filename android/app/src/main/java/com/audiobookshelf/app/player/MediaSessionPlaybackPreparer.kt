@@ -21,7 +21,8 @@ class MediaSessionPlaybackPreparer(var playerNotificationService:PlayerNotificat
   }
 
   override fun getSupportedPrepareActions(): Long {
-    return PlaybackStateCompat.ACTION_PREPARE_FROM_MEDIA_ID or
+    return PlaybackStateCompat.ACTION_PREPARE or
+      PlaybackStateCompat.ACTION_PREPARE_FROM_MEDIA_ID or
       PlaybackStateCompat.ACTION_PLAY_FROM_MEDIA_ID or
       PlaybackStateCompat.ACTION_PREPARE_FROM_SEARCH or
       PlaybackStateCompat.ACTION_PLAY_FROM_SEARCH

@@ -956,6 +956,83 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
     currentPlayer.play()
   }
 
+  /**
+   * Play, or if the player was torn down while paused (e.g. service killed after the car was
+   * turned off) reload the last playback session first so Android Auto / media buttons can resume.
+   */
+  fun playOrResumeLastSession() {
+    if (!prepareLastPlaybackSession(true)) {
+      play()
+    } else {
+      // A media button sent while the app is closed binds, delivers the key and unbinds right
+      // away, destroying the service before the prepare runs. Starting it keeps it alive.
+      // (isStarted can't be relied on here, onGetRoot sets it for bound clients)
+      try {
+        startService(Intent(ctx, PlayerNotificationService::class.java))
+      } catch (error: Exception) {
+        Log.e(tag, "playOrResumeLastSession: Failed to start service $error")
+      }
+    }
+  }
+
+  /**
+   * Prepares the last saved playback session when nothing is loaded in the player.
+   * Downloaded items are preferred so this works without a server connection.
+   * @return true if a session is being prepared
+   */
+  fun prepareLastPlaybackSession(playWhenReady: Boolean): Boolean {
+    if (currentPlaybackSession != null) return false
+    val lastSession = DeviceManager.deviceData.lastPlaybackSession ?: return false
+    val playbackRate = mediaManager.getSavedPlaybackRate()
+
+    val localLibraryItem =
+            lastSession.localLibraryItem?.id?.let { DeviceManager.dbManager.getLocalLibraryItem(it) }
+                    ?: lastSession.libraryItemId?.let { DeviceManager.dbManager.getLocalLibraryItemByLId(it) }
+    if (localLibraryItem != null) {
+      var episode: PodcastEpisode? = null
+      if (lastSession.isPodcastEpisode) {
+        episode = (localLibraryItem.media as? Podcast)?.episodes?.find {
+          it.id == lastSession.localEpisodeId || (lastSession.episodeId != null && it.serverEpisodeId == lastSession.episodeId)
+        }
+        if (episode == null) {
+          AbsLogger.info(tag, "prepareLastPlaybackSession: Local podcast episode not found for last session")
+          return false
+        }
+      }
+      if (!localLibraryItem.hasTracks(ctx, episode)) {
+        AbsLogger.info(tag, "prepareLastPlaybackSession: Local item ${localLibraryItem.id} has no tracks on device")
+        return false
+      }
+
+      AbsLogger.info(tag, "prepareLastPlaybackSession: Resuming local item \"${localLibraryItem.media.metadata.title}\"")
+      val playbackSession = localLibraryItem.getPlaybackSession(episode, getDeviceInfo())
+      Handler(Looper.getMainLooper()).post {
+        mediaProgressSyncer.reset()
+        preparePlayer(playbackSession, playWhenReady, playbackRate)
+      }
+      return true
+    }
+
+    val libraryItemId = lastSession.libraryItemId ?: return false
+    if (DeviceManager.serverConnectionConfig == null) {
+      DeviceManager.serverConnectionConfig = DeviceManager.getServerConnectionConfig(lastSession.serverConnectionConfigId)
+    }
+    if (DeviceManager.serverConnectionConfig == null) {
+      AbsLogger.info(tag, "prepareLastPlaybackSession: No server connection for last session")
+      return false
+    }
+
+    AbsLogger.info(tag, "prepareLastPlaybackSession: Resuming server item \"${lastSession.displayTitle}\"")
+    apiHandler.playLibraryItem(libraryItemId, lastSession.episodeId, getPlayItemRequestPayload(false)) {
+      if (it == null) {
+        AbsLogger.info(tag, "prepareLastPlaybackSession: Server play request failed")
+      } else {
+        Handler(Looper.getMainLooper()).post { preparePlayer(it, playWhenReady, playbackRate) }
+      }
+    }
+    return true
+  }
+
   fun pause() {
     currentPlayer.pause()
   }
@@ -1195,6 +1272,12 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
       }
 
       isAndroidAuto = true
+
+      // Service may have been recreated since last use (e.g. killed while paused), so load the
+      // last item paused. Android Auto then shows it as now playing and can auto-resume it.
+      if (clientPackageName == ANDROID_AUTO_PKG_NAME || clientPackageName == ANDROID_AUTOMOTIVE_PKG_NAME) {
+        prepareLastPlaybackSession(false)
+      }
 
       val extras = Bundle()
       extras.putBoolean(MediaConstants.BROWSER_SERVICE_EXTRAS_KEY_SEARCH_SUPPORTED, true)
