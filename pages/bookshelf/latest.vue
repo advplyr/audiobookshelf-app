@@ -9,7 +9,10 @@
 </template>
 
 <script>
+import localPodcastDownloads from '@/mixins/localPodcastDownloads'
+
 export default {
+  mixins: [localPodcastDownloads],
   data() {
     return {
       processing: false,
@@ -83,18 +86,23 @@ export default {
       }
     },
     async loadLocalPodcastLibraryItems() {
-      this.localLibraryItems = await this.$db.getLocalLibraryItems('podcast')
+      const before = new Map(this.localLibraryItems.map((item) => [item.id, item]))
+      const snapshot = (await this.$db.getLocalLibraryItems('podcast')) || []
+      this.localLibraryItems = this.mergeLocalDownloadSnapshot(snapshot, before)
+    },
+    acceptLocalPodcastDelta(delta) {
+      return true
+    },
+    findLocalPodcastRecord(id) {
+      return this.localLibraryItems.find((item) => item.id === id)
     },
     newLocalLibraryItem(item) {
       if (item.mediaType !== 'podcast') {
         return
       }
-      const matchingLocalLibraryItem = this.localLibraryItems.find((lli) => lli.id === item.id)
-      if (matchingLocalLibraryItem) {
-        matchingLocalLibraryItem.media.episodes = item.media.episodes
-      } else {
-        this.localLibraryItems.push(item)
-      }
+      const index = this.localLibraryItems.findIndex((lli) => lli.id === item.id)
+      if (index >= 0) this.localLibraryItems.splice(index, 1, item)
+      else this.localLibraryItems.push(item)
     }
   },
   mounted() {

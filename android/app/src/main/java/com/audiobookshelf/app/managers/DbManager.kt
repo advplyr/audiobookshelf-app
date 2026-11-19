@@ -7,9 +7,13 @@ import com.audiobookshelf.app.models.DownloadItem
 import com.audiobookshelf.app.plugins.AbsLog
 import com.audiobookshelf.app.plugins.AbsLogger
 import io.paperdb.Paper
+import java.util.UUID
 
 class DbManager {
   val tag = "DbManager"
+
+  // Library operations may acquire this lock; progress operations never acquire the library lock.
+  private val localMediaProgressLock = Any()
 
   companion object {
     private var isDbInitialized = false
@@ -33,12 +37,14 @@ class DbManager {
   fun getLocalLibraryItems(mediaType: String? = null): MutableList<LocalLibraryItem> {
     val localLibraryItems: MutableList<LocalLibraryItem> = mutableListOf()
     Paper.book("localLibraryItems").allKeys.forEach {
-      val localLibraryItem: LocalLibraryItem? = Paper.book("localLibraryItems").read(it)
-      if (localLibraryItem != null &&
-                      (mediaType.isNullOrEmpty() || mediaType == localLibraryItem.mediaType)
-      ) {
-        localLibraryItems.add(localLibraryItem)
+      val localLibraryItem = synchronized(this) {
+        val record = Paper.book("localLibraryItems").read<Any>(it)
+        val base = localLibraryItemBase(record)
+        // Filter before opening episode journals, especially for book-only queries.
+        if (base == null || (!mediaType.isNullOrEmpty() && mediaType != base.mediaType)) null
+        else mergeLocalLibraryItem(record)
       }
+      if (localLibraryItem != null) localLibraryItems.add(localLibraryItem)
     }
     return localLibraryItems
   }
@@ -49,11 +55,107 @@ class DbManager {
   }
 
   fun getLocalLibraryItemByLId(libraryItemId: String): LocalLibraryItem? {
-    return getLocalLibraryItems().find { it.libraryItemId == libraryItemId }
+    Paper.book("localLibraryItems").allKeys.forEach { key ->
+      val item = synchronized(this) {
+        val record = Paper.book("localLibraryItems").read<Any>(key)
+        if (localLibraryItemBase(record)?.libraryItemId == libraryItemId) mergeLocalLibraryItem(record)
+        else null
+      }
+      if (item != null) return item
+    }
+    return null
   }
 
+  private fun localLibraryItemBase(record: Any?): LocalLibraryItem? = when (record) {
+    is LocalPodcastRecord -> record.item
+    is LocalLibraryItem -> record
+    else -> null
+  }
+
+  data class DownloadedPodcastEpisode(
+          val episode: PodcastEpisode,
+          val audioFile: LocalFile?,
+          val cover: LocalFile?,
+          val addedAt: Long
+  )
+
+  // A generation pointer makes replacing a whole record and retiring its old deltas atomic.
+  data class LocalPodcastRecord(val item: LocalLibraryItem, val episodeGeneration: String)
+
+  private fun podcastEpisodeBook(generation: String) = Paper.book("downloadedPodcastEpisodes-$generation")
+
+  // Reads legacy items directly, or merges a podcast base with its saved episode updates.
+  @Synchronized
   fun getLocalLibraryItem(localLibraryItemId: String): LocalLibraryItem? {
-    return Paper.book("localLibraryItems").read(localLibraryItemId)
+    return mergeLocalLibraryItem(Paper.book("localLibraryItems").read<Any>(localLibraryItemId))
+  }
+
+  // Callers hold the library lock while reading the base and its journal.
+  private fun mergeLocalLibraryItem(record: Any?): LocalLibraryItem? {
+    if (record is LocalLibraryItem) return record
+    if (record !is LocalPodcastRecord) return null
+
+    val item = record.item
+    val podcast = item.media as Podcast
+    val episodes = podcast.episodes.orEmpty().associateByTo(linkedMapOf()) { it.id }
+    val files = item.localFiles.associateByTo(linkedMapOf()) { it.id }
+    val book = podcastEpisodeBook(record.episodeGeneration)
+    val entries = book.allKeys.mapNotNull { book.read<DownloadedPodcastEpisode>(it) }
+            .sortedWith(compareBy({ it.addedAt }, { it.episode.index }, { it.episode.id }))
+    val replacedAudioFiles = mutableSetOf<String>()
+    for (entry in entries) {
+      val previousFileId = episodes.put(entry.episode.id, entry.episode)?.audioTrack?.localFileId
+      if (previousFileId != null && previousFileId != entry.episode.audioTrack?.localFileId) {
+        replacedAudioFiles.add(previousFileId)
+      }
+      entry.audioFile?.let { files[it.id] = it }
+      entry.cover?.let {
+        files[it.id] = it
+        item.coverAbsolutePath = it.absolutePath
+        item.coverContentUrl = it.contentUrl
+      }
+    }
+    podcast.episodes = episodes.values.toMutableList().apply {
+      forEachIndexed { index, episode -> episode.index = index + 1 }
+    }
+    val currentAudioFileIds = episodes.values.mapNotNullTo(mutableSetOf()) { it.audioTrack?.localFileId }
+    for (id in replacedAudioFiles) {
+      if (id !in currentAudioFileIds) files.remove(id)
+    }
+    item.localFiles = files.values.toMutableList()
+    return item
+  }
+
+  // Returns only the base record for incremental download processing, excluding episode updates.
+  @Synchronized
+  fun getLocalPodcastDownloadBase(id: String): LocalLibraryItem? {
+    return when (val record = Paper.book("localLibraryItems").read<Any>(id)) {
+      is LocalPodcastRecord -> record.item
+      is LocalLibraryItem -> record
+      else -> null
+    }
+  }
+
+  // Saves only the selected server episodes; replaying an episode replaces its existing entry.
+  @Synchronized
+  fun saveDownloadedPodcastEpisodes(item: LocalLibraryItem, episodeIds: Set<String>) {
+    val library = Paper.book("localLibraryItems")
+    val existing = library.read<Any>(item.id)
+    val record = if (existing is LocalPodcastRecord) existing else {
+      // Keep the existing representation as the base so old episodes require no migration.
+      val base = (existing as? LocalLibraryItem) ?: item
+      LocalPodcastRecord(base, UUID.randomUUID().toString()).also { library.write(item.id, it) }
+    }
+    val podcast = item.media as Podcast
+    val files = item.localFiles.associateBy { it.id }
+    val cover = item.localFiles.find { it.contentUrl == item.coverContentUrl }
+    val book = podcastEpisodeBook(record.episodeGeneration)
+    val addedAt = System.currentTimeMillis()
+    for (episode in podcast.episodes.orEmpty()) {
+      if (episode.serverEpisodeId !in episodeIds) continue
+      val originalAddedAt = book.read<DownloadedPodcastEpisode>(episode.id)?.addedAt ?: addedAt
+      book.write(episode.id, DownloadedPodcastEpisode(episode, files[episode.audioTrack?.localFileId], cover, originalAddedAt))
+    }
   }
 
   fun getLocalLibraryItemWithEpisode(podcastEpisodeId: String): LibraryItemWithEpisode? {
@@ -71,16 +173,25 @@ class DbManager {
     }
   }
 
+  @Synchronized
   fun removeLocalLibraryItem(localLibraryItemId: String) {
-    Paper.book("localLibraryItems").delete(localLibraryItemId)
+    val library = Paper.book("localLibraryItems")
+    val old = library.read<Any>(localLibraryItemId)
+    library.delete(localLibraryItemId)
+    if (old is LocalPodcastRecord) podcastEpisodeBook(old.episodeGeneration).destroy()
   }
 
   fun saveLocalLibraryItems(localLibraryItems: List<LocalLibraryItem>) {
-    localLibraryItems.map { Paper.book("localLibraryItems").write(it.id, it) }
+    localLibraryItems.forEach(::saveLocalLibraryItem)
   }
 
+  // Replaces the whole record and discards its episode journal; callers must supply the complete item.
+  @Synchronized
   fun saveLocalLibraryItem(localLibraryItem: LocalLibraryItem) {
-    Paper.book("localLibraryItems").write(localLibraryItem.id, localLibraryItem)
+    val library = Paper.book("localLibraryItems")
+    val old = library.read<Any>(localLibraryItem.id)
+    library.write(localLibraryItem.id, localLibraryItem)
+    if (old is LocalPodcastRecord) podcastEpisodeBook(old.episodeGeneration).destroy()
   }
 
   fun saveLocalFolder(localFolder: LocalFolder) {
@@ -101,7 +212,7 @@ class DbManager {
 
   fun removeLocalFolder(folderId: String) {
     val localLibraryItems = getLocalLibraryItemsInFolder(folderId)
-    localLibraryItems.forEach { Paper.book("localLibraryItems").delete(it.id) }
+    localLibraryItems.forEach { removeLocalLibraryItem(it.id) }
     Paper.book("localFolders").delete(folderId)
   }
 
@@ -202,8 +313,18 @@ class DbManager {
   }
 
   fun saveLocalMediaProgress(mediaProgress: LocalMediaProgress) {
-    Paper.book("localMediaProgress").write(mediaProgress.id, mediaProgress)
+    synchronized(localMediaProgressLock) {
+      Paper.book("localMediaProgress").write(mediaProgress.id, mediaProgress)
+    }
   }
+
+  fun saveDownloadedProgressIfNewer(progress: LocalMediaProgress): Boolean = synchronized(localMediaProgressLock) {
+    val existing = getLocalMediaProgress(progress.id)
+    if (existing != null && existing.lastUpdate >= progress.lastUpdate) return@synchronized false
+    saveLocalMediaProgress(progress)
+    true
+  }
+
   // For books this will just be the localLibraryItemId for podcast episodes this will be
   // "{localLibraryItemId}-{episodeId}"
   fun getLocalMediaProgress(localMediaProgressId: String): LocalMediaProgress? {
@@ -228,83 +349,87 @@ class DbManager {
 
   // Make sure all local file ids still exist
   fun cleanLocalLibraryItems(context: Context) {
-    val localLibraryItems = getLocalLibraryItems()
+    // Release the library lock between items, keeping each read/update/save together.
+    Paper.book("localLibraryItems").allKeys.forEach { id ->
+      synchronized(this) {
+        val lli = getLocalLibraryItem(id) ?: return@synchronized
+        var hasUpdates = false
 
-    localLibraryItems.forEach { lli ->
-      var hasUpdates = false
-
-      // Check local files
-      lli.localFiles =
-              lli.localFiles.filter { localFile ->
-                val exists = localFile.exists(context)
-                if (!exists) {
-                  Log.d(
-                          tag,
-                          "cleanLocalLibraryItems: Local file ${localFile.absolutePath} was removed from library item ${lli.media.metadata.title}"
-                  )
-                  hasUpdates = true
-                }
-                exists
-              } as
-                      MutableList<LocalFile>
-
-      // Check audio tracks and episodes
-      if (lli.isPodcast) {
-        val podcast = lli.media as Podcast
-        podcast.episodes =
-                podcast.episodes?.filter { ep ->
-                  if (lli.localFiles.find { lf -> lf.id == ep.audioTrack?.localFileId } == null) {
+        // Check local files
+        lli.localFiles =
+                lli.localFiles.filter { localFile ->
+                  val exists = localFile.exists(context)
+                  if (!exists) {
                     Log.d(
                             tag,
-                            "cleanLocalLibraryItems: Podcast episode ${ep.title} was removed from library item ${lli.media.metadata.title}"
+                            "cleanLocalLibraryItems: Local file ${localFile.absolutePath} was removed from library item ${lli.media.metadata.title}"
                     )
                     hasUpdates = true
                   }
-                  ep.audioTrack != null &&
-                          lli.localFiles.find { lf -> lf.id == ep.audioTrack?.localFileId } != null
+                  exists
                 } as
-                        MutableList<PodcastEpisode>
-      } else {
-        val book = lli.media as Book
-        book.tracks =
-                book.tracks?.filter { track ->
-                  if (lli.localFiles.find { lf -> lf.id == track.localFileId } == null) {
-                    Log.d(
-                            tag,
-                            "cleanLocalLibraryItems: Audio track ${track.title} was removed from library item ${lli.media.metadata.title}"
-                    )
-                    hasUpdates = true
-                  }
-                  lli.localFiles.find { lf -> lf.id == track.localFileId } != null
-                } as
-                        MutableList<AudioTrack>
-      }
+                        MutableList<LocalFile>
 
-      // Check cover still there
-      lli.coverAbsolutePath?.let {
-        val coverExists =
-                lli.localFiles.any { localFile ->
-                  localFile.absolutePath == it && localFile.exists(context)
-                }
-        if (!coverExists) {
-          Log.d(
-                  tag,
-                  "cleanLocalLibraryItems: Cover $it was removed from library item ${lli.media.metadata.title}"
-          )
-          lli.coverAbsolutePath = null
-          lli.coverContentUrl = null
-          hasUpdates = true
+        val fileIds = lli.localFiles.mapTo(hashSetOf()) { it.id }
+
+        // Check audio tracks and episodes
+        if (lli.isPodcast) {
+          val podcast = lli.media as Podcast
+          podcast.episodes =
+                  podcast.episodes?.filter { ep ->
+                    if (ep.audioTrack?.localFileId !in fileIds) {
+                      Log.d(
+                              tag,
+                              "cleanLocalLibraryItems: Podcast episode ${ep.title} was removed from library item ${lli.media.metadata.title}"
+                      )
+                      hasUpdates = true
+                    }
+                    ep.audioTrack != null &&
+                            ep.audioTrack?.localFileId in fileIds
+                  } as
+                          MutableList<PodcastEpisode>
+        } else {
+          val book = lli.media as Book
+          book.tracks =
+                  book.tracks?.filter { track ->
+                    if (track.localFileId !in fileIds) {
+                      Log.d(
+                              tag,
+                              "cleanLocalLibraryItems: Audio track ${track.title} was removed from library item ${lli.media.metadata.title}"
+                      )
+                      hasUpdates = true
+                    }
+                    track.localFileId in fileIds
+                  } as
+                          MutableList<AudioTrack>
         }
-      }
 
-      if (lli.serverConnectionConfigId == null) {
-        // Local-only item support was removed in app version 0.9.67, remove any remaining local
-        // only items beginning in 0.9.80
-        Log.d(tag, "cleanLocalLibraryItems: Local only item ${lli.id} - removing from ABS")
-        Paper.book("localLibraryItems").delete(lli.id)
-      } else if (hasUpdates) {
-        Log.d(tag, "cleanLocalLibraryItems: Saving local library item ${lli.id}")
-        Paper.book("localLibraryItems").write(lli.id, lli)
+        // Check cover still there
+        lli.coverAbsolutePath?.let {
+          val coverExists =
+                  lli.localFiles.any { localFile ->
+                    localFile.absolutePath == it && localFile.exists(context)
+                  }
+          if (!coverExists) {
+            Log.d(
+                    tag,
+                    "cleanLocalLibraryItems: Cover $it was removed from library item ${lli.media.metadata.title}"
+            )
+            lli.coverAbsolutePath = null
+            lli.coverContentUrl = null
+            hasUpdates = true
+          }
+        }
+
+        if (lli.serverConnectionConfigId == null) {
+          // Local-only item support was removed in app version 0.9.67, remove any remaining local
+          // only items beginning in 0.9.80
+          Log.d(tag, "cleanLocalLibraryItems: Local only item ${lli.id} - removing from ABS")
+          removeLocalLibraryItem(lli.id)
+        } else if (hasUpdates) {
+          Log.d(tag, "cleanLocalLibraryItems: Saving local library item ${lli.id}")
+          saveLocalLibraryItem(lli)
+        }
       }
     }
   }

@@ -682,16 +682,15 @@ class MediaManager(private var apiHandler: ApiHandler, var ctx: Context) {
               selectedLibraryItemId = libraryItemWrapper.id
               selectedPodcast = podcast
               val episodes = podcast.episodes?.sortedByDescending { it.publishedAt }
+              // Read the offline journal once for the list, rather than once per server episode.
+              val localLibraryItem = DeviceManager.dbManager.getLocalLibraryItemByLId(libraryItemWrapper.id)
+              val localEpisodes = (localLibraryItem?.media as? Podcast)?.episodes.orEmpty().associateBy { it.serverEpisodeId }
               val children = episodes?.map { podcastEpisode ->
 
                 val progress = serverUserMediaProgress.find { it.libraryItemId == libraryItemWrapper.id && it.episodeId == podcastEpisode.id }
 
-                // to show download icon
-                val localLibraryItem = DeviceManager.dbManager.getLocalLibraryItemByLId(libraryItemWrapper.id)
-                localLibraryItem?.let { lli ->
-                  val localEpisode = (lli.media as Podcast).episodes?.find { it.serverEpisodeId == podcastEpisode.id }
-                  podcastEpisode.localEpisodeId = localEpisode?.id
-                }
+                // Match the downloaded episode used by the download icon.
+                podcastEpisode.localEpisodeId = localEpisodes[podcastEpisode.id]?.id
 
                 val description = podcastEpisode.getMediaDescription(libraryItemWrapper, progress, ctx)
                 MediaBrowserCompat.MediaItem(description, MediaBrowserCompat.MediaItem.FLAG_PLAYABLE)

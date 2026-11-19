@@ -16,7 +16,10 @@ class FolderScanner(private val ctx: Context) {
 
   data class DownloadItemScanResult(
           val localLibraryItem: LocalLibraryItem,
-          var localMediaProgress: LocalMediaProgress?
+          var localMediaProgress: LocalMediaProgress?,
+          val localEpisode: PodcastEpisode?,
+          val episodeFile: LocalFile?,
+          val coverFile: LocalFile?
   )
 
   private fun localLibraryItemId(mediaItemId: String) =
@@ -118,7 +121,9 @@ class FolderScanner(private val ctx: Context) {
   ) {
     val tracks = mutableListOf<AudioTrack>()
     var foundEbook = false
-    var localEpisodeId: String? = null
+    var localEpisode: PodcastEpisode? = null
+    var episodeFile: LocalFile? = null
+    var coverFile: LocalFile? = null
 
     item.downloadItemParts.forEach { part ->
       val externalFile =
@@ -160,7 +165,8 @@ class FolderScanner(private val ctx: Context) {
           Log.d(tag, "Added local audio track ${track.contentUrl} (${track.metadata?.path})")
           part.episode?.let { episode ->
             val podcast = localItem.media as Podcast
-            localEpisodeId = podcast.addEpisode(track, episode).id
+            localEpisode = podcast.addEpisode(track, episode)
+            episodeFile = localFile
           }
         }
         part.ebookFile != null -> {
@@ -178,6 +184,7 @@ class FolderScanner(private val ctx: Context) {
                   )
         }
         else -> {
+          coverFile = localFile
           localItem.coverAbsolutePath = localFile.absolutePath
           localItem.coverContentUrl = localFile.contentUrl
           localItem.localFiles.removeAll { it.id == localFile.id }
@@ -202,7 +209,8 @@ class FolderScanner(private val ctx: Context) {
       localItem.media.setAudioTracks(tracks)
     }
 
-    val result = DownloadItemScanResult(localItem, null)
+    val result = DownloadItemScanResult(localItem, null, localEpisode, episodeFile, coverFile)
+    val localEpisodeId = localEpisode?.id
     item.userMediaProgress?.let { progress ->
       val progressId =
               if (item.episodeId.isNullOrEmpty()) localItem.id
@@ -227,9 +235,7 @@ class FolderScanner(private val ctx: Context) {
                       item.libraryItemId,
                       item.episodeId
               )
-      DeviceManager.dbManager.saveLocalMediaProgress(result.localMediaProgress!!)
     }
-    DeviceManager.dbManager.saveLocalLibraryItem(localItem)
     callback(result)
   }
 
@@ -275,11 +281,19 @@ class FolderScanner(private val ctx: Context) {
             }
   }
 
-  fun scanDownloadItem(item: DownloadItem, callback: (DownloadItemScanResult?) -> Unit) {
+  // Prepares the downloaded item without saving it. The caller must persist the result
+  // before removing the download from the queue or notifying listeners of completion.
+  fun scanDownloadItem(
+          item: DownloadItem,
+          callback: (DownloadItemScanResult?) -> Unit
+  ) {
+    fun existingItem(id: String): LocalLibraryItem? =
+            if (item.episodeId != null) DeviceManager.dbManager.getLocalPodcastDownloadBase(id)
+            else DeviceManager.dbManager.getLocalLibraryItem(id)
     if (item.isInternalStorage) {
       val id = "local_${item.libraryItemId}"
       val localItem =
-              DeviceManager.dbManager.getLocalLibraryItem(id)
+              existingItem(id)
                       ?: newLocalLibraryItem(id, item, item.itemFolderPath, item.itemFolderPath, "")
       scanParts(item, localItem, callback = callback)
       return
@@ -299,7 +313,7 @@ class FolderScanner(private val ctx: Context) {
     }
     val id = localLibraryItemId(itemFolder.id)
     val localItem =
-            DeviceManager.dbManager.getLocalLibraryItem(id)
+            existingItem(id)
                     ?: newLocalLibraryItem(
                             id,
                             item,

@@ -56,6 +56,7 @@ import java.util.*
 import kotlin.concurrent.schedule
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
@@ -1226,33 +1227,36 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
     }
 
     if (parentMediaId == DOWNLOADS_ROOT) { // Load downloads
-      val localBooks = DeviceManager.dbManager.getLocalLibraryItems("book")
-      val localPodcasts = DeviceManager.dbManager.getLocalLibraryItems("podcast")
-      val localBrowseItems: MutableList<MediaBrowserCompat.MediaItem> = mutableListOf()
+      // Journal-backed offline listings touch storage; the browser result is already detached.
+      metadataScope.launch(Dispatchers.IO) {
+        val localBooks = DeviceManager.dbManager.getLocalLibraryItems("book")
+        val localPodcasts = DeviceManager.dbManager.getLocalLibraryItems("podcast")
+        val localBrowseItems: MutableList<MediaBrowserCompat.MediaItem> = mutableListOf()
 
-      localBooks.forEach { localLibraryItem ->
-        if (localLibraryItem.media.getAudioTracks().isNotEmpty()) {
-          val progress = DeviceManager.dbManager.getLocalMediaProgress(localLibraryItem.id)
-          val description = localLibraryItem.getMediaDescription(progress, ctx)
+        localBooks.forEach { localLibraryItem ->
+          if (localLibraryItem.media.getAudioTracks().isNotEmpty()) {
+            val progress = DeviceManager.dbManager.getLocalMediaProgress(localLibraryItem.id)
+            val description = localLibraryItem.getMediaDescription(progress, ctx)
 
+            localBrowseItems +=
+                    MediaBrowserCompat.MediaItem(
+                            description,
+                            MediaBrowserCompat.MediaItem.FLAG_PLAYABLE
+                    )
+          }
+        }
+
+        localPodcasts.forEach { localLibraryItem ->
+          val mediaDescription = localLibraryItem.getMediaDescription(null, ctx)
           localBrowseItems +=
                   MediaBrowserCompat.MediaItem(
-                          description,
-                          MediaBrowserCompat.MediaItem.FLAG_PLAYABLE
+                          mediaDescription,
+                          MediaBrowserCompat.MediaItem.FLAG_BROWSABLE
                   )
         }
-      }
 
-      localPodcasts.forEach { localLibraryItem ->
-        val mediaDescription = localLibraryItem.getMediaDescription(null, ctx)
-        localBrowseItems +=
-                MediaBrowserCompat.MediaItem(
-                        mediaDescription,
-                        MediaBrowserCompat.MediaItem.FLAG_BROWSABLE
-                )
+        result.sendResult(localBrowseItems)
       }
-
-      result.sendResult(localBrowseItems)
     } else if (parentMediaId == CONTINUE_ROOT) {
       val localBrowseItems: MutableList<MediaBrowserCompat.MediaItem> = mutableListOf()
       mediaManager.serverItemsInProgress.forEach { itemInProgress ->
@@ -1979,7 +1983,13 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
       }
     } else {
       Log.d(tag, "Loading podcast episodes for podcast $parentMediaId")
-      mediaManager.loadPodcastEpisodeMediaBrowserItems(parentMediaId, ctx) { result.sendResult(it) }
+      if (parentMediaId.startsWith("local")) {
+        metadataScope.launch(Dispatchers.IO) {
+          mediaManager.loadPodcastEpisodeMediaBrowserItems(parentMediaId, ctx) { result.sendResult(it) }
+        }
+      } else {
+        mediaManager.loadPodcastEpisodeMediaBrowserItems(parentMediaId, ctx) { result.sendResult(it) }
+      }
     }
   }
 
