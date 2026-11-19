@@ -2,7 +2,9 @@ export const state = () => ({
   isModalOpen: false,
   itemDownloads: [],
   bookshelfListView: false,
+  authorsListView: false,
   series: null,
+  collection: null,
   localMediaProgress: [],
   lastSearch: null,
   jumpForwardSecondsOptions: [5, 10, 15, 30, 60, 120, 300],
@@ -141,8 +143,14 @@ export const mutations = {
   setBookshelfListView(state, val) {
     state.bookshelfListView = val
   },
+  setAuthorsListView(state, val) {
+    state.authorsListView = val
+  },
   setSeries(state, val) {
     state.series = val
+  },
+  setCollection(state, val) {
+    state.collection = val
   },
   setLocalMediaProgress(state, val) {
     state.localMediaProgress = val

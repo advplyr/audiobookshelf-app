@@ -379,5 +379,12 @@
   "ToastRSSFeedCloseSuccess": "RSS feed closed",
   "ToastStreamingNotAllowedOnCellular": "Streaming is not allowed on cellular data",
   "UnitMinutesShort": "{0}m",
-  "UnitSecondsShort": "{0}s"
+  "UnitSecondsShort": "{0}s",
+  "LabelLastBookAdded": "Last Book Added",
+  "LabelLastBookUpdated": "Last Book Updated",
+  "LabelNumberOfBooks": "Number of Books",
+  "LabelPublisher": "Publisher",
+  "LabelSeriesProgress": "Series Progress",
+  "LabelTotalDuration": "Total Duration",
+  "LabelCreatedAt": "Created At"
 }
