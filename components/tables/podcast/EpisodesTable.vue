@@ -56,6 +56,7 @@
 
 <script>
 import { Dialog } from '@capacitor/dialog'
+import { sortPodcastEpisodes } from '@/utils/podcastEpisodes'
 
 export default {
   props: {
@@ -181,30 +182,7 @@ export default {
       })
     },
     episodesSorted() {
-      return this.episodesFiltered.sort((a, b) => {
-        let aValue
-        let bValue
-
-        if (this.sortKey.includes('.')) {
-          const getNestedValue = (ob, s) => s.split('.').reduce((o, k) => o?.[k], ob)
-          aValue = getNestedValue(a, this.sortKey)
-          bValue = getNestedValue(b, this.sortKey)
-        } else {
-          aValue = a[this.sortKey]
-          bValue = b[this.sortKey]
-        }
-
-        // Sort episodes with no pub date as the oldest
-        if (this.sortKey === 'publishedAt') {
-          if (!aValue) aValue = Number.MAX_VALUE
-          if (!bValue) bValue = Number.MAX_VALUE
-        }
-
-        if (this.sortDesc) {
-          return String(bValue).localeCompare(String(aValue), undefined, { numeric: true, sensitivity: 'base' })
-        }
-        return String(aValue).localeCompare(String(bValue), undefined, { numeric: true, sensitivity: 'base' })
-      })
+      return sortPodcastEpisodes(this.episodesFiltered, this.sortKey, this.sortDesc)
     },
     // Map of local episodes where server episode id is key
     localEpisodeMap() {
