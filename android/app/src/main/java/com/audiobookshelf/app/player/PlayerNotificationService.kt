@@ -307,8 +307,13 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
     // Without this, the connector's default metadata provider rebuilds metadata from the
     // player's own state on media item transitions/timeline changes, dropping the cover art
     // bitmap that PlaybackSession.resolveCoverBitmapAsync resolves separately.
-    mediaSessionConnector.setMediaMetadataProvider { _ ->
-      currentPlaybackSession?.getMediaMetadataCompat(ctx) ?: MediaMetadataCompat.Builder().build()
+    mediaSessionConnector.setMediaMetadataProvider { player ->
+      val trackDuration = if (player.duration > 0 && player.duration != C.TIME_UNSET) {
+        player.duration
+      } else {
+        currentPlaybackSession?.getCurrentTrackDurationMs()
+      }
+      currentPlaybackSession?.getMediaMetadataCompat(ctx, trackDuration) ?: MediaMetadataCompat.Builder().build()
     }
     val queueNavigator: TimelineQueueNavigator =
             object : TimelineQueueNavigator(mediaSession) {
@@ -451,6 +456,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
 
     // Set actions on Android Auto like jump forward/backward
     setMediaSessionConnectorCustomActions(playbackSession)
+    setMediaSessionConnectorPlaybackActions()
 
     playbackSession.mediaPlayer = getMediaPlayer()
 
@@ -608,7 +614,8 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
                     PlaybackStateCompat.ACTION_REWIND or
                     PlaybackStateCompat.ACTION_STOP
 
-    if (deviceSettings.allowSeekingOnMediaControls) {
+    // On Android 13+ (API 33+), SystemUI media controls require ACTION_SEEK_TO to update the progress bar.
+    if (deviceSettings.allowSeekingOnMediaControls || Build.VERSION.SDK_INT >= 33) {
       playbackActions = playbackActions or PlaybackStateCompat.ACTION_SEEK_TO
     }
     mediaSessionConnector.setEnabledPlaybackActions(playbackActions)

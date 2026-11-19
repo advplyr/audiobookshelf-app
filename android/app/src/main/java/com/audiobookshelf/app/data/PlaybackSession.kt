@@ -210,12 +210,30 @@ class PlaybackSession(
   @JsonIgnore
   private var resolvedCoverBitmap: Bitmap? = null
 
+  @JsonIgnore
+  fun getCurrentTrackDurationMs(): Long {
+    if (audioTracks.isEmpty()) return totalDurationMs
+    val trackIndex = getCurrentTrackIndex()
+    return if (trackIndex in audioTracks.indices) {
+      audioTracks[trackIndex].durationMs
+    } else {
+      totalDurationMs
+    }
+  }
+
   /**
    * Builds the current session metadata, including the cover art bitmap if it has already been resolved.
    */
   @JsonIgnore
-  fun getMediaMetadataCompat(ctx: Context): MediaMetadataCompat {
+  fun getMediaMetadataCompat(ctx: Context, durationMs: Long? = null): MediaMetadataCompat {
     val coverUri = getCoverUri(ctx)
+    val durationToUse = if (durationMs != null && durationMs > 0L) {
+      durationMs
+    } else if (audioTracks.isNotEmpty()) {
+      getCurrentTrackDurationMs()
+    } else {
+      totalDurationMs
+    }
 
     val metadataBuilder =
             MediaMetadataCompat.Builder()
@@ -228,7 +246,7 @@ class PlaybackSession(
                     .putString(MediaMetadataCompat.METADATA_KEY_ALBUM_ARTIST, displayAuthor)
                     .putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_DESCRIPTION, displayAuthor)
                     .putString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID, id)
-                      .putLong(MediaMetadataCompat.METADATA_KEY_DURATION, totalDurationMs)
+                    .putLong(MediaMetadataCompat.METADATA_KEY_DURATION, durationToUse)
                     .putString(
                             MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON_URI,
                             coverUri.toString()
