@@ -580,6 +580,7 @@ export default {
       ts.innerText = this.$secondsToTimestamp(currentTime)
     },
     timeupdate() {
+      this.$store.commit('setPlayerCurrentTime', this.currentTime)
       if (!this.$refs.playedTrack) {
         console.error('Invalid no played track ref')
         return
