@@ -12,7 +12,7 @@
     </div>
     <transition name="slide">
       <div class="w-full" v-show="showFiles">
-        <table class="text-sm tracksTable">
+        <table class="text-sm tracksTable table-fixed">
           <tr>
             <th class="text-left px-4">{{ $strings.LabelFilename }}</th>
             <th class="text-left px-4 w-16">{{ $strings.LabelRead }}</th>
