@@ -133,8 +133,10 @@ import draggable from 'vuedraggable'
 import { Capacitor } from '@capacitor/core'
 import { Dialog } from '@capacitor/dialog'
 import { AbsFileSystem } from '@/plugins/capacitor'
+import localPodcastDownloads from '@/mixins/localPodcastDownloads'
 
 export default {
+  mixins: [localPodcastDownloads],
   components: {
     draggable
   },
@@ -423,8 +425,20 @@ export default {
         } else this.$toast.error('Failed to delete')
       }
     },
+    acceptLocalPodcastDelta(delta) {
+      return delta.id === this.localLibraryItemId
+    },
+    findLocalPodcastRecord(id) {
+      return this.localLibraryItem?.id === id ? this.localLibraryItem : null
+    },
+    newLocalLibraryItem(item) {
+      this.localLibraryItem = item
+      this.failed = false
+    },
     async init() {
-      this.localLibraryItem = await this.$db.getLocalLibraryItem(this.localLibraryItemId)
+      const before = this.localLibraryItem
+      const snapshot = await this.$db.getLocalLibraryItem(this.localLibraryItemId)
+      if (this.localLibraryItem === before) this.localLibraryItem = snapshot
 
       if (!this.localLibraryItem) {
         console.error('Failed to get local library item', this.localLibraryItemId)

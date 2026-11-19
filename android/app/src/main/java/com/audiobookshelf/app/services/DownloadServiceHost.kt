@@ -19,7 +19,7 @@ import kotlinx.coroutines.launch
 
 /** Shared process owner used by the foreground service and the Capacitor bridge. */
 object DownloadServiceHost {
-  enum class ExistingDownloadResult { NOT_FOUND, ACTIVE, RETRIED, SERVICE_START_FAILED }
+  enum class ExistingDownloadResult { NOT_FOUND, ACTIVE, RETRIED, SERVICE_START_FAILED, ACCOUNT_CHANGED, CANCELLED }
 
   data class NotificationStrings(
           val preparing: String,
@@ -82,34 +82,79 @@ object DownloadServiceHost {
     bridgeEmitter = NoopEmitter
   }
 
-  fun enqueue(context: Context, item: DownloadItem, callback: (String?) -> Unit) {
-    val queue = ensure(context)
+  @Volatile var cancellationGeneration = 0
+    private set
+
+  const val CANCELLED = "Download submission cancelled"
+  const val ALREADY_QUEUED = "Download already started for this media entity"
+
+  // Waits for restoration, then checks bulk cancellation/account/duplicates and enqueues under one lock.
+  fun enqueue(context: Context, item: DownloadItem, generation: Int?, inventoryId: String?, callback: (String?) -> Unit) {
     scope.launch {
-      restoreJob?.join()
-      queue.addDownloadItem(item)
-      if (startService(context)) callback(null)
-      else callback("Unable to start the Android download service")
+      val error = try {
+        val queue = ensure(context)
+        restoreJob?.join()
+        synchronized(queue) {
+          val config = DeviceManager.serverConnectionConfig
+          val alreadyRunning = service != null && queue.hasWork()
+          when {
+            generation != null && generation != cancellationGeneration -> CANCELLED
+            generation != null && (config?.id != item.serverConnectionConfigId || config?.userId != item.serverUserId) ->
+              "Download account changed"
+            generation != null && !queue.isBulkInventoryActive(inventoryId, item.serverConnectionConfigId to item.serverUserId) ->
+              CANCELLED
+            queue.completedSinceBulkInventory(inventoryId, item.serverConnectionConfigId to item.serverUserId, item.id) ->
+              ALREADY_QUEUED
+            !queue.addDownloadItem(item) && generation != null -> ALREADY_QUEUED
+            !alreadyRunning && !startService(context) -> "Unable to start the Android download service"
+            else -> null
+          }
+        }
+      } catch (e: Exception) {
+        AbsLogger.error(TAG, "Could not persist download: ${e.message}")
+        "Could not persist download"
+      }
+      callback(error)
     }
   }
 
+  // Checks restored queue state and bulk guards under the queue lock, leaving active bulk transfers alone.
   fun retryExisting(
           context: Context,
           downloadItemId: String,
+          expectedAccount: Pair<String, String>?,
+          generation: Int?,
+          inventoryId: String?,
           callback: (ExistingDownloadResult) -> Unit
   ) {
-    val queue = ensure(context)
     scope.launch {
-      restoreJob?.join()
-      val existing = queue.downloadItemQueue.find { it.id == downloadItemId }
-      if (existing == null) {
-        callback(ExistingDownloadResult.NOT_FOUND)
-      } else if (!queue.retryDownloadItem(downloadItemId)) {
-        callback(ExistingDownloadResult.ACTIVE)
-      } else if (startService(context)) {
-        callback(ExistingDownloadResult.RETRIED)
-      } else {
-        callback(ExistingDownloadResult.SERVICE_START_FAILED)
+      val result = try {
+        val queue = ensure(context)
+        restoreJob?.join()
+        synchronized(queue) {
+          val config = DeviceManager.serverConnectionConfig
+          val existing = queue.queuedItem(downloadItemId)
+          when {
+            generation != null && generation != cancellationGeneration -> ExistingDownloadResult.CANCELLED
+            expectedAccount != null && (config?.id != expectedAccount.first || config?.userId != expectedAccount.second) ->
+              ExistingDownloadResult.ACCOUNT_CHANGED
+            expectedAccount != null && !queue.isBulkInventoryActive(inventoryId, expectedAccount) ->
+              ExistingDownloadResult.CANCELLED
+            expectedAccount != null && queue.completedSinceBulkInventory(inventoryId, expectedAccount, downloadItemId) ->
+              ExistingDownloadResult.ACTIVE
+            existing == null -> ExistingDownloadResult.NOT_FOUND
+            expectedAccount != null && (existing.serverConnectionConfigId != expectedAccount.first || existing.serverUserId != expectedAccount.second) ->
+              ExistingDownloadResult.ACCOUNT_CHANGED
+            !queue.retryDownloadItem(downloadItemId, failedOnly = expectedAccount != null) -> ExistingDownloadResult.ACTIVE
+            startService(context) -> ExistingDownloadResult.RETRIED
+            else -> ExistingDownloadResult.SERVICE_START_FAILED
+          }
+        }
+      } catch (e: Exception) {
+        AbsLogger.error(TAG, "Could not retry download: ${e.message}")
+        ExistingDownloadResult.SERVICE_START_FAILED
       }
+      callback(result)
     }
   }
 
@@ -117,7 +162,10 @@ object DownloadServiceHost {
     val queue = ensure(context)
     scope.launch {
       restoreJob?.join()
-      queue.cancelAll()
+      synchronized(queue) {
+        cancellationGeneration++
+        queue.cancelAll()
+      }
     }
   }
 

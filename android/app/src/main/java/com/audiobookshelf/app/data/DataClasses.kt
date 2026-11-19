@@ -102,17 +102,19 @@ class Podcast(
     return (episodes?.size ?: numEpisodes ?: 0) > 0
   }
 
+  /**
+   * Adds a downloaded episode, replacing the same local ID when completion is replayed.
+   * Keeps its list position, or appends it, without reindexing the other episodes.
+   */
   @JsonIgnore
   fun addEpisode(audioTrack:AudioTrack, episode:PodcastEpisode):PodcastEpisode {
     val localEpisodeId = "local_ep_" + episode.id
-    val newEpisode = PodcastEpisode(localEpisodeId,(episodes?.size ?: 0) + 1,episode.episode,episode.episodeType,episode.title,episode.subtitle,episode.description,null,null,null,audioTrack,episode.chapters,audioTrack.duration,episode.size, episode.id, localEpisodeId)
-    episodes?.add(newEpisode)
-
-    var index = 1
-    episodes?.forEach {
-      it.index = index
-      index++
-    }
+    val localEpisodes = episodes ?: mutableListOf<PodcastEpisode>().also { episodes = it }
+    val existingIndex = localEpisodes.indexOfFirst { it.id == localEpisodeId }
+    val index = if (existingIndex >= 0) existingIndex + 1 else localEpisodes.size + 1
+    val newEpisode = PodcastEpisode(localEpisodeId,index,episode.episode,episode.episodeType,episode.title,episode.subtitle,episode.description,null,null,null,audioTrack,episode.chapters,audioTrack.duration,episode.size, episode.id, localEpisodeId)
+    if (existingIndex >= 0) localEpisodes[existingIndex] = newEpisode
+    else localEpisodes.add(newEpisode)
     return newEpisode
   }
 
