@@ -4,14 +4,11 @@ import android.annotation.SuppressLint
 import android.app.*
 import android.content.Context
 import android.content.Intent
-import android.graphics.Bitmap
 import android.graphics.Color
-import android.graphics.ImageDecoder
 import android.hardware.Sensor
 import android.hardware.SensorManager
 import android.net.*
 import android.os.*
-import android.provider.MediaStore
 import android.provider.Settings
 import android.support.v4.media.MediaBrowserCompat
 import android.support.v4.media.MediaDescriptionCompat
@@ -329,20 +326,17 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
 
                 val coverUri = currentPlaybackSession!!.getCoverUri(ctx)
 
-
-                var bitmap: Bitmap? = null
-                // Local covers get bitmap
-                // Note: In Android Auto for local cover images, setting the icon uri to a local path does not work (cover is blank)
-                // so we create and set the bitmap here instead of AbMediaDescriptionAdapter
-                if (currentPlaybackSession!!.localLibraryItem?.coverContentUrl != null) {
-                  bitmap =
-                    if (Build.VERSION.SDK_INT < 28) {
-                      MediaStore.Images.Media.getBitmap(ctx.contentResolver, coverUri)
-                    } else {
-                      val source: ImageDecoder.Source =
-                        ImageDecoder.createSource(ctx.contentResolver, coverUri)
-                      ImageDecoder.decodeBitmap(source)
-                    }
+                // Local covers used to be decoded here for every queue entry. With more than 10
+                // tracks the queue is republished on every track change, decoding the same
+                // full-resolution cover up to 10 times on the main thread. Use the shared,
+                // downscaled cache instead and only attach the bitmap to the active window:
+                // every window shows the same book artwork, and attaching it to all entries
+                // would parcel multiple bitmaps into a single MediaSession.setQueue call.
+                val bitmap = if (currentPlaybackSession!!.localLibraryItem?.coverContentUrl != null &&
+                                windowIndex == player.currentMediaItemIndex) {
+                  CoverBitmapCache.get(coverUri)
+                } else {
+                  null
                 }
 
                 // Fix for local images crashing on Android 11 for specific devices
@@ -475,7 +469,10 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
     metadataArtJob?.cancel()
     metadataArtJob =
             playbackSession.resolveCoverBitmapAsync(ctx, metadataScope) {
-              mediaSessionConnector.invalidateMediaSessionMetadata()
+              if (currentPlaybackSession?.id == playbackSession.id) {
+                mediaSessionConnector.invalidateMediaSessionMetadata()
+                mediaSessionConnector.invalidateMediaSessionQueue()
+              }
             }
     mediaSessionConnector.invalidateMediaSessionMetadata()
 
