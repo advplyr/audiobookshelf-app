@@ -267,31 +267,24 @@ class MediaProgressSyncer(
         // Local library item is linked to a server library item
         // Send sync to server also if connected to this server and local item belongs to this
         // server
-        val isConnectedToSameServer = it.serverConnectionConfigId != null && DeviceManager.serverConnectionConfig?.id == it.serverConnectionConfigId
-        if (hasNetworkConnection &&
-                        shouldSyncServer &&
-                        !it.libraryItemId.isNullOrEmpty() &&
-                        isConnectedToSameServer
-        ) {
-          apiHandler.sendLocalProgressSync(it) { syncSuccess, errorMsg ->
-            if (syncSuccess) {
-              failedSyncs = 0
-              playerNotificationService.alertSyncSuccess()
-              DeviceManager.dbManager.removePlaybackSession(it.id) // Remove session from db
-              AbsLogger.info("MediaProgressSyncer", "sync: Successfully synced local progress (title: \"$currentDisplayTitle\") (currentTime: $currentTime) (session id: ${it.id})")
+        val sessionServerConfigId = it.serverConnectionConfigId
+        val canSyncToServer = hasNetworkConnection && shouldSyncServer && !it.libraryItemId.isNullOrEmpty()
+        val isConnectedToSameServer = sessionServerConfigId != null && DeviceManager.serverConnectionConfig?.id == sessionServerConfigId
+        if (canSyncToServer && isConnectedToSameServer) {
+          sendLocalProgressToServer(it, currentTime, cb)
+        } else if (canSyncToServer && sessionServerConfigId != null && DeviceManager.serverConnectionConfig == null) {
+          // No active server connection, e.g. the server was unreachable when Android Auto connected
+          // and the phone app has not been opened since. Try to restore it instead of only saving locally.
+          playerNotificationService.mediaManager.restoreServerConnection(sessionServerConfigId) { restored ->
+            if (restored) {
+              sendLocalProgressToServer(it, currentTime, cb)
             } else {
-              failedSyncs++
-              if (failedSyncs == 2) {
-                playerNotificationService.alertSyncFailing() // Show alert in client
-                failedSyncs = 0
-              }
-              AbsLogger.error("MediaProgressSyncer", "sync: Local progress sync failed (count: $failedSyncs) (title: \"$currentDisplayTitle\") (currentTime: $currentTime) (session id: ${it.id}) (${DeviceManager.serverConnectionConfigName})")
+              logLocalProgressNotSent(it, currentTime, hasNetworkConnection, false)
+              cb(SyncResult(false, null, null))
             }
-
-            cb(SyncResult(true, syncSuccess, errorMsg))
           }
         } else {
-          AbsLogger.info("MediaProgressSyncer", "sync: Not sending local progress to server (title: \"$currentDisplayTitle\") (currentTime: $currentTime) (session id: ${it.id}) (hasNetworkConnection: $hasNetworkConnection) (isConnectedToSameServer: $isConnectedToSameServer)")
+          logLocalProgressNotSent(it, currentTime, hasNetworkConnection, isConnectedToSameServer)
           cb(SyncResult(false, null, null))
         }
       }
@@ -320,6 +313,30 @@ class MediaProgressSyncer(
       AbsLogger.info("MediaProgressSyncer", "sync: Not sending progress to server (title: \"$currentDisplayTitle\") (currentTime: $currentTime) (session id: $currentSessionId) (${DeviceManager.serverConnectionConfigName}) (hasNetworkConnection: $hasNetworkConnection)")
       cb(SyncResult(false, null, null))
     }
+  }
+
+  private fun sendLocalProgressToServer(playbackSession: PlaybackSession, currentTime: Double, cb: (SyncResult?) -> Unit) {
+    apiHandler.sendLocalProgressSync(playbackSession) { syncSuccess, errorMsg ->
+      if (syncSuccess) {
+        failedSyncs = 0
+        playerNotificationService.alertSyncSuccess()
+        DeviceManager.dbManager.removePlaybackSession(playbackSession.id) // Remove session from db
+        AbsLogger.info("MediaProgressSyncer", "sync: Successfully synced local progress (title: \"$currentDisplayTitle\") (currentTime: $currentTime) (session id: ${playbackSession.id})")
+      } else {
+        failedSyncs++
+        if (failedSyncs == 2) {
+          playerNotificationService.alertSyncFailing() // Show alert in client
+          failedSyncs = 0
+        }
+        AbsLogger.error("MediaProgressSyncer", "sync: Local progress sync failed (count: $failedSyncs) (title: \"$currentDisplayTitle\") (currentTime: $currentTime) (session id: ${playbackSession.id}) (${DeviceManager.serverConnectionConfigName})")
+      }
+
+      cb(SyncResult(true, syncSuccess, errorMsg))
+    }
+  }
+
+  private fun logLocalProgressNotSent(playbackSession: PlaybackSession, currentTime: Double, hasNetworkConnection: Boolean, isConnectedToSameServer: Boolean) {
+    AbsLogger.info("MediaProgressSyncer", "sync: Not sending local progress to server (title: \"$currentDisplayTitle\") (currentTime: $currentTime) (session id: ${playbackSession.id}) (hasNetworkConnection: $hasNetworkConnection) (isConnectedToSameServer: $isConnectedToSameServer)")
   }
 
   private fun saveLocalProgress(playbackSession: PlaybackSession) {
