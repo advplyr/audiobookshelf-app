@@ -45,6 +45,10 @@ class MediaSessionPlaybackPreparer(var playerNotificationService:PlayerNotificat
 
   override fun onPrepareFromMediaId(mediaId: String, playWhenReady: Boolean, extras: Bundle?) {
     Log.d(tag, "ON PREPARE FROM MEDIA ID $mediaId $playWhenReady")
+    if (mediaId.startsWith(ANDROID_AUTO_BOOKMARK_MEDIA_PREFIX)) {
+      playerNotificationService.seekToAndroidAutoBookmark(mediaId, playWhenReady)
+      return
+    }
 
     val libraryItemWrapper: LibraryItemWrapper?
     var podcastEpisode: PodcastEpisode? = null

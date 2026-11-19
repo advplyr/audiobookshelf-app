@@ -11,4 +11,6 @@
     <string name="action_skip_forward">Skip Forward</string>
     <string name="action_skip_backward">Skip Backward</string>
     <string name="action_change_speed">Change Playback Speed</string>
+    <string name="action_create_bookmark">Create bookmark</string>
+    <string name="android_auto_bookmarks">Bookmarks</string>
 </resources>
