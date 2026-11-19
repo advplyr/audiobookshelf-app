@@ -37,6 +37,12 @@
     <!-- Playback settings -->
     <p class="uppercase text-xs font-semibold text-fg-muted mb-2 mt-10">{{ $strings.HeaderPlaybackSettings }}</p>
     <div class="py-3 flex items-center">
+      <p class="pr-4 w-36">{{ $strings.LabelOuterPlayerControls }}</p>
+      <div @click.stop="showFullscreenOuterControlsOptions">
+        <ui-text-input :value="fullscreenOuterControlsOption" readonly append-icon="expand_more" style="width: 145px; max-width: 145px" />
+      </div>
+    </div>
+    <div class="py-3 flex items-center">
       <p class="pr-4 w-36">{{ $strings.LabelJumpBackwardsTime }}</p>
       <div @click.stop="showJumpBackwardsOptions">
         <ui-text-input :value="jumpBackwardsOption" readonly append-icon="expand_more" style="width: 145px; max-width: 145px" />
@@ -48,6 +54,20 @@
         <ui-text-input :value="jumpForwardOption" readonly append-icon="expand_more" style="width: 145px; max-width: 145px" />
       </div>
     </div>
+    <template v-if="settings.fullscreenOuterControls === 'LONG_JUMPS'">
+      <div class="py-3 flex items-center">
+        <p class="pr-4 w-36">{{ $strings.LabelLongJumpBackwardsTime }}</p>
+        <div @click.stop="showLongJumpBackwardsOptions">
+          <ui-text-input :value="longJumpBackwardsOption" readonly append-icon="expand_more" style="width: 145px; max-width: 145px" />
+        </div>
+      </div>
+      <div class="py-3 flex items-center">
+        <p class="pr-4 w-36">{{ $strings.LabelLongJumpForwardsTime }}</p>
+        <div @click.stop="showLongJumpForwardOptions">
+          <ui-text-input :value="longJumpForwardOption" readonly append-icon="expand_more" style="width: 145px; max-width: 145px" />
+        </div>
+      </div>
+    </template>
     <div class="flex items-center py-3">
       <div class="w-10 flex justify-center" @click="toggleDisableAutoRewind">
         <ui-toggle-switch v-model="settings.disableAutoRewind" @input="saveSettings" />
@@ -205,6 +225,9 @@ export default {
         allowSeekingOnMediaControls: false,
         jumpForwardTime: 10,
         jumpBackwardsTime: 10,
+        longJumpForwardTime: 60,
+        longJumpBackwardsTime: 60,
+        fullscreenOuterControls: 'CHAPTERS',
         enableMp3IndexSeeking: false,
         disableShakeToResetSleepTimer: false,
         shakeSensitivity: 'MEDIUM',
@@ -360,6 +383,22 @@ export default {
     jumpBackwardsSecondsOptions() {
       return this.$store.state.globals.jumpBackwardsSecondsOptions || []
     },
+    fullscreenOuterControlsItems() {
+      return [
+        {
+          text: this.$strings.LabelChapterNavigation,
+          value: 'CHAPTERS'
+        },
+        {
+          text: this.$strings.LabelHidden,
+          value: 'HIDDEN'
+        },
+        {
+          text: this.$strings.LabelLongJumps,
+          value: 'LONG_JUMPS'
+        }
+      ]
+    },
     languageOptionItems() {
       return this.$languageCodeOptions || []
     },
@@ -368,6 +407,15 @@ export default {
     },
     jumpBackwardsOption() {
       return this.getJumpLabel(this.settings.jumpBackwardsTime)
+    },
+    longJumpForwardOption() {
+      return this.getJumpLabel(this.settings.longJumpForwardTime)
+    },
+    longJumpBackwardsOption() {
+      return this.getJumpLabel(this.settings.longJumpBackwardsTime)
+    },
+    fullscreenOuterControlsOption() {
+      return this.fullscreenOuterControlsItems.find((item) => item.value === this.settings.fullscreenOuterControls)?.text || ''
     },
     themeOptionItems() {
       return [
@@ -428,6 +476,7 @@ export default {
       else if (this.moreMenuSetting === 'downloadUsingCellular') return this.downloadUsingCellularItems
       else if (this.moreMenuSetting === 'streamingUsingCellular') return this.streamingUsingCellularItems
       else if (this.moreMenuSetting === 'androidAutoBrowseSeriesSequenceOrder') return this.androidAutoBrowseSeriesSequenceOrderItems
+      else if (this.moreMenuSetting === 'fullscreenOuterControls') return this.fullscreenOuterControlsItems
       else if (this.moreMenuSetting === 'jumpForward')
         return this.jumpForwardSecondsOptions.map((value) => ({
           text: this.getJumpLabel(value),
@@ -438,11 +487,24 @@ export default {
           text: this.getJumpLabel(value),
           value: value
         }))
+      else if (this.moreMenuSetting === 'longJumpForward')
+        return this.jumpForwardSecondsOptions.map((value) => ({
+          text: this.getJumpLabel(value),
+          value: value
+        }))
+      else if (this.moreMenuSetting === 'longJumpBackwards')
+        return this.jumpBackwardsSecondsOptions.map((value) => ({
+          text: this.getJumpLabel(value),
+          value: value
+        }))
       return []
     },
     moreMenuSelected() {
+      if (this.moreMenuSetting === 'fullscreenOuterControls') return this.settings.fullscreenOuterControls
       if (this.moreMenuSetting === 'jumpForward') return this.settings.jumpForwardTime
       if (this.moreMenuSetting === 'jumpBackwards') return this.settings.jumpBackwardsTime
+      if (this.moreMenuSetting === 'longJumpForward') return this.settings.longJumpForwardTime
+      if (this.moreMenuSetting === 'longJumpBackwards') return this.settings.longJumpBackwardsTime
       if (this.moreMenuSetting === 'language') return this.settings.languageCode
       if (this.moreMenuSetting === 'theme') return this.theme
       if (this.moreMenuSetting === 'downloadUsingCellular') return this.settings.downloadUsingCellular
@@ -492,6 +554,18 @@ export default {
       this.moreMenuSetting = 'jumpBackwards'
       this.showMoreMenuDialog = true
     },
+    showLongJumpForwardOptions() {
+      this.moreMenuSetting = 'longJumpForward'
+      this.showMoreMenuDialog = true
+    },
+    showLongJumpBackwardsOptions() {
+      this.moreMenuSetting = 'longJumpBackwards'
+      this.showMoreMenuDialog = true
+    },
+    showFullscreenOuterControlsOptions() {
+      this.moreMenuSetting = 'fullscreenOuterControls'
+      this.showMoreMenuDialog = true
+    },
     showDownloadUsingCellularOptions() {
       this.moreMenuSetting = 'downloadUsingCellular'
       this.showMoreMenuDialog = true
@@ -527,11 +601,20 @@ export default {
       } else if (this.moreMenuSetting === 'androidAutoBrowseSeriesSequenceOrder') {
         this.settings.androidAutoBrowseSeriesSequenceOrder = action
         this.saveSettings()
+      } else if (this.moreMenuSetting === 'fullscreenOuterControls') {
+        this.settings.fullscreenOuterControls = action
+        this.saveSettings()
       } else if (this.moreMenuSetting === 'jumpForward') {
         this.settings.jumpForwardTime = action
         this.saveSettings()
       } else if (this.moreMenuSetting === 'jumpBackwards') {
         this.settings.jumpBackwardsTime = action
+        this.saveSettings()
+      } else if (this.moreMenuSetting === 'longJumpForward') {
+        this.settings.longJumpForwardTime = action
+        this.saveSettings()
+      } else if (this.moreMenuSetting === 'longJumpBackwards') {
+        this.settings.longJumpBackwardsTime = action
         this.saveSettings()
       }
     },
@@ -645,6 +728,9 @@ export default {
       this.settings.allowSeekingOnMediaControls = !!deviceSettings.allowSeekingOnMediaControls
       this.settings.jumpForwardTime = deviceSettings.jumpForwardTime || 10
       this.settings.jumpBackwardsTime = deviceSettings.jumpBackwardsTime || 10
+      this.settings.longJumpForwardTime = deviceSettings.longJumpForwardTime || 60
+      this.settings.longJumpBackwardsTime = deviceSettings.longJumpBackwardsTime || 60
+      this.settings.fullscreenOuterControls = ['CHAPTERS', 'HIDDEN', 'LONG_JUMPS'].includes(deviceSettings.fullscreenOuterControls) ? deviceSettings.fullscreenOuterControls : 'CHAPTERS'
       this.settings.enableMp3IndexSeeking = !!deviceSettings.enableMp3IndexSeeking
 
       this.settings.lockOrientation = deviceSettings.lockOrientation || 'NONE'

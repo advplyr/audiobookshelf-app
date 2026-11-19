@@ -89,6 +89,17 @@ object DeviceManager {
       deviceData.deviceSettings?.androidAutoBrowseSeriesSequenceOrder =
               AndroidAutoBrowseSeriesSequenceOrderSetting.ASC
     }
+    if (deviceData.deviceSettings?.fullscreenOuterControls !in
+                    listOf("CHAPTERS", "HIDDEN", "LONG_JUMPS")
+    ) {
+      deviceData.deviceSettings?.fullscreenOuterControls = "CHAPTERS"
+    }
+    if ((deviceData.deviceSettings?.longJumpBackwardsTime ?: 0) <= 0) {
+      deviceData.deviceSettings?.longJumpBackwardsTime = 60
+    }
+    if ((deviceData.deviceSettings?.longJumpForwardTime ?: 0) <= 0) {
+      deviceData.deviceSettings?.longJumpForwardTime = 60
+    }
   }
 
   /**

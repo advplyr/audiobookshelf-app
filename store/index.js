@@ -71,6 +71,19 @@ export const getters = {
     if (!state.deviceData?.deviceSettings) return 10
     return state.deviceData.deviceSettings.jumpBackwardsTime || 10
   },
+  getLongJumpForwardTime: (state) => {
+    if (!state.deviceData?.deviceSettings) return 60
+    return state.deviceData.deviceSettings.longJumpForwardTime || 60
+  },
+  getLongJumpBackwardsTime: (state) => {
+    if (!state.deviceData?.deviceSettings) return 60
+    return state.deviceData.deviceSettings.longJumpBackwardsTime || 60
+  },
+  getFullscreenOuterControls: (state) => {
+    if (!state.deviceData?.deviceSettings) return 'CHAPTERS'
+    const value = state.deviceData.deviceSettings.fullscreenOuterControls
+    return ['CHAPTERS', 'HIDDEN', 'LONG_JUMPS'].includes(value) ? value : 'CHAPTERS'
+  },
   getAltViewEnabled: (state) => {
     if (!state.deviceData?.deviceSettings) return true
     return state.deviceData.deviceSettings.enableAltView
