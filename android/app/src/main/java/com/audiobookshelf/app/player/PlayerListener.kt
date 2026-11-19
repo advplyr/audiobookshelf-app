@@ -56,6 +56,8 @@ class PlayerListener(var playerNotificationService:PlayerNotificationService) : 
 
     lazyIsPlaying = isPlaying
 
+    if (isPlaying) playerNotificationService.reloadIfAudioFilesChanged()
+
     // Update widget
     DeviceManager.widgetUpdater?.onPlayerChanged(playerNotificationService)
 
