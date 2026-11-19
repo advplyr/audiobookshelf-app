@@ -225,6 +225,8 @@ class MediaManager(private var apiHandler: ApiHandler, var ctx: Context) {
             if (cachedLibraryRecentShelves[libraryId]?.find { it.id == shelf.id } == null) {
               cachedLibraryRecentShelves[libraryId]!!.add(shelf)
             }
+            // Recent shelf items are listed as playable, so onPlayFromMediaId must be able to find them
+            (shelf as LibraryShelfBookEntity).entities?.forEach { addServerLibrary(it) }
           }
           else if (shelf.id == "discover") {
             if (!cachedLibraryDiscovery.containsKey(libraryId)) {
