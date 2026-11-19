@@ -6,6 +6,8 @@
         <p class="truncate text-sm">
           {{ bookmark.title }}
         </p>
+        <p v-if="bookmark.description" class="truncate text-xs text-fg-muted">{{ bookmark.description }}</p>
+        <p v-if="bookmark.pendingSync" class="text-xs text-warning">{{ bookmark.syncConflict ? 'Sync conflict' : 'Waiting to sync' }}</p>
       </div>
       <p class="text-sm font-mono text-fg-muted flex items-center"><span class="material-symbols text-base pl-px pr-1">schedule</span>{{ $secondsToTimestamp(bookmark.time / playbackRate) }}</p>
     </div>

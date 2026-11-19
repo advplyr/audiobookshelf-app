@@ -900,6 +900,15 @@ export default {
       this.$store.commit('user/setUser', user)
       this.$store.commit('user/setAccessToken', serverConnectionConfig.token)
       this.$store.commit('user/setServerConnectionConfig', serverConnectionConfig)
+      try {
+        await this.$store.dispatch('bookmarks/activate', serverConnectionConfig)
+        if (user.oldUserId) await this.$store.dispatch('bookmarks/rememberUserAlias', user.oldUserId)
+        await this.$store.dispatch('bookmarks/receiveServer', user.bookmarks)
+        this.$store.dispatch('bookmarks/sync')
+      } catch (error) {
+        console.error('[bookmarks] Could not load saved bookmarks', error)
+        this.$toast.error('Saved bookmarks could not be loaded')
+      }
 
       this.$socket.connect(this.serverConfig.address, this.serverConfig.token)
       this.$router.replace('/bookshelf')

@@ -256,12 +256,7 @@ export default {
     },
     serverLibraryItemId() {
       if (!this.isLocal) return this.libraryItem.id
-      // Check if local library item is connected to the current server
-      if (!this.libraryItem.serverAddress || !this.libraryItem.libraryItemId) return null
-      if (this.currentServerAddress === this.libraryItem.serverAddress) {
-        return this.libraryItem.libraryItemId
-      }
-      return null
+      return this.$store.getters['bookmarks/accountMatches'](this.libraryItem) ? this.libraryItem.libraryItemId : null
     },
     localLibraryItemServerConnectionConfigId() {
       return this.localLibraryItem?.serverConnectionConfigId
