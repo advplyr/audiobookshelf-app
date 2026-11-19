@@ -1,0 +1,7 @@
+{
+  "id": "user1",
+  "mediaProgress": [
+    { "libraryItemId": "li_book1", "episodeId": null, "currentTime": 100, "progress": 0.28, "isFinished": false, "lastUpdate": 1000 },
+    { "libraryItemId": "li_pod1", "episodeId": "ep_new", "currentTime": 2400, "progress": 1, "isFinished": true, "lastUpdate": 2000 }
+  ]
+}

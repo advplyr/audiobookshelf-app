@@ -1,0 +1,17 @@
+{
+  "id": "li_book1",
+  "libraryId": "lib_books",
+  "mediaType": "book",
+  "media": {
+    "metadata": { "title": "One Word Kill", "authorName": "Mark Lawrence", "seriesName": "Impossible Times #1" },
+    "duration": 360.5,
+    "chapters": [
+      { "id": 0, "start": 0, "end": 120, "title": "Chapter 1" },
+      { "id": 1, "start": 120, "end": 360.5, "title": "Chapter 2" }
+    ],
+    "tracks": [
+      { "index": 1, "ino": "111", "startOffset": 0, "duration": 200, "contentUrl": "/api/items/li_book1/file/111", "mimeType": "audio/mpeg", "metadata": { "ext": ".mp3", "size": 2000 } },
+      { "index": 2, "ino": "222", "startOffset": 200, "duration": 160.5, "contentUrl": "/api/items/li_book1/file/222", "mimeType": "audio/mpeg", "metadata": { "ext": ".mp3", "size": 1600 } }
+    ]
+  }
+}

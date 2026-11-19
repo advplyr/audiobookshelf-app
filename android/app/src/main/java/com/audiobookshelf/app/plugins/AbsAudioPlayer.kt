@@ -208,6 +208,52 @@ class AbsAudioPlayer : Plugin() {
     castManager?.startRouteScan(connListener)
   }
 
+  private fun prepareLocalPlaybackSession(playbackSession: PlaybackSession, playWhenReady: Boolean, playbackRate: Float) {
+    if (playerNotificationService.mediaProgressSyncer.listeningTimerRunning) { // If progress syncing then first stop before preparing next
+      playerNotificationService.mediaProgressSyncer.stop {
+        Log.d(tag, "Media progress syncer was already syncing - stopped")
+        PlayerListener.lazyIsPlaying = false
+
+        Handler(Looper.getMainLooper()).post { // TODO: This was needed again which is probably a design a flaw
+          playerNotificationService.preparePlayer(
+            playbackSession,
+            playWhenReady,
+            playbackRate
+          )
+        }
+      }
+    } else {
+      playerNotificationService.mediaProgressSyncer.reset()
+      playerNotificationService.preparePlayer(playbackSession, playWhenReady, playbackRate)
+    }
+  }
+
+  /**
+   * For a downloaded item linked to the connected server, starts from the server's progress when
+   * it is newer than the progress saved on this phone, and updates the saved copy. Offline or on
+   * error the saved progress is used as before.
+   */
+  private fun useNewerServerProgress(localLibraryItem: LocalLibraryItem, playbackSession: PlaybackSession, cb: () -> Unit) {
+    val serverItemId = localLibraryItem.libraryItemId
+    val isSameServer = localLibraryItem.serverConnectionConfigId != null && localLibraryItem.serverConnectionConfigId == DeviceManager.serverConnectionConfig?.id
+    if (serverItemId.isNullOrEmpty() || !isSameServer || !DeviceManager.checkConnectivity(mainActivity)) return cb()
+
+    apiHandler.getMediaProgress(serverItemId, playbackSession.episodeId, null) { serverProgress ->
+      Handler(Looper.getMainLooper()).post {
+        val localProgress = DeviceManager.dbManager.getLocalMediaProgress(playbackSession.localMediaProgressId)
+        if (serverProgress != null && serverProgress.lastUpdate > (localProgress?.lastUpdate ?: 0L)) {
+          Log.d(tag, "prepareLibraryItem: Server progress is newer, starting at ${serverProgress.currentTime}")
+          playbackSession.currentTime = if (serverProgress.isFinished) 0.0 else serverProgress.currentTime
+          localProgress?.let {
+            it.updateFromServerMediaProgress(serverProgress)
+            DeviceManager.dbManager.saveLocalMediaProgress(it)
+          }
+        }
+        cb()
+      }
+    }
+  }
+
   @PluginMethod
   fun prepareLibraryItem(call: PluginCall) {
     val libraryItemId = call.getString("libraryItemId", "").toString()
@@ -238,30 +284,19 @@ class AbsAudioPlayer : Plugin() {
           return call.resolve(JSObject("{\"error\":\"No audio files found on device. Download book again to fix.\"}"))
         }
 
+        val localLibraryItem = it
         Handler(Looper.getMainLooper()).post {
-          Log.d(tag, "prepareLibraryItem: Preparing Local Media item ${jacksonMapper.writeValueAsString(it)}")
-          val playbackSession = it.getPlaybackSession(episode, playerNotificationService.getDeviceInfo())
+          Log.d(tag, "prepareLibraryItem: Preparing Local Media item ${jacksonMapper.writeValueAsString(localLibraryItem)}")
+          val playbackSession = localLibraryItem.getPlaybackSession(episode, playerNotificationService.getDeviceInfo())
           if (startTimeOverride != null) {
             Log.d(tag, "prepareLibraryItem: Using start time override $startTimeOverride")
             playbackSession.currentTime = startTimeOverride
-          }
-
-          if (playerNotificationService.mediaProgressSyncer.listeningTimerRunning) { // If progress syncing then first stop before preparing next
-            playerNotificationService.mediaProgressSyncer.stop {
-              Log.d(tag, "Media progress syncer was already syncing - stopped")
-              PlayerListener.lazyIsPlaying = false
-
-              Handler(Looper.getMainLooper()).post { // TODO: This was needed again which is probably a design a flaw
-                playerNotificationService.preparePlayer(
-                  playbackSession,
-                  playWhenReady,
-                  playbackRate
-                )
-              }
-            }
+            prepareLocalPlaybackSession(playbackSession, playWhenReady, playbackRate)
           } else {
-            playerNotificationService.mediaProgressSyncer.reset()
-            playerNotificationService.preparePlayer(playbackSession, playWhenReady, playbackRate)
+            // The phone's saved position may be older than progress made on another device (e.g. the watch)
+            useNewerServerProgress(localLibraryItem, playbackSession) {
+              prepareLocalPlaybackSession(playbackSession, playWhenReady, playbackRate)
+            }
           }
         }
         return call.resolve(JSObject())

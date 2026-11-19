@@ -838,6 +838,53 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
     return getNextBookChapter()?.endMs ?: currentPlaybackSession?.getNextTrackEndTime()
   }
 
+  /**
+   * Called when playback resumes after a pause. If the server has progress for this item that is
+   * newer than this phone's last report (e.g. from the watch), seek there so the latest progress
+   * wins instead of being overwritten by this phone's older position.
+   */
+  fun checkServerProgressOnResume() {
+    val session = mediaProgressSyncer.currentPlaybackSession ?: currentPlaybackSession ?: return
+    val libraryItemId = session.libraryItemId
+    if (libraryItemId.isNullOrEmpty() || !DeviceManager.isConnectedToServer || !DeviceManager.checkConnectivity(ctx)) return
+    if (session.isLocal && session.serverConnectionConfigId != DeviceManager.serverConnectionConfig?.id) return
+
+    val mainHandler = Handler(Looper.getMainLooper())
+    mediaProgressSyncer.cancelFreshnessCheck() // supersede any earlier check still in flight
+    mediaProgressSyncer.freshnessCheckPending = true
+    val token = mediaProgressSyncer.freshnessCheckToken
+    // Never hold syncs back for long, even if the server doesn't answer
+    val release = Runnable { if (mediaProgressSyncer.freshnessCheckToken == token) mediaProgressSyncer.cancelFreshnessCheck() }
+    mainHandler.postDelayed(release, 5000L)
+
+    apiHandler.getMediaProgress(libraryItemId, session.episodeId, null) { serverProgress ->
+      mainHandler.post {
+        // Cancelled by pause/stop or timed out: this phone's position has already been reported
+        if (mediaProgressSyncer.freshnessCheckToken != token || !mediaProgressSyncer.freshnessCheckPending) return@post
+        mainHandler.removeCallbacks(release)
+        mediaProgressSyncer.freshnessCheckPending = false
+        val stillSameSession = (mediaProgressSyncer.currentPlaybackSession ?: currentPlaybackSession)?.id == session.id
+        // Timestamps from the server and this phone aren't comparable (different clocks, receipt vs send
+        // time), so identify another device's progress by position: it must differ from every position this
+        // phone recently reported, and have been saved after this session started (not older stale progress)
+        val isFromOtherDevice = serverProgress != null && !mediaProgressSyncer.wasReportedByThisDevice(serverProgress.currentTime) &&
+          serverProgress.lastUpdate > session.startedAt
+        if (serverProgress != null && stillSameSession && !serverProgress.isFinished && isFromOtherDevice &&
+          kotlin.math.abs(serverProgress.currentTime - getCurrentTimeSeconds()) > 2) {
+          AbsLogger.info(tag, "checkServerProgressOnResume: Server has progress from another device, seeking to ${serverProgress.currentTime}s (${session.displayTitle})")
+          mediaProgressSyncer.noteServerTime(serverProgress.currentTime)
+          seekPlayer((serverProgress.currentTime * 1000).toLong())
+          if (session.isLocal) {
+            DeviceManager.dbManager.getLocalMediaProgress(session.localMediaProgressId)?.let { localProgress ->
+              localProgress.updateFromServerMediaProgress(serverProgress)
+              DeviceManager.dbManager.saveLocalMediaProgress(localProgress)
+            }
+          }
+        }
+      }
+    }
+  }
+
   // Called from PlayerListener play event
   // check with server if progress has updated since last play and sync progress update
   fun checkCurrentSessionProgress(seekBackTime: Long): Boolean {

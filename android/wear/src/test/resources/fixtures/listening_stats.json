@@ -1,0 +1,16 @@
+{
+  "totalTime": 66000,
+  "items": {
+    "li_book1": { "id": "li_book1", "timeListening": 633, "mediaMetadata": { "title": "One Word Kill" } }
+  },
+  "days": {
+    "2026-10-10": 3600,
+    "2026-10-09": 1800,
+    "2026-10-08": 600,
+    "2026-10-06": 1200,
+    "2026-10-01": 9000
+  },
+  "dayOfWeek": { "Saturday": 3600, "Friday": 1800 },
+  "today": 3600,
+  "recentSessions": []
+}

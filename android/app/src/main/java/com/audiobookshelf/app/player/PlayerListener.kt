@@ -14,6 +14,9 @@ class PlayerListener(var playerNotificationService:PlayerNotificationService) : 
 
   companion object {
     var lastPauseTime: Long = 0   //ms
+    // Unlike lastPauseTime this isn't reset by seeking, so resuming always checks for newer progress
+    private var pausedAt: Long = 0
+    private const val RESUME_PROGRESS_CHECK_MS = 5000L
     var lazyIsPlaying: Boolean = false
   }
 
@@ -60,6 +63,12 @@ class PlayerListener(var playerNotificationService:PlayerNotificationService) : 
     DeviceManager.widgetUpdater?.onPlayerChanged(playerNotificationService)
 
     if (isPlaying) {
+      // Another device may have listened while we were paused (e.g. resumed from the notification
+      // or headphones after listening on the watch). Check before reporting our position.
+      if (pausedAt > 0 && System.currentTimeMillis() - pausedAt > RESUME_PROGRESS_CHECK_MS) {
+        playerNotificationService.checkServerProgressOnResume()
+      }
+      pausedAt = 0
       Log.d(tag, "SeekBackTime: Player is playing")
       if (lastPauseTime > 0 && DeviceManager.deviceData.deviceSettings?.disableAutoRewind != true) {
         Log.d(tag, "SeekBackTime: playing started now set seek back time $lastPauseTime")
@@ -92,6 +101,7 @@ class PlayerListener(var playerNotificationService:PlayerNotificationService) : 
     } else {
       Log.d(tag, "SeekBackTime: Player not playing set last pause time | playbackState=${player.playbackState}")
       lastPauseTime = System.currentTimeMillis()
+      pausedAt = lastPauseTime
     }
 
     // Start/stop progress sync interval

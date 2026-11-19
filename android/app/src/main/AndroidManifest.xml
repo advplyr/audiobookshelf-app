@@ -100,6 +100,18 @@
             </intent-filter>
         </service>
 
+        <!-- Sign in and server relay requests from the Wear OS app -->
+        <service
+            android:name=".device.WatchListenerService"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.google.android.gms.wearable.CHANNEL_EVENT" />
+                <data
+                    android:host="*"
+                    android:pathPrefix="/abs"
+                    android:scheme="wear" />
+            </intent-filter>
+        </service>
         <service
             android:name=".services.DownloadService"
             android:enabled="true"

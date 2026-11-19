@@ -6,6 +6,7 @@ import android.util.Log
 import com.audiobookshelf.app.MainActivity
 import com.audiobookshelf.app.data.*
 import com.audiobookshelf.app.device.DeviceManager
+import com.audiobookshelf.app.device.WatchSync
 import com.audiobookshelf.app.media.MediaEventManager
 import com.audiobookshelf.app.server.ApiHandler
 import com.audiobookshelf.app.managers.SecureStorage
@@ -178,6 +179,7 @@ class AbsDatabase : Plugin() {
       }
 
       DeviceManager.serverConnectionConfig = serverConnectionConfig
+      WatchSync.publishServerConfig(context, serverConnectionConfig)
       call.resolve(JSObject(jacksonMapper.writeValueAsString(DeviceManager.serverConnectionConfig)))
     }
   }
@@ -197,6 +199,7 @@ class AbsDatabase : Plugin() {
       DeviceManager.dbManager.saveDeviceData(DeviceManager.deviceData)
       if (DeviceManager.serverConnectionConfig?.id == serverConnectionConfigId) {
         DeviceManager.serverConnectionConfig = null
+        WatchSync.publishSignedOut(context)
       }
       call.resolve()
     }
@@ -244,6 +247,7 @@ class AbsDatabase : Plugin() {
       DeviceManager.serverConnectionConfig = null
       DeviceManager.deviceData.lastServerConnectionConfigId = null
       DeviceManager.dbManager.saveDeviceData(DeviceManager.deviceData)
+      WatchSync.publishSignedOut(context)
       call.resolve()
     }
   }
