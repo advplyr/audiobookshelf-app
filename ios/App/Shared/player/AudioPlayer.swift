@@ -738,24 +738,12 @@ class AudioPlayer: NSObject {
             return .success
         }
         
-        commandCenter.nextTrackCommand.isEnabled = true
+        // iOS may prefer track buttons when both track and skip commands are
+        // enabled, so disable track navigation to keep skip arrows visible.
+        commandCenter.nextTrackCommand.isEnabled = false
         commandCenter.nextTrackCommand.removeTarget(nil)
-        commandCenter.nextTrackCommand.addTarget { [weak self] _ in
-            guard let currentTime = self?.getCurrentTime() else {
-                return .commandFailed
-            }
-            self?.seek(currentTime + Double(jumpForwardTime), from: "remote")
-            return .success
-        }
-        commandCenter.previousTrackCommand.isEnabled = true
+        commandCenter.previousTrackCommand.isEnabled = false
         commandCenter.previousTrackCommand.removeTarget(nil)
-        commandCenter.previousTrackCommand.addTarget { [weak self] _ in
-            guard let currentTime = self?.getCurrentTime() else {
-                return .commandFailed
-            }
-            self?.seek(currentTime - Double(jumpBackwardsTime), from: "remote")
-            return .success
-        }
 
         commandCenter.changePlaybackPositionCommand.isEnabled = deviceSettings.allowSeekingOnMediaControls
         commandCenter.changePlaybackPositionCommand.removeTarget(nil)
