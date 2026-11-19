@@ -1,62 +1,65 @@
 <template>
   <div class="w-full py-4 overflow-hidden relative border-b border-border" @click.stop="goToEpisodePage">
-    <div v-if="episode" class="w-full px-1">
-      <div class="flex mb-2">
-        <div class="w-10 min-w-10">
-          <covers-preview-cover :src="$store.getters['globals/getLibraryItemCoverSrcById'](libraryItemId)" :width="40" :book-cover-aspect-ratio="bookCoverAspectRatio" :show-resolution="false" class="md:hidden" />
-        </div>
-        <div class="flex-grow px-2">
-          <div class="flex items-center">
-            <div class="-mt-0.5 mb-0.5" @click.stop>
-              <nuxt-link :to="`/item/${libraryItemId}`" class="text-sm text-fg underline">{{ podcast.metadata.title }}</nuxt-link>
-            </div>
-            <widgets-explicit-indicator v-if="podcast.metadata.explicit" />
+    <div v-if="episode" class="w-full px-1 flex">
+      <covers-preview-cover :src="$store.getters['globals/getLibraryItemCoverSrcById'](libraryItemId)" :width="96" :book-cover-aspect-ratio="bookCoverAspectRatio" :show-resolution="false" class="hidden md:block mr-4" />
+      <div class="flex-grow overflow-hidden">
+        <div class="flex mb-2">
+          <div class="w-10 min-w-10 mr-2 md:hidden">
+            <covers-preview-cover :src="$store.getters['globals/getLibraryItemCoverSrcById'](libraryItemId)" :width="40" :book-cover-aspect-ratio="bookCoverAspectRatio" :show-resolution="false" />
           </div>
-          <p v-if="publishedAt" class="text-xs text-fg-muted">{{ $dateDistanceFromNow(publishedAt) }}</p>
-        </div>
-      </div>
-
-      <p class="text-sm font-semibold">{{ title }}</p>
-
-      <p class="text-sm text-fg episode-subtitle mt-1.5 mb-0.5" v-html="subtitle" />
-
-      <div v-if="episodeNumber || season || episodeType" class="flex pt-2 items-center -mx-0.5">
-        <div v-if="episodeNumber" class="px-2 pt-px pb-0.5 mx-0.5 bg-primary bg-opacity-50 rounded-full text-xs font-light text-fg">{{ $strings.LabelEpisode }} #{{ episodeNumber }}</div>
-        <div v-if="season" class="px-2 pt-px pb-0.5 mx-0.5 bg-primary bg-opacity-50 rounded-full text-xs font-light text-fg">{{ $strings.LabelSeason }} #{{ season }}</div>
-        <div v-if="episodeType" class="px-2 pt-px pb-0.5 mx-0.5 bg-primary bg-opacity-50 rounded-full text-xs font-light text-fg capitalize">{{ episodeType }}</div>
-      </div>
-
-      <div class="flex items-center pt-2">
-        <!-- Play/Pause Button -->
-        <div class="h-9 px-4 border border-border hover:bg-white hover:bg-opacity-10 rounded-full flex items-center justify-center cursor-pointer" :class="userIsFinished ? 'text-fg text-opacity-40' : ''" @click.stop="playClick">
-          <span v-if="!playerIsStartingForThisMedia" class="material-symbols text-2xl fill leading-none" :class="streamIsPlaying ? '' : 'text-success'">
-            {{ streamIsPlaying ? 'pause' : 'play_arrow' }}
-          </span>
-          <svg v-else class="animate-spin" style="width: 22px; height: 22px" viewBox="0 0 24 24">
-            <path fill="currentColor" d="M12,4V2A10,10 0 0,0 2,12H4A8,8 0 0,1 12,4Z" />
-          </svg>
-          <p class="pl-2 pr-1 text-sm font-semibold">{{ timeRemaining }}</p>
+          <div class="flex-grow pr-2">
+            <div class="flex items-center">
+              <div class="-mt-0.5 mb-0.5" @click.stop>
+                <nuxt-link :to="`/item/${libraryItemId}`" class="text-sm text-fg underline">{{ podcast.metadata.title }}</nuxt-link>
+              </div>
+              <widgets-explicit-indicator v-if="podcast.metadata.explicit" />
+            </div>
+            <p v-if="publishedAt" class="text-xs text-fg-muted">{{ $dateDistanceFromNow(publishedAt) }}</p>
+          </div>
         </div>
 
-        <!-- Read Status Button -->
-        <ui-read-icon-btn :disabled="isProcessingReadUpdate" :is-read="userIsFinished" borderless class="mx-1" @click="toggleFinished" />
+        <p class="text-sm font-semibold">{{ title }}</p>
 
-        <!-- Add to Playlist Button -->
-        <button v-if="!isLocal" class="mx-1.5" @click.stop="addToPlaylist">
-          <span class="material-symbols text-2xl leading-none">playlist_add</span>
-        </button>
+        <p class="text-sm text-fg episode-subtitle mt-1.5 mb-0.5" v-html="subtitle" />
 
-        <!-- Download Section -->
-        <div v-if="userCanDownload" class="flex items-center">
-          <span v-if="isLocal" class="material-symbols px-2 text-success text-2xl leading-none">audio_file</span>
-          <span v-else-if="!localEpisode" class="material-symbols mx-1.5 text-2xl leading-none" :class="downloadItem || pendingDownload ? 'animate-bounce text-warning text-opacity-75' : ''" @click.stop="downloadClick">
-            {{ downloadItem || pendingDownload ? 'downloading' : 'download' }}
-          </span>
-          <span v-else class="material-symbols px-2 text-success text-2xl leading-none">download_done</span>
+        <div v-if="episodeNumber || season || episodeType" class="flex pt-2 items-center -mx-0.5">
+          <div v-if="episodeNumber" class="px-2 pt-px pb-0.5 mx-0.5 bg-primary bg-opacity-50 rounded-full text-xs font-light text-fg">{{ $strings.LabelEpisode }} #{{ episodeNumber }}</div>
+          <div v-if="season" class="px-2 pt-px pb-0.5 mx-0.5 bg-primary bg-opacity-50 rounded-full text-xs font-light text-fg">{{ $strings.LabelSeason }} #{{ season }}</div>
+          <div v-if="episodeType" class="px-2 pt-px pb-0.5 mx-0.5 bg-primary bg-opacity-50 rounded-full text-xs font-light text-fg capitalize">{{ episodeType }}</div>
         </div>
 
-        <!-- Spacer to push elements left -->
-        <div class="flex-grow" />
+        <div class="flex items-center pt-2">
+          <!-- Play/Pause Button -->
+          <div class="h-9 px-4 border border-border hover:bg-white hover:bg-opacity-10 rounded-full flex items-center justify-center cursor-pointer" :class="userIsFinished ? 'text-fg text-opacity-40' : ''" @click.stop="playClick">
+            <span v-if="!playerIsStartingForThisMedia" class="material-symbols text-2xl fill leading-none" :class="streamIsPlaying ? '' : 'text-success'">
+              {{ streamIsPlaying ? 'pause' : 'play_arrow' }}
+            </span>
+            <svg v-else class="animate-spin" style="width: 22px; height: 22px" viewBox="0 0 24 24">
+              <path fill="currentColor" d="M12,4V2A10,10 0 0,0 2,12H4A8,8 0 0,1 12,4Z" />
+            </svg>
+            <p class="pl-2 pr-1 text-sm font-semibold">{{ timeRemaining }}</p>
+          </div>
+
+          <!-- Read Status Button -->
+          <ui-read-icon-btn :disabled="isProcessingReadUpdate" :is-read="userIsFinished" borderless class="mx-1" @click="toggleFinished" />
+
+          <!-- Add to Playlist Button -->
+          <button v-if="!isLocal" class="mx-1.5" @click.stop="addToPlaylist">
+            <span class="material-symbols text-2xl leading-none">playlist_add</span>
+          </button>
+
+          <!-- Download Section -->
+          <div v-if="userCanDownload" class="flex items-center">
+            <span v-if="isLocal" class="material-symbols px-2 text-success text-2xl leading-none">audio_file</span>
+            <span v-else-if="!localEpisode" class="material-symbols mx-1.5 text-2xl leading-none" :class="downloadItem || pendingDownload ? 'animate-bounce text-warning text-opacity-75' : ''" @click.stop="downloadClick">
+              {{ downloadItem || pendingDownload ? 'downloading' : 'download' }}
+            </span>
+            <span v-else class="material-symbols px-2 text-success text-2xl leading-none">download_done</span>
+          </div>
+
+          <!-- Spacer to push elements left -->
+          <div class="flex-grow" />
+        </div>
       </div>
     </div>
 
