@@ -40,7 +40,15 @@ data class DownloadItemPart(
   @JsonIgnore var retryCount: Int = 0,
   @JsonIgnore var authRetryCount: Int = 0,
   @JsonIgnore var waitingForSpace: Boolean = false,
-  @JsonIgnore var reusedExistingFile: Boolean = false
+  @JsonIgnore var reusedExistingFile: Boolean = false,
+  /** Earliest wall-clock time (epoch ms) the next attempt may start; the UI shows it as a countdown. */
+  var nextAttemptAt: Long = 0L,
+  /** Validators from the server response, sent as If-Range so a changed file restarts from zero. */
+  @JsonIgnore var etag: String? = null,
+  @JsonIgnore var lastModified: String? = null,
+  @JsonIgnore var finalizeFailureCount: Int = 0,
+  @JsonIgnore var waitingForNetwork: Boolean = false,
+  @JsonIgnore var waitingForWifi: Boolean = false
 ) {
   companion object {
     fun make(downloadItemId:String, filename:String, fileSize: Long, destinationFile: File, finalDestinationFile: File, subfolder:String, serverPath:String, localFolder: LocalFolder, ebookFile: EBookFile?, audioTrack: AudioTrack?, episode: PodcastEpisode?) :DownloadItemPart {
@@ -84,5 +92,20 @@ data class DownloadItemPart(
 
   @get:JsonIgnore
   val isInternalStorage get() = localFolderId.startsWith("internal-")
+
+  /** Status shown by the downloading page. */
+  val status: String
+    get() =
+            when {
+              moved -> "completed"
+              failed -> "failed"
+              isMoving || completed -> "finalizing"
+              waitingForSpace -> "waitingForStorage"
+              waitingForWifi -> "waitingForWifi"
+              waitingForNetwork -> "waitingForNetwork"
+              downloadId != null -> "downloading"
+              nextAttemptAt > System.currentTimeMillis() -> "retrying"
+              else -> "queued"
+            }
 
 }

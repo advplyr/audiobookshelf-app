@@ -679,6 +679,7 @@ export default {
     },
     async startDownload(localFolder = null) {
       const payload = {
+        networkMode: this.downloadNetworkMode,
         libraryItemId: this.libraryItemId
       }
       if (localFolder) {

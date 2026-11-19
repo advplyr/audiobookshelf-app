@@ -303,16 +303,16 @@ export default {
       ],
       downloadUsingCellularItems: [
         {
-          text: this.$strings.LabelAskConfirmation,
+          text: this.$strings.LabelWifiOnly,
+          value: 'NEVER'
+        },
+        {
+          text: this.$strings.LabelAskBeforeUsingMobileData,
           value: 'ASK'
         },
         {
-          text: this.$strings.LabelAlways,
+          text: this.$strings.LabelAllowMobileData,
           value: 'ALWAYS'
-        },
-        {
-          text: this.$strings.LabelNever,
-          value: 'NEVER'
         }
       ],
       streamingUsingCellularItems: [

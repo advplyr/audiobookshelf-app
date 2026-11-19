@@ -21,8 +21,19 @@ data class DownloadItem(
         val media: MediaType,
         val downloadItemParts: MutableList<DownloadItemPart>,
         @JsonIgnore var terminalFailureAt: Long? = null,
-        @JsonIgnore var stagingCleanupAt: Long? = null
+        @JsonIgnore var stagingCleanupAt: Long? = null,
+        /** One of the NETWORK_MODE_* values; null for items queued before modes existed. */
+        @JsonIgnore var networkMode: String? = null
 ) {
+  companion object {
+    /** May use metered networks. */
+    const val NETWORK_MODE_CELLULAR = "cellular"
+    /** Started on Wi-Fi in "ask first" mode: pauses on metered networks and asks to continue. */
+    const val NETWORK_MODE_WIFI_PREFERRED = "wifiPreferred"
+    /** The user chose to wait for Wi-Fi: pauses on metered networks without asking. */
+    const val NETWORK_MODE_WIFI_ONLY = "wifiOnly"
+  }
+
   @get:JsonIgnore
   val isInternalStorage
     get() = localFolder.id.startsWith("internal-")
@@ -34,12 +45,12 @@ data class DownloadItem(
     }
 
   @JsonIgnore
-  fun getNextDownloadItemParts(limit: Int): MutableList<DownloadItemPart> {
+  fun getNextDownloadItemParts(limit: Int, now: Long): MutableList<DownloadItemPart> {
     val itemParts = mutableListOf<DownloadItemPart>()
-    if (limit == 0) return itemParts
+    if (limit <= 0) return itemParts
 
     for (it in downloadItemParts) {
-      if (!it.completed && !it.failed && it.downloadId == null) {
+      if (!it.completed && !it.failed && it.downloadId == null && it.nextAttemptAt <= now) {
         itemParts.add(it)
         if (itemParts.size >= limit) break
       }

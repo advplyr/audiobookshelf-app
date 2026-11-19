@@ -5,6 +5,7 @@ import android.net.Uri
 import android.os.StatFs
 import androidx.documentfile.provider.DocumentFile
 import com.anggrayudi.storage.file.fullName
+import com.audiobookshelf.app.data.DownloadUsingCellularSetting
 import com.audiobookshelf.app.device.DeviceManager
 import com.audiobookshelf.app.device.FolderScanner
 import com.audiobookshelf.app.models.DownloadItem
@@ -18,6 +19,7 @@ import java.io.File
 import java.io.FileInputStream
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.math.max
+import kotlin.random.Random
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -25,7 +27,13 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-/** Manages the process-owned queue for app-managed downloads. */
+/**
+ * Manages the process-owned queue for app-managed downloads.
+ *
+ * Transfers resume from their staging file after any interruption (network loss, stall, app
+ * restart) and keep retrying with backoff until they finish, the user cancels, or the server
+ * reports an error that retrying cannot fix.
+ */
 class DownloadItemManager(
         private val folderScanner: FolderScanner,
         private val context: Context,
@@ -34,14 +42,22 @@ class DownloadItemManager(
   private val tag = "DownloadItemManager"
   private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
   private val activeCalls = ConcurrentHashMap<String, InternalDownloadManager.DownloadHandle>()
+  /** Attempt id per active part; callbacks from any other attempt are stale and ignored. */
+  private val activeAttempts = ConcurrentHashMap<String, Long>()
+  private val attemptStartBytes = ConcurrentHashMap<String, Long>()
+  private var lastAttemptId = 0L
   private val safFolderLocks = ConcurrentHashMap<String, Any>()
   private val scanLocks = ConcurrentHashMap<String, Any>()
   private val reservations = mutableMapOf<String, Long>()
   private val lastPersistTime = mutableMapOf<String, Long>()
   private val finalizingItems = mutableSetOf<String>()
   private val refreshingServerIds = mutableSetOf<String>()
-  private val apiHandler = ApiHandler(context)
+  // Only needed after a 401; it opens the keystore, so create it on first use
+  private val apiHandler by lazy { ApiHandler(context) }
   private var watcherRunning = false
+  private var paused = false
+  private var lastNeedsCpu: Boolean? = null
+  private var lastCellularApproval: Int? = null
   private val jacksonMapper =
           jacksonObjectMapper()
                   .enable(JsonReadFeature.ALLOW_UNESCAPED_CONTROL_CHARS.mappedFeature())
@@ -51,17 +67,28 @@ class DownloadItemManager(
   var currentDownloadItemParts: MutableList<DownloadItemPart> = mutableListOf()
     private set
 
+  // Declared after every field onNetworkChanged reads: its callback can fire on the
+  // ConnectivityThread as soon as it registers, before the constructor finishes.
+  private val networkMonitor = DownloadNetworkMonitor(context) { onNetworkChanged() }
+  private var wasConnected = networkMonitor.isConnected
+
   interface DownloadEventEmitter {
     fun onDownloadItem(downloadItem: DownloadItem)
     fun onDownloadItemPartUpdate(downloadItemPart: DownloadItemPart)
     fun onDownloadItemComplete(jsobj: JSObject)
     fun onQueueChanged(hasWork: Boolean)
+    /** True while a transfer is running or due soon, so the device must stay awake. */
+    fun onNeedsCpuChanged(needsCpu: Boolean) {}
+    /** Number of Wi-Fi preferred downloads paused on a metered network, waiting for approval. */
+    fun onCellularApprovalChanged(waitingItems: Int) {}
   }
 
   interface InternalProgressCallback {
     fun onSizeResolved(totalBytes: Long)
+    fun onValidatorResolved(etag: String?, lastModified: String?)
     fun onProgress(totalBytesWritten: Long, progress: Long)
     fun onComplete(failed: Boolean)
+    fun onPermanentFailure(reason: String)
     fun onAuthError()
   }
 
@@ -91,19 +118,12 @@ class DownloadItemManager(
         checkDownloadItemFinished(item)
         return@forEach
       }
-      var resetFailed = false
-      item.downloadItemParts.forEach { part ->
-        if (part.moved) return@forEach
-        if (!resetPartForFreshDownload(part)) resetFailed = true
-      }
-      if (resetFailed) {
-        item.terminalFailureAt = item.terminalFailureAt ?: System.currentTimeMillis()
-        item.stagingCleanupAt = null
-      }
+      item.downloadItemParts.filter { !it.moved }.forEach(::prepareForResume)
       if (item.terminalFailureAt != null) {
         item.downloadItemParts.filter { !it.moved }.forEach { it.failed = true }
       }
       downloadItemQueue.add(item)
+      persist(item, force = true)
       if (item.terminalFailureAt != null) IncompleteDownloadCleanup.schedule(context, item)
       clientEventEmitter.onDownloadItem(item)
     }
@@ -116,27 +136,22 @@ class DownloadItemManager(
     if (existingItem != null) {
       return
     }
+    if (downloadItem.networkMode == null) downloadItem.networkMode = defaultNetworkMode()
     persist(downloadItem, force = true)
     downloadItemQueue.add(downloadItem)
     clientEventEmitter.onDownloadItem(downloadItem)
     notifyQueueChanged()
   }
 
+  /** Retries a failed or waiting item immediately, keeping any bytes already downloaded. */
   @Synchronized
-  fun retryDownloadItem(downloadItemId: String): Boolean {
+  fun retryDownloadItem(downloadItemId: String, networkMode: String?): Boolean {
     val item = downloadItemQueue.find { it.id == downloadItemId } ?: return false
     if (item.downloadItemParts.any { it in currentDownloadItemParts }) return false
-    if (item.isDownloadFinished) return false
+    if (item.isDownloadFinished || item.id in finalizingItems) return false
     synchronized(IncompleteDownloadCleanup) {
-      var resetFailed = false
-      item.downloadItemParts.filter { !it.moved }.forEach { part ->
-        if (!resetPartForFreshDownload(part)) resetFailed = true
-      }
-      if (resetFailed) {
-        item.downloadItemParts.filter { !it.moved }.forEach { it.failed = true }
-        persist(item, force = true)
-        return false
-      }
+      item.downloadItemParts.filter { !it.moved }.forEach(::prepareForResume)
+      item.networkMode = networkMode ?: defaultNetworkMode()
       item.terminalFailureAt = null
       item.stagingCleanupAt = null
       IncompleteDownloadCleanup.cancel(context, item.id)
@@ -147,42 +162,108 @@ class DownloadItemManager(
     return true
   }
 
+  /** Skips the retry backoff for an item's waiting parts. Returns false if nothing was backing off. */
+  @Synchronized
+  fun retryNow(downloadItemId: String): Boolean {
+    val item = downloadItemQueue.find { it.id == downloadItemId } ?: return false
+    val now = System.currentTimeMillis()
+    val backingOff =
+            item.downloadItemParts.filter { !it.moved && !it.failed && it.downloadId == null && it.nextAttemptAt > now }
+    if (backingOff.isEmpty()) return false
+    AbsLogger.info(tag, "Retrying ${item.id} now, skipping backoff")
+    backingOff.forEach { part ->
+      part.nextAttemptAt = 0L
+      clientEventEmitter.onDownloadItemPartUpdate(part)
+    }
+    persist(item, force = true)
+    checkUpdateDownloadQueue()
+    return true
+  }
+
   @Synchronized
   fun resumeWork() {
+    paused = false
     checkUpdateDownloadQueue()
     notifyQueueChanged()
   }
 
+  /**
+   * Stops transfers without discarding progress, e.g. when Android ends the foreground service.
+   * Staging files are kept, so [resumeWork] continues from the bytes already on disk.
+   */
+  @Synchronized
+  fun pause() {
+    paused = true
+    currentDownloadItemParts.toList().forEach { part ->
+      if (part.isMoving) return@forEach
+      activeCalls[part.id]?.cancel()
+      removeActivePart(part)
+      reservations.remove(part.destinationPath)
+      part.downloadId = null
+      part.lastUpdateTime = System.currentTimeMillis()
+      downloadItemQueue.find { it.id == part.downloadItemId }?.let { persist(it, force = true) }
+      clientEventEmitter.onDownloadItemPartUpdate(part)
+    }
+    AbsLogger.info(tag, "Downloads paused")
+    updateNeedsCpu()
+  }
+
+  /** Cancels one download item and removes everything it wrote. */
+  @Synchronized
+  fun cancelDownloadItem(downloadItemId: String): Boolean {
+    val item = downloadItemQueue.find { it.id == downloadItemId } ?: return false
+    if (item.id in finalizingItems) return false
+    AbsLogger.info(tag, "Cancelling download ${item.id}")
+    discardItem(item)
+    notifyQueueChanged()
+    updateNeedsCpu()
+    updateCellularApproval()
+    return true
+  }
+
   @Synchronized
   fun cancelAll() {
-    activeCalls.values.forEach(InternalDownloadManager.DownloadHandle::cancel)
-    activeCalls.clear()
-    downloadItemQueue.forEach { item ->
-      item.downloadItemParts.forEach { part ->
-        File(part.destinationPath).delete()
-        if (part.moved && !part.reusedExistingFile && part.isInternalStorage) {
-          File(part.finalDestinationPath).delete()
-        } else if (part.moved && !part.reusedExistingFile) {
-          part.completedDestinationUri?.let { uri ->
-            try {
-              DocumentFile.fromSingleUri(context, Uri.parse(uri))?.delete()
-            } catch (e: Exception) {
-              AbsLogger.error(
-                      tag,
-                      "Could not delete cancelled SAF file ${part.filename}: ${e.message}"
-              )
-            }
-          }
-        }
-      }
-      IncompleteDownloadCleanup.cancel(context, item.id)
-      DeviceManager.dbManager.removeDownloadItem(item.id)
+    AbsLogger.info(tag, "Cancelling all downloads")
+    downloadItemQueue.toList().forEach { item ->
+      if (item.id !in finalizingItems) discardItem(item)
     }
-    currentDownloadItemParts.clear()
     reservations.clear()
-    downloadItemQueue.clear()
     notifyQueueChanged()
+    updateNeedsCpu()
+    updateCellularApproval()
   }
+
+  private fun discardItem(item: DownloadItem) {
+    item.downloadItemParts.forEach { part ->
+      if (part in currentDownloadItemParts) {
+        activeCalls[part.id]?.cancel()
+        removeActivePart(part)
+      }
+      reservations.remove(part.destinationPath)
+      File(part.destinationPath).delete()
+      if (part.moved && !part.reusedExistingFile) deleteFinalizedFile(part)
+    }
+    downloadItemQueue.removeAll { it === item }
+    lastPersistTime.remove(item.id)
+    IncompleteDownloadCleanup.cancel(context, item.id)
+    DeviceManager.dbManager.removeDownloadItem(item.id)
+  }
+
+  private fun deleteFinalizedFile(part: DownloadItemPart) {
+    if (part.isInternalStorage) {
+      File(part.finalDestinationPath).delete()
+      return
+    }
+    part.completedDestinationUri?.let { uri ->
+      try {
+        DocumentFile.fromSingleUri(context, Uri.parse(uri))?.delete()
+      } catch (e: Exception) {
+        AbsLogger.error(tag, "Could not delete cancelled SAF file ${part.filename}: ${e.message}")
+      }
+    }
+  }
+
+  private fun isQueued(item: DownloadItem): Boolean = downloadItemQueue.any { it === item }
 
   @Synchronized
   fun hasWork(): Boolean =
@@ -193,9 +274,164 @@ class DownloadItemManager(
                     }
                   }
 
+  /**
+   * True while a transfer runs or is due within [CPU_HOLD_BEFORE_RETRY_MS]. Waiting on the
+   * network or storage, or a long retry backoff, needs no CPU: the network callback wakes the
+   * queue, and a long backoff simply retries on the device's next wake instead of holding a wake
+   * lock for minutes against an unreachable server.
+   */
+  @Synchronized
+  private fun needsCpu(): Boolean {
+    if (paused) return false
+    if (currentDownloadItemParts.isNotEmpty() || finalizingItems.isNotEmpty()) return true
+    val now = System.currentTimeMillis()
+    return downloadItemQueue.any { item ->
+      item.downloadItemParts.any { part ->
+        !part.moved &&
+                !part.failed &&
+                !part.waitingForNetwork &&
+                !part.waitingForWifi &&
+                !part.waitingForSpace &&
+                part.nextAttemptAt - now <= CPU_HOLD_BEFORE_RETRY_MS
+      }
+    }
+  }
+
+  /** Re-sends the current state, e.g. to a freshly started service. */
+  @Synchronized
+  fun refreshNeedsCpu() {
+    lastNeedsCpu = null
+    lastCellularApproval = null
+    updateNeedsCpu()
+    updateCellularApproval()
+  }
+
+  @Synchronized
+  private fun updateNeedsCpu() {
+    val needsCpu = needsCpu()
+    if (needsCpu == lastNeedsCpu) return
+    lastNeedsCpu = needsCpu
+    clientEventEmitter.onNeedsCpuChanged(needsCpu)
+  }
+
+  /**
+   * Mode for a download the user just started without choosing one. The frontend only starts a
+   * download on a metered network once the policy or the user allowed it.
+   */
+  private fun defaultNetworkMode(): String = DownloadNetworkPolicy.defaultMode(networkMonitor.isMetered)
+
+  /** Lets a download use metered networks, from the notification (all paused) or the UI (one item). */
+  @Synchronized
+  fun allowCellular(downloadItemId: String?) {
+    downloadItemQueue
+            .filter {
+              if (downloadItemId != null) it.id == downloadItemId
+              else it.networkMode != DownloadItem.NETWORK_MODE_WIFI_ONLY && it.networkMode != DownloadItem.NETWORK_MODE_CELLULAR
+            }
+            .forEach { item ->
+              AbsLogger.info(tag, "Allowing mobile data for ${item.id}")
+              item.networkMode = DownloadItem.NETWORK_MODE_CELLULAR
+              item.downloadItemParts.forEach { if (!it.moved && !it.failed) it.nextAttemptAt = 0L }
+              persist(item, force = true)
+            }
+    checkUpdateDownloadQueue()
+  }
+
+  private fun cellularSetting(): DownloadUsingCellularSetting =
+          try {
+            DeviceManager.deviceData.deviceSettings?.downloadUsingCellular
+          } catch (e: Exception) {
+            null
+          }
+                  ?: DownloadUsingCellularSetting.ALWAYS
+
+  private fun networkBlock(item: DownloadItem): DownloadNetworkPolicy.Block? =
+          DownloadNetworkPolicy.block(
+                  cellularSetting(), networkMonitor.isConnected, networkMonitor.isMetered, item.networkMode)
+
+  private fun hasPendingParts(item: DownloadItem): Boolean =
+          item.downloadItemParts.any { !it.moved && !it.failed && !it.completed }
+
+  @Synchronized
+  private fun updateCellularApproval() {
+    val setting = cellularSetting()
+    val waitingItems =
+            downloadItemQueue.count {
+              hasPendingParts(it) &&
+                      DownloadNetworkPolicy.needsCellularApproval(
+                              setting, networkMonitor.isConnected, networkMonitor.isMetered, it.networkMode)
+            }
+    if (waitingItems == lastCellularApproval) return
+    lastCellularApproval = waitingItems
+    clientEventEmitter.onCellularApprovalChanged(waitingItems)
+  }
+
+  /** Marks queued parts as waiting on the network so the UI and notification can say why. */
+  private fun markNetworkWait(item: DownloadItem, block: DownloadNetworkPolicy.Block?) {
+    item.downloadItemParts
+            .filter { !it.moved && !it.failed && !it.completed && it !in currentDownloadItemParts }
+            .forEach { part ->
+              val waitingForNetwork = block == DownloadNetworkPolicy.Block.OFFLINE
+              val waitingForWifi = block == DownloadNetworkPolicy.Block.WIFI_REQUIRED
+              if (part.waitingForNetwork == waitingForNetwork && part.waitingForWifi == waitingForWifi)
+                      return@forEach
+              part.waitingForNetwork = waitingForNetwork
+              part.waitingForWifi = waitingForWifi
+              clientEventEmitter.onDownloadItemPartUpdate(part)
+            }
+  }
+
+  /**
+   * Stops transfers the current network may not carry, and retries everything immediately once a
+   * usable network returns. Neither counts as a failed attempt.
+   */
+  @Synchronized
+  private fun onNetworkChanged() {
+    val now = System.currentTimeMillis()
+    // Failures while offline were caused by the outage, so retry those now. Other changes
+    // (metered flips, handovers) keep the backoff so a flaky link cannot hammer the server.
+    val reconnected = networkMonitor.isConnected && !wasConnected
+    wasConnected = networkMonitor.isConnected
+    downloadItemQueue.toList().forEach { item ->
+      val block = networkBlock(item)
+      if (block == null) {
+        if (reconnected) {
+          item.downloadItemParts
+                  .filter { !it.moved && !it.failed && it.nextAttemptAt > now }
+                  .forEach {
+                    it.nextAttemptAt = 0L
+                    clientEventEmitter.onDownloadItemPartUpdate(it)
+                  }
+        }
+        return@forEach
+      }
+      item.downloadItemParts.filter { it in currentDownloadItemParts && !it.completed && !it.isMoving }.forEach { part ->
+        AbsLogger.info(tag, "Pausing ${part.filename}: ${if (block == DownloadNetworkPolicy.Block.OFFLINE) "offline" else "Wi-Fi required"}")
+        activeCalls[part.id]?.cancel()
+        removeActivePart(part)
+        reservations.remove(part.destinationPath)
+        part.downloadId = null
+        part.lastUpdateTime = now
+        persist(item, force = true)
+      }
+      markNetworkWait(item, block)
+    }
+    checkUpdateDownloadQueue()
+  }
+
+  /**
+   * Fills up to MAX_SIMULTANEOUS_DOWNLOADS transfer slots in queue order. Only running transfers
+   * hold a slot: an item blocked by the network policy is skipped before it takes one, so items
+   * allowed on the current network are never stuck behind items waiting for Wi-Fi.
+   */
   @Synchronized
   private fun checkUpdateDownloadQueue() {
+    if (paused) return
+    val now = System.currentTimeMillis()
     downloadItemQueue.toList().forEach { item ->
+      // Label every item, including those that will not get a slot this pass.
+      val block = networkBlock(item)
+      markNetworkWait(item, block)
       var slots = MAX_SIMULTANEOUS_DOWNLOADS - currentDownloadItemParts.size
       if (slots <= 0) return@forEach
       item.downloadItemParts
@@ -213,9 +449,10 @@ class DownloadItemManager(
                 currentDownloadItemParts.add(part)
                 part.downloadId = APP_MANAGED_DOWNLOAD_ID
               }
+      if (block != null) return@forEach
       slots = MAX_SIMULTANEOUS_DOWNLOADS - currentDownloadItemParts.size
       if (slots <= 0) return@forEach
-      item.getNextDownloadItemParts(slots).forEach { part ->
+      item.getNextDownloadItemParts(slots, now).forEach { part ->
         val existingFile = findSharedStorageFile(part)
         if (existingFile != null) {
           part.bytesDownloaded = existingFile.length()
@@ -241,16 +478,24 @@ class DownloadItemManager(
         }
       }
     }
+    updateNeedsCpu()
+    updateCellularApproval()
     if (hasWork()) startWatchingDownloads() else notifyQueueChanged()
   }
 
   private fun startDownload(item: DownloadItem, part: DownloadItemPart) {
     val stagingFile = File(part.destinationPath)
     stagingFile.parentFile?.mkdirs()
+    val attemptId = ++lastAttemptId
+    fun isCurrent() = activeAttempts[part.id] == attemptId
     part.downloadId = APP_MANAGED_DOWNLOAD_ID
     part.waitingForSpace = false
+    part.waitingForNetwork = false
+    part.waitingForWifi = false
     part.lastUpdateTime = System.currentTimeMillis()
     currentDownloadItemParts.add(part)
+    activeAttempts[part.id] = attemptId
+    attemptStartBytes[part.id] = stagingFile.takeIf(File::exists)?.length() ?: 0L
     persist(item, force = true)
     AbsLogger.info(tag, "Starting download for ${part.filename}")
     val activeConfig = DeviceManager.serverConnectionConfig
@@ -259,14 +504,18 @@ class DownloadItemManager(
             else
                     DeviceManager.getServerConnectionConfig(item.serverConnectionConfigId)?.token
                             ?: DeviceManager.token
+    // Callbacks run on OkHttp threads and wait for this method's lock, so the handle is registered
+    // before any of them can observe the attempt.
     val handle =
             InternalDownloadManager(
                             stagingFile,
                             part.fileSize,
+                            part.etag,
+                            part.lastModified,
                             object : InternalProgressCallback {
                               override fun onSizeResolved(totalBytes: Long) {
                                 synchronized(this@DownloadItemManager) {
-                                  if (part !in currentDownloadItemParts || totalBytes < 0L) return
+                                  if (!isCurrent() || totalBytes < 0L) return
                                   if (part.fileSize == totalBytes) return
                                   AbsLogger.info(
                                           tag,
@@ -279,9 +528,19 @@ class DownloadItemManager(
                                 }
                               }
 
+                              override fun onValidatorResolved(etag: String?, lastModified: String?) {
+                                synchronized(this@DownloadItemManager) {
+                                  if (!isCurrent()) return
+                                  if (part.etag == etag && part.lastModified == lastModified) return
+                                  part.etag = etag
+                                  part.lastModified = lastModified
+                                  persist(item, force = true)
+                                }
+                              }
+
                               override fun onProgress(totalBytesWritten: Long, progress: Long) {
                                 synchronized(this@DownloadItemManager) {
-                                  if (part !in currentDownloadItemParts) return
+                                  if (!isCurrent()) return
                                   part.bytesDownloaded = totalBytesWritten
                                   part.progress = progress
                                   part.lastUpdateTime = System.currentTimeMillis()
@@ -291,7 +550,7 @@ class DownloadItemManager(
 
                               override fun onComplete(failed: Boolean) {
                                 synchronized(this@DownloadItemManager) {
-                                  if (part !in currentDownloadItemParts) return
+                                  if (!isCurrent()) return
                                   part.failed = failed
                                   part.completed = !failed
                                   part.lastUpdateTime = System.currentTimeMillis()
@@ -300,9 +559,16 @@ class DownloadItemManager(
                                 }
                               }
 
+                              override fun onPermanentFailure(reason: String) {
+                                synchronized(this@DownloadItemManager) {
+                                  if (!isCurrent()) return
+                                  markTerminalFailure(item, part, reason)
+                                }
+                              }
+
                               override fun onAuthError() {
                                 synchronized(this@DownloadItemManager) {
-                                  if (part !in currentDownloadItemParts) return
+                                  if (!isCurrent()) return
                                   handleAuthError(item, part)
                                 }
                               }
@@ -310,7 +576,7 @@ class DownloadItemManager(
                             { hasAvailableSpace(part) }
                     )
                     .download(serverUrl(item, part), token)
-    if (part in currentDownloadItemParts && !part.completed && !part.failed) {
+    if (isCurrent() && !part.completed && !part.failed) {
       activeCalls[part.id] = handle
     }
   }
@@ -326,7 +592,7 @@ class DownloadItemManager(
         activeParts.forEach(::handlePartUpdate)
         synchronized(this@DownloadItemManager) {
           checkUpdateDownloadQueue()
-          if (!hasWork()) {
+          if (paused || !hasWork()) {
             watcherRunning = false
             notifyQueueChanged()
             return@launch
@@ -361,21 +627,50 @@ class DownloadItemManager(
     if (part.isInternalStorage) finalizeInternalFile(item, part) else moveDownloadedFile(item, part)
   }
 
+  /**
+   * Schedules another attempt with exponential backoff. Transfer failures never become terminal;
+   * the backoff resets whenever an attempt made progress, and failures while offline are not
+   * counted. Finalization failures (moving the finished file into place) are capped, since they
+   * usually mean the destination is unusable.
+   */
   @Synchronized
-  private fun failOrRetry(item: DownloadItem, part: DownloadItemPart, reason: String) {
+  private fun failOrRetry(
+          item: DownloadItem,
+          part: DownloadItemPart,
+          reason: String,
+          isFinalizationFailure: Boolean = false
+  ) {
+    val startBytes = attemptStartBytes[part.id]
+    val madeProgress = startBytes != null && part.bytesDownloaded > startBytes
     removeActivePart(part)
-    part.retryCount += 1
     reservations.remove(part.destinationPath)
-    if (part.retryCount > MAX_RETRIES) {
-      markTerminalFailure(item, part, "$reason after $MAX_RETRIES retries")
-      return
+    if (!isQueued(item)) return
+    if (isFinalizationFailure) {
+      part.finalizeFailureCount += 1
+      if (part.finalizeFailureCount > MAX_FINALIZE_RETRIES) {
+        markTerminalFailure(item, part, "$reason after $MAX_FINALIZE_RETRIES retries")
+        return
+      }
     }
+    if (madeProgress) part.retryCount = 0
+    if (networkMonitor.isConnected) part.retryCount += 1
+    val delayMs = retryDelayMs(part.retryCount)
+    part.nextAttemptAt = System.currentTimeMillis() + delayMs
+    AbsLogger.info(tag, "$reason: ${part.filename}; retrying in ${delayMs / 1000}s (attempt ${part.retryCount})")
     part.failed = false
     part.completed = false
     part.downloadId = null
     part.isMoving = false
     persist(item, force = true)
     clientEventEmitter.onDownloadItemPartUpdate(part)
+  }
+
+  private fun retryDelayMs(retryCount: Int): Long {
+    if (retryCount <= 0) return 0L
+    val exponential = RETRY_BASE_DELAY_MS shl (retryCount - 1).coerceAtMost(16)
+    val capped = exponential.coerceAtMost(RETRY_MAX_DELAY_MS)
+    // Jitter keeps parallel parts from retrying in lockstep.
+    return (capped * Random.nextDouble(0.8, 1.2)).toLong()
   }
 
   /** A 401 refreshes the token for this queued item's server without consuming transfer retries. */
@@ -417,12 +712,12 @@ class DownloadItemManager(
             checkUpdateDownloadQueue()
           }
           ApiHandler.RefreshResult.Rejected -> failParkedAuthParts(serverConnectionConfigId)
-          // Parked parts are still queued, so MAX_AUTH_RETRIES bounds the reattempts.
           ApiHandler.RefreshResult.Transient -> {
             AbsLogger.info(
                     tag,
-                    "Token refresh could not be completed; retrying downloads for $serverConnectionConfigId"
+                    "Token refresh could not be completed; retrying downloads for $serverConnectionConfigId later"
             )
+            deferParkedAuthParts(serverConnectionConfigId)
             checkUpdateDownloadQueue()
           }
         }
@@ -430,21 +725,34 @@ class DownloadItemManager(
     }
   }
 
+  private fun parkedAuthParts(serverConnectionConfigId: String): List<Pair<DownloadItem, DownloadItemPart>> =
+          downloadItemQueue.filter { it.serverConnectionConfigId == serverConnectionConfigId }.flatMap { item ->
+            item.downloadItemParts
+                    .filter {
+                      it.authRetryCount > 0 &&
+                              !it.completed &&
+                              !it.failed &&
+                              it.downloadId == null &&
+                              it !in currentDownloadItemParts
+                    }
+                    .map { item to it }
+          }
+
   @Synchronized
   private fun failParkedAuthParts(serverConnectionConfigId: String) {
-    downloadItemQueue.toList().forEach { item ->
-      if (item.serverConnectionConfigId != serverConnectionConfigId) return@forEach
-      item.downloadItemParts
-              .filter {
-                it.authRetryCount > 0 &&
-                        !it.completed &&
-                        !it.failed &&
-                        it.downloadId == null &&
-                        it !in currentDownloadItemParts
-              }
-              .forEach { part ->
-                markTerminalFailure(item, part, "Unable to refresh download authorization")
-              }
+    parkedAuthParts(serverConnectionConfigId).forEach { (item, part) ->
+      markTerminalFailure(item, part, "Unable to refresh download authorization")
+    }
+  }
+
+  /** A refresh that failed for network reasons says nothing about the token, so back off and try again. */
+  @Synchronized
+  private fun deferParkedAuthParts(serverConnectionConfigId: String) {
+    parkedAuthParts(serverConnectionConfigId).forEach { (item, part) ->
+      part.authRetryCount = (part.authRetryCount - 1).coerceAtLeast(0)
+      if (networkMonitor.isConnected) part.retryCount += 1
+      part.nextAttemptAt = System.currentTimeMillis() + retryDelayMs(part.retryCount)
+      persist(item, force = true)
     }
   }
 
@@ -453,6 +761,7 @@ class DownloadItemManager(
     AbsLogger.error(tag, "$reason: ${part.filename}")
     removeActivePart(part)
     reservations.remove(part.destinationPath)
+    if (!isQueued(item)) return
     part.failed = true
     part.completed = false
     part.downloadId = null
@@ -465,8 +774,10 @@ class DownloadItemManager(
     notifyQueueChanged()
   }
 
+  /** Runs under the manager lock so a cancel cannot land between the rename and completePart. */
+  @Synchronized
   private fun finalizeInternalFile(item: DownloadItem, part: DownloadItemPart) {
-    if (part.moved || part.isMoving) return
+    if (part.moved || part.isMoving || !isQueued(item)) return
     part.isMoving = true
     val stagingFile = File(part.destinationPath)
     val finalFile = File(part.finalDestinationPath)
@@ -486,7 +797,7 @@ class DownloadItemManager(
     } catch (e: Exception) {
       part.isMoving = false
       part.failed = true
-      failOrRetry(item, part, e.message ?: "Internal finalization failed")
+      failOrRetry(item, part, e.message ?: "Internal finalization failed", isFinalizationFailure = true)
     }
   }
 
@@ -518,6 +829,10 @@ class DownloadItemManager(
         }
         if (temporary.length() != staging.length())
                 throw IllegalStateException("SAF copy size mismatch")
+        if (synchronized(this@DownloadItemManager) { !isQueued(item) }) {
+          temporary.delete()
+          return@launch
+        }
         val existing = findDocumentByFilename(folder, part)
         if (existing != null && !existing.delete())
                 throw IllegalStateException("Could not replace existing file")
@@ -531,7 +846,14 @@ class DownloadItemManager(
         if (!staging.delete()) AbsLogger.error(tag, "Could not remove staging file ${staging.name}")
         part.completedDestinationUri = destination.uri.toString()
         AbsLogger.info(tag, "Move completed for ${part.filename} to ${destination.uri}")
-        completePart(item, part)
+        synchronized(this@DownloadItemManager) {
+          // Cancelled while the copy was finishing: remove what the copy produced.
+          if (!isQueued(item)) {
+            destination.delete()
+            return@launch
+          }
+          completePart(item, part)
+        }
       } catch (e: Exception) {
         failFinalization(item, part, "SAF copy failed: ${e.message}")
       }
@@ -543,7 +865,7 @@ class DownloadItemManager(
     AbsLogger.error(tag, message)
     part.isMoving = false
     part.failed = true
-    failOrRetry(item, part, message)
+    failOrRetry(item, part, message, isFinalizationFailure = true)
   }
 
   @Synchronized
@@ -552,8 +874,11 @@ class DownloadItemManager(
     part.completed = true
     part.failed = false
     part.isMoving = false
+    part.waitingForNetwork = false
+    part.waitingForWifi = false
     reservations.remove(part.destinationPath)
     removeActivePart(part)
+    if (!isQueued(item)) return
     persist(item, force = true)
     checkDownloadItemFinished(item)
   }
@@ -592,6 +917,7 @@ class DownloadItemManager(
         synchronized(this@DownloadItemManager) {
           finalizingItems.remove(item.id)
           notifyQueueChanged()
+          updateNeedsCpu()
         }
       }
     }
@@ -633,6 +959,8 @@ class DownloadItemManager(
   @Synchronized
   private fun removeActivePart(part: DownloadItemPart) {
     activeCalls.remove(part.id)
+    activeAttempts.remove(part.id)
+    attemptStartBytes.remove(part.id)
     currentDownloadItemParts.remove(part)
   }
 
@@ -650,6 +978,7 @@ class DownloadItemManager(
   fun destroy() {
     activeCalls.values.forEach(InternalDownloadManager.DownloadHandle::cancel)
     activeCalls.clear()
+    networkMonitor.destroy()
     scope.cancel()
   }
 
@@ -731,25 +1060,30 @@ class DownloadItemManager(
     return findSharedStorageFile(part) != null
   }
 
-  /** Resets an unmoved part when recovery crosses a service-session boundary. */
-  private fun resetPartForFreshDownload(part: DownloadItemPart): Boolean {
+  /**
+   * Prepares an unmoved part to continue after a restart or user retry. The staging file is kept so
+   * the next request resumes from its length; InternalDownloadManager restarts from zero if the
+   * server says the file changed or the range is invalid.
+   */
+  private fun prepareForResume(part: DownloadItemPart) {
     val stagingFile = File(part.destinationPath)
-    if (stagingFile.exists() && !stagingFile.delete()) {
-      AbsLogger.error(tag, "Could not delete staging file ${part.filename}")
-      part.failed = true
-      return false
-    }
-    part.completed = false
-    part.bytesDownloaded = 0L
-    part.progress = 0L
+    val stagedBytes = stagingFile.takeIf(File::isFile)?.length() ?: 0L
+    // A completed part whose staging file is intact only needs finalizing.
+    part.completed = part.completed && stagedBytes > 0L && (part.fileSize <= 0L || stagedBytes == part.fileSize)
+    part.bytesDownloaded = stagedBytes
+    part.progress = if (part.fileSize > 0L) ((stagedBytes * 100L) / part.fileSize).coerceAtMost(100L) else 0L
     part.failed = false
     part.isMoving = false
     part.downloadId = null
     part.retryCount = 0
     part.authRetryCount = 0
+    part.finalizeFailureCount = 0
+    part.nextAttemptAt = 0L
     part.waitingForSpace = false
+    part.waitingForNetwork = false
+    part.waitingForWifi = false
     part.reusedExistingFile = false
-    return true
+    if (stagedBytes > 0L) AbsLogger.info(tag, "Resuming ${part.filename} from byte $stagedBytes")
   }
 
   private fun findDocumentByFilename(folder: DocumentFile, part: DownloadItemPart): DocumentFile? {
@@ -785,7 +1119,10 @@ class DownloadItemManager(
     const val MAX_SIMULTANEOUS_DOWNLOADS = 3
     const val WATCH_INTERVAL_MS = 1_000L
     const val STALL_TIMEOUT_MS = 60_000L
-    const val MAX_RETRIES = 5
+    const val RETRY_BASE_DELAY_MS = 2_000L
+    const val RETRY_MAX_DELAY_MS = 5L * 60L * 1000L
+    const val CPU_HOLD_BEFORE_RETRY_MS = 30_000L
+    const val MAX_FINALIZE_RETRIES = 5
     const val MAX_AUTH_RETRIES = 2
     const val PERSIST_INTERVAL_MS = 2_000L
     const val MIN_FREE_SPACE_BYTES = 100L * 1024L * 1024L

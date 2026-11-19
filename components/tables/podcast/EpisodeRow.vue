@@ -249,6 +249,7 @@ export default {
     },
     async startDownload(localFolder) {
       var payload = {
+        networkMode: this.downloadNetworkMode,
         libraryItemId: this.libraryItemId,
         episodeId: this.episode.id
       }
