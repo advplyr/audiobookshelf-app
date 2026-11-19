@@ -425,6 +425,21 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
           playWhenReady: Boolean,
           playbackRate: Float?
   ) {
+    // A different session is replacing one that is still being synced, e.g. choosing another book in Android
+    // Auto while playing. The player reports no pause for the old session, so the syncer would keep saving the new
+    // book's position under the old session. Sync the old session first and let the next play event start the new one.
+    val syncingSessionId = mediaProgressSyncer.currentPlaybackSession?.id
+    if (syncingSessionId != null && syncingSessionId != playbackSession.id) {
+      if (mediaProgressSyncer.listeningTimerRunning) {
+        mediaProgressSyncer.stop {
+          PlayerListener.lazyIsPlaying = false
+          Handler(Looper.getMainLooper()).post { preparePlayer(playbackSession, playWhenReady, playbackRate) }
+        }
+        return
+      }
+      mediaProgressSyncer.reset()
+    }
+
     if (!isStarted) {
       Log.i(tag, "preparePlayer: foreground service not started - Starting service --")
       Intent(ctx, PlayerNotificationService::class.java).also { intent ->
