@@ -23,6 +23,10 @@ class PlayerListener(var playerNotificationService:PlayerNotificationService) : 
     playerNotificationService.handlePlayerPlaybackError(errorMessage) // If was direct playing session, fallback to transcode
   }
 
+  override fun onAudioSessionIdChanged(audioSessionId: Int) {
+    playerNotificationService.onAudioSessionIdChanged(audioSessionId)
+  }
+
   override fun onPositionDiscontinuity(
     oldPosition: Player.PositionInfo,
     newPosition: Player.PositionInfo,

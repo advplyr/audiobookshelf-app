@@ -126,6 +126,8 @@
     <modals-chapters-modal v-model="showChapterModal" :current-chapter="currentChapter" :chapters="chapters" :playback-rate="currentPlaybackRate" @select="selectChapter" />
     <!-- More menu dialog - player settings and options -->
     <modals-dialog v-model="showMoreMenuDialog" :items="menuItems" width="80vw" @action="clickMenuAction" />
+    <!-- Volume boost modal (Android) -->
+    <modals-volume-boost-modal v-model="showVolumeBoostModal" :enabled="playerSettings.volumeBoostEnabled" :boost-db="playerSettings.volumeBoostDb" @change="onVolumeBoostChange" />
   </div>
 </template>
 
@@ -173,7 +175,9 @@ export default {
         useChapterTrack: false,
         useTotalTrack: true,
         scaleElapsedTimeBySpeed: true,
-        lockUi: false
+        lockUi: false,
+        volumeBoostEnabled: false,
+        volumeBoostDb: 3
       },
       isLoading: false,
       isCheckingServerProgress: false,
@@ -183,6 +187,7 @@ export default {
       draggingCurrentTime: 0,
       syncStatus: 0,
       showMoreMenuDialog: false,
+      showVolumeBoostModal: false,
       coverRgb: 'rgb(55, 56, 56)',
       coverBgIsLight: false,
       titleMarquee: null,
@@ -214,6 +219,15 @@ export default {
           text: this.$strings.ButtonHistory,
           value: 'history',
           icon: 'history'
+        })
+      }
+
+      if (this.$platform === 'android') {
+        const boostText = this.playerSettings.volumeBoostEnabled && this.playerSettings.volumeBoostDb > 0 ? `${this.$strings.LabelVolumeBoost} (+${this.playerSettings.volumeBoostDb} dB)` : this.$strings.LabelVolumeBoost
+        items.push({
+          text: boostText,
+          value: 'volume_boost',
+          icon: 'volume_up'
         })
       }
 
@@ -769,6 +783,8 @@ export default {
         if (action === 'history') {
           this.$router.push(`/media/${this.mediaId}/history?title=${this.title}`)
           this.showFullscreen = false
+        } else if (action === 'volume_boost') {
+          this.showVolumeBoostModal = true
         } else if (action === 'scale_elapsed_time') {
           this.playerSettings.scaleElapsedTimeBySpeed = !this.playerSettings.scaleElapsedTimeBySpeed
           this.updateTimestamp()
@@ -803,6 +819,18 @@ export default {
       // Chapter track in NowPlaying only supported on iOS for now
       if (this.$platform === 'ios') {
         AbsAudioPlayer.setChapterTrack({ enabled: this.playerSettings.useChapterTrack })
+      }
+    },
+    onVolumeBoostChange({ enabled, boostDb }) {
+      this.playerSettings.volumeBoostEnabled = !!enabled
+      this.playerSettings.volumeBoostDb = Number(boostDb) > 0 ? Number(boostDb) : 3
+      this.updateVolumeBoost()
+      this.savePlayerSettings()
+    },
+    updateVolumeBoost() {
+      if (this.$platform === 'android') {
+        const effectiveBoostDb = this.playerSettings.volumeBoostEnabled ? Number(this.playerSettings.volumeBoostDb) || 0 : 0
+        AbsAudioPlayer.setVolumeBoost({ value: effectiveBoostDb })
       }
     },
     forceCloseDropdownMenu() {
@@ -840,7 +868,10 @@ export default {
         this.playerSettings.useTotalTrack = !!savedPlayerSettings.useTotalTrack
         this.playerSettings.lockUi = !!savedPlayerSettings.lockUi
         this.playerSettings.scaleElapsedTimeBySpeed = !!savedPlayerSettings.scaleElapsedTimeBySpeed
+        this.playerSettings.volumeBoostEnabled = !!savedPlayerSettings.volumeBoostEnabled
+        this.playerSettings.volumeBoostDb = Number(savedPlayerSettings.volumeBoostDb) > 0 ? Number(savedPlayerSettings.volumeBoostDb) : 3
       }
+      this.updateVolumeBoost()
     },
     savePlayerSettings() {
       return this.$localStore.setPlayerSettings({ ...this.playerSettings })
