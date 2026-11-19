@@ -394,6 +394,10 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
                             1000 * 5, // 5s playback start
                             1000 * 20 // 20s playback rebuffer
                     )
+                    // Keep already played audio so rewinding within this window does not re-stream it
+                    .setBackBuffer(deviceSettings.streamingBackBufferTimeMs, true)
+                    // Back buffer bytes count against the byte target, so let time thresholds decide
+                    .setPrioritizeTimeOverSizeThresholds(true)
                     .build()
 
     mPlayer =
