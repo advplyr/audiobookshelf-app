@@ -13,6 +13,9 @@ export const state = () => ({
   isCastAvailable: false,
   attemptingConnection: false,
   socketConnected: false,
+  socketAuthenticated: false,
+  socketRecovering: false,
+  socketConnectionError: null,
   networkConnected: false,
   networkConnectionType: null,
   isNetworkUnmetered: true,
@@ -174,6 +177,15 @@ export const mutations = {
   },
   setSocketConnected(state, val) {
     state.socketConnected = val
+  },
+  setSocketAuthenticated(state, val) {
+    state.socketAuthenticated = val
+  },
+  setSocketRecovering(state, val) {
+    state.socketRecovering = val
+  },
+  setSocketConnectionError(state, val) {
+    state.socketConnectionError = val
   },
   setNetworkListenerInit(state, val) {
     state.isNetworkListenerInit = val
