@@ -36,7 +36,7 @@ export default {
       }
       this.loadedLibraryId = this.currentLibraryId
       this.authors = await this.$nativeHttp
-        .get(`/api/libraries/${this.currentLibraryId}/authors`)
+        .get(`/api/libraries/${this.currentLibraryId}/authors?sort=name`)
         .then((response) => response.authors)
         .catch((error) => {
           console.error('Failed to load authors', error)
@@ -49,6 +49,7 @@ export default {
     authorAdded(author) {
       if (!this.authors.some((au) => au.id === author.id)) {
         this.authors.push(author)
+        this.sortAuthors()
         this.$eventBus.$emit('bookshelf-total-entities', this.authors.length)
       }
     },
@@ -59,6 +60,11 @@ export default {
         }
         return au
       })
+      this.sortAuthors()
+    },
+    /** Keeps the same alphabetical order the API returns when the list is loaded. */
+    sortAuthors() {
+      this.authors.sort((a, b) => a.name.localeCompare(b.name))
     },
     authorRemoved(author) {
       this.authors = this.authors.filter((au) => au.id !== author.id)
