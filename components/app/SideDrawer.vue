@@ -19,8 +19,12 @@
         </template>
       </div>
       <div class="absolute bottom-0 left-0 w-full py-6 px-6 text-fg">
-        <div v-if="serverConnectionConfig" class="mb-4 flex justify-center">
-          <p class="text-xs text-fg-muted" style="word-break: break-word">{{ serverConnectionConfig.address }} (v{{ serverSettings.version }})</p>
+        <div v-if="serverConnectionConfig" class="mb-4">
+          <div class="flex items-center justify-center gap-1 mb-1">
+            <span class="material-symbols text-sm" :class="isUsingLocalConnection ? 'text-success' : 'text-fg-muted'">{{ isUsingLocalConnection ? 'home_wifi' : 'public' }}</span>
+            <p class="text-xs" :class="isUsingLocalConnection ? 'text-success' : 'text-fg-muted'">{{ connectionModeLabel }}</p>
+          </div>
+          <p class="text-xs text-fg-muted text-center" style="word-break: break-word">{{ shownServerAddress }} (v{{ serverSettings.version }})</p>
         </div>
         <div class="flex items-center">
           <p class="text-xs">{{ $config.version }}</p>
@@ -51,9 +55,13 @@ export default {
       }
     },
     show: {
-      handler(newVal) {
-        if (newVal) this.registerListener()
-        else this.removeListener()
+      async handler(newVal) {
+        if (newVal) {
+          await this.refreshActiveServerAddress()
+          this.registerListener()
+        } else {
+          this.removeListener()
+        }
       }
     }
   },
@@ -74,6 +82,19 @@ export default {
     },
     serverSettings() {
       return this.$store.state.serverSettings || {}
+    },
+    activeServerAddress() {
+      return this.$store.getters['user/getActiveServerAddress']
+    },
+    shownServerAddress() {
+      return this.activeServerAddress || this.serverConnectionConfig?.address || ''
+    },
+    isUsingLocalConnection() {
+      if (!this.serverConnectionConfig?.localAddress || !this.activeServerAddress) return false
+      return this.$serverAddress.normalizeAddress(this.activeServerAddress) === this.$serverAddress.normalizeAddress(this.serverConnectionConfig.localAddress)
+    },
+    connectionModeLabel() {
+      return this.isUsingLocalConnection ? 'Local connection' : 'External connection'
     },
     username() {
       return this.user?.username || ''
@@ -192,6 +213,10 @@ export default {
 
       // Close side drawer
       this.show = false
+    },
+    async refreshActiveServerAddress() {
+      if (!this.serverConnectionConfig) return
+      await this.$serverAddress.resolve(this.serverConnectionConfig, { forceRefresh: true })
     },
     touchstart(e) {
       this.touchEvent = new TouchEvent(e)

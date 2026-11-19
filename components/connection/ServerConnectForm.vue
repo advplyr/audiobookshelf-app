@@ -39,6 +39,17 @@
           </div>
           <h2 class="text-lg leading-7 mb-2">{{ $strings.LabelServerAddress }}</h2>
           <ui-text-input v-model="serverConfig.address" :disabled="processing || !networkConnected || !!serverConfig.id" placeholder="http://55.55.55.55:13378" type="url" class="w-full h-10" />
+          <div class="mt-4">
+            <p class="text-sm text-fg-muted mb-1">Local network address</p>
+            <ui-text-input v-model="serverConfig.localAddress" :disabled="processing || !networkConnected" placeholder="http://192.168.1.20:13378" type="url" class="w-full h-10" />
+          </div>
+          <div class="mt-4">
+            <div class="flex items-center justify-between mb-1 gap-2">
+              <p class="text-sm text-fg-muted">Local Wi-Fi SSIDs</p>
+              <ui-btn type="button" :disabled="processing || !networkConnected" :padding-x="2" :padding-y="1" class="text-xs" @click="addCurrentWifiSsid">Use current Wi-Fi</ui-btn>
+            </div>
+            <textarea v-model="localSsidText" :disabled="processing || !networkConnected" placeholder="Home WiFi&#10;Office WiFi" class="w-full min-h-[5rem] rounded bg-bg border border-fg/20 px-3 py-2 text-sm outline-none focus:border-fg/60"></textarea>
+          </div>
           <div class="flex justify-end items-center mt-6">
             <ui-btn :disabled="processing || !networkConnected" type="submit" :padding-x="3" class="h-10">{{ networkConnected ? $strings.ButtonSubmit : $strings.MessageNoNetworkConnection }}</ui-btn>
           </div>
@@ -109,8 +120,11 @@ export default {
         address: null,
         version: null,
         username: null,
-        customHeaders: null
+        customHeaders: null,
+        localAddress: null,
+        localSsidWhitelist: []
       },
+      localSsidText: '',
       password: null,
       error: null,
       showForm: false,
@@ -440,11 +454,14 @@ export default {
       this.showForm = false
       this.showAuth = false
       this.error = null
-      this.serverConfig = {
-        address: null,
-        userId: null,
-        username: null
-      }
+        this.serverConfig = {
+          address: null,
+          userId: null,
+          username: null,
+          localAddress: null,
+          localSsidWhitelist: []
+        }
+        this.localSsidText = ''
     },
     async connectToServer(config) {
       await this.$hapticsImpact()
@@ -453,6 +470,7 @@ export default {
       this.serverConfig = {
         ...config
       }
+      this.localSsidText = (config.localSsidWhitelist || []).join('\n')
       this.showForm = true
       var success = await this.pingServerAddress(config.address)
       this.processing = false
@@ -493,11 +511,14 @@ export default {
         updatedDeviceData.serverConnectionConfigs = this.deviceData.serverConnectionConfigs.filter((scc) => scc.id != serverConfig.id)
         this.$store.commit('setDeviceData', updatedDeviceData)
 
-        this.serverConfig = {
-          address: null,
-          userId: null,
-          username: null
-        }
+      this.serverConfig = {
+        address: null,
+        userId: null,
+        username: null,
+        localAddress: null,
+        localSsidWhitelist: []
+      }
+      this.localSsidText = ''
         this.password = null
         this.processing = false
         this.showAuth = false
@@ -509,6 +530,7 @@ export default {
       this.serverConfig = {
         ...serverConfig
       }
+      this.localSsidText = (serverConfig.localSsidWhitelist || []).join('\n')
 
       if (await this.submit(true)) {
         this.showForm = true
@@ -519,8 +541,11 @@ export default {
       this.serverConfig = {
         address: '',
         userId: '',
-        username: ''
+        username: '',
+        localAddress: null,
+        localSsidWhitelist: []
       }
+      this.localSsidText = ''
       this.showForm = true
       this.showAuth = false
       this.error = null
@@ -528,6 +553,29 @@ export default {
     editServerAddress() {
       this.error = null
       this.showAuth = false
+    },
+    syncLocalConnectionSettings() {
+      this.serverConfig.localAddress = this.$serverAddress.normalizeAddress(this.serverConfig.localAddress) || null
+      this.serverConfig.localSsidWhitelist = this.localSsidText
+        .split('\n')
+        .map((ssid) => ssid.trim())
+        .filter(Boolean)
+    },
+    async addCurrentWifiSsid() {
+      const ssid = await this.$serverAddress.getCurrentWifiSsid()
+      if (!ssid) {
+        this.$toast.error('Current Wi-Fi SSID is unavailable')
+        return
+      }
+
+      const ssids = this.localSsidText
+        .split('\n')
+        .map((value) => value.trim())
+        .filter(Boolean)
+      if (!ssids.includes(ssid)) {
+        ssids.push(ssid)
+      }
+      this.localSsidText = ssids.join('\n')
     },
     /**
      * Validates a URL and reconstructs it with an optional protocol override.
@@ -662,6 +710,7 @@ export default {
       if (!this.networkConnected || !this.serverConfig.address) return false
 
       const initialAddress = this.serverConfig.address
+      this.syncLocalConnectionSettings()
       // Did the user specify a protocol?
       const protocolProvided = initialAddress.startsWith('http://') || initialAddress.startsWith('https://')
       // Add https:// if not provided
@@ -873,6 +922,7 @@ export default {
       }
 
       this.serverConfig.version = serverSettings.version
+      this.syncLocalConnectionSettings()
 
       var serverConnectionConfig = await this.$db.setServerConnectionConfig(this.serverConfig)
 
@@ -901,7 +951,8 @@ export default {
       this.$store.commit('user/setAccessToken', serverConnectionConfig.token)
       this.$store.commit('user/setServerConnectionConfig', serverConnectionConfig)
 
-      this.$socket.connect(this.serverConfig.address, this.serverConfig.token)
+      const activeServerAddress = await this.$serverAddress.resolve(serverConnectionConfig, { forceRefresh: true })
+      this.$socket.connect(activeServerAddress || this.serverConfig.address, this.serverConfig.token)
       this.$router.replace('/bookshelf')
     },
     async authenticateToken() {

@@ -69,6 +69,8 @@ public class AbsDatabase: CAPPlugin, CAPBridgedPlugin {
         let username = call.getString("username", "")
         let token = call.getString("token", "")
         let refreshToken = call.getString("refreshToken", "") // Refresh only sent after login or refresh
+        let localAddress = call.getString("localAddress")
+        let localSsidWhitelist = call.getArray("localSsidWhitelist", String.self) ?? []
 
         let name = "\(address) (\(username))"
         
@@ -91,6 +93,8 @@ public class AbsDatabase: CAPPlugin, CAPBridgedPlugin {
         config.userId = userId
         config.username = username
         config.token = token
+        config.localAddress = localAddress
+        config.localSsidWhitelist.append(objectsIn: localSsidWhitelist)
 
         Store.serverConfig = config
         let savedConfig = Store.serverConfig // Fetch the latest value

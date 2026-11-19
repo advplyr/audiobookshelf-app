@@ -78,6 +78,18 @@ export default {
           this.socketDisconnectedTime = Date.now()
         }
       }
+    },
+    activeServerAddress: {
+      async handler(newVal, oldVal) {
+        if (!this.hasMounted || !newVal || newVal === oldVal) return
+        await this.ensureSocketConnectedToActiveServer()
+      }
+    },
+    networkStatusChangeId: {
+      async handler() {
+        if (!this.hasMounted) return
+        await this.refreshActiveServerAddress()
+      }
     }
   },
   computed: {
@@ -92,6 +104,15 @@ export default {
     },
     socketConnected() {
       return this.$store.state.socketConnected
+    },
+    networkStatusChangeId() {
+      return this.$store.state.networkStatusChangeId
+    },
+    activeServerAddress() {
+      return this.$store.getters['user/getActiveServerAddress']
+    },
+    serverConnectionConfig() {
+      return this.$store.state.user.serverConnectionConfig
     },
     user() {
       return this.$store.state.user.user
@@ -207,11 +228,22 @@ export default {
       this.$store.commit('user/setAccessToken', serverConnectionConfig.token)
       this.$store.commit('user/setServerConnectionConfig', serverConnectionConfig)
 
-      this.$socket.connect(serverConnectionConfig.address, serverConnectionConfig.token)
+      const activeServerAddress = await this.$serverAddress.resolve(serverConnectionConfig, { forceRefresh: true })
+      this.$socket.connect(activeServerAddress || serverConnectionConfig.address, serverConnectionConfig.token)
 
       AbsLogger.info({ tag: 'default', message: `attemptConnection: Successful connection to last saved server config (${serverConnectionConfig.name})` })
       await this.initLibraries()
       this.attemptingConnection = false
+    },
+    async refreshActiveServerAddress() {
+      if (!this.user || !this.serverConnectionConfig || !this.networkConnected) return
+      const activeServerAddress = await this.$serverAddress.resolve(this.serverConnectionConfig, { forceRefresh: true })
+      await this.ensureSocketConnectedToActiveServer(activeServerAddress)
+    },
+    async ensureSocketConnectedToActiveServer(activeServerAddress = this.activeServerAddress) {
+      if (!this.user || !this.serverConnectionConfig || !activeServerAddress) return
+      if (this.$socket.isConnectedTo(activeServerAddress)) return
+      this.$socket.connect(activeServerAddress, this.serverConnectionConfig.token)
     },
     itemRemoved(libraryItem) {
       if (this.$route.name.startsWith('item')) {
@@ -327,6 +359,7 @@ export default {
       if (document.visibilityState === 'visible') {
         const elapsedTimeOutOfFocus = Date.now() - this.timeLostFocus
         console.log(`✅ [default] device visibility: has focus (${elapsedTimeOutOfFocus}ms out of focus)`)
+        await this.refreshActiveServerAddress()
         // If device out of focus for more than 30s then reload local media progress
         if (elapsedTimeOutOfFocus > 30000) {
           console.log(`✅ [default] device visibility: reloading local media progress`)

@@ -24,6 +24,7 @@ import com.audiobookshelf.app.plugins.AbsDatabase
 import com.audiobookshelf.app.plugins.AbsDownloader
 import com.audiobookshelf.app.plugins.AbsFileSystem
 import com.audiobookshelf.app.plugins.AbsLogger
+import com.audiobookshelf.app.plugins.AbsNetwork
 import com.getcapacitor.BridgeActivity
 
 
@@ -43,12 +44,14 @@ class MainActivity : BridgeActivity() {
 
   public override fun onCreate(savedInstanceState: Bundle?) {
     DbManager.initialize(applicationContext)
+    com.audiobookshelf.app.device.DeviceManager.applicationContext = applicationContext
 
     registerPlugin(AbsAudioPlayer::class.java)
     registerPlugin(AbsDownloader::class.java)
     registerPlugin(AbsFileSystem::class.java)
     registerPlugin(AbsDatabase::class.java)
     registerPlugin(AbsLogger::class.java)
+    registerPlugin(AbsNetwork::class.java)
 
     super.onCreate(savedInstanceState)
     Log.d(tag, "onCreate")

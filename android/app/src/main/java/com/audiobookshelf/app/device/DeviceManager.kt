@@ -5,6 +5,7 @@ import android.content.ComponentName
 import android.content.Context
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
+import android.net.wifi.WifiManager
 import android.util.Log
 import com.audiobookshelf.app.MediaPlayerWidget
 import com.audiobookshelf.app.data.*
@@ -31,12 +32,13 @@ object DeviceManager {
   val dbManager: DbManager = DbManager()
   var deviceData: DeviceData = dbManager.getDeviceData()
   var serverConnectionConfig: ServerConnectionConfig? = null
+  var applicationContext: Context? = null
 
   val serverConnectionConfigId get() = serverConnectionConfig?.id ?: ""
   val serverConnectionConfigName get() = serverConnectionConfig?.name ?: ""
   val serverConnectionConfigString get() = serverConnectionConfig?.name ?: "No server connection"
   val serverAddress
-    get() = serverConnectionConfig?.address ?: ""
+    get() = getServerAddress(serverConnectionConfig)
   val serverUserId
     get() = serverConnectionConfig?.userId ?: ""
   val token
@@ -110,6 +112,31 @@ object DeviceManager {
    */
   fun getServerConnectionConfig(id: String?): ServerConnectionConfig? {
     return id?.let { deviceData.serverConnectionConfigs.find { it.id == id } }
+  }
+
+  fun getServerAddress(config: ServerConnectionConfig?): String {
+    if (config == null) return ""
+    val localAddress = config.localAddress
+    val localSsids = config.localSsidWhitelist ?: mutableListOf()
+    if (localAddress.isNullOrBlank() || localSsids.isEmpty()) return config.address
+
+    val currentSsid = getCurrentWifiSsid()
+    if (!currentSsid.isNullOrBlank() && localSsids.contains(currentSsid)) {
+      return localAddress
+    }
+
+    return config.address
+  }
+
+  fun getCurrentWifiSsid(): String? {
+    val ctx = applicationContext ?: return null
+    val wifiManager = ctx.applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
+    var ssid = wifiManager.connectionInfo?.ssid ?: return null
+    if (ssid == WifiManager.UNKNOWN_SSID || ssid == "<unknown ssid>") return null
+    if (ssid.length >= 2 && ssid.startsWith("\"") && ssid.endsWith("\"")) {
+      ssid = ssid.substring(1, ssid.length - 1)
+    }
+    return ssid
   }
 
   /**

@@ -31,6 +31,9 @@ export const getters = {
   getServerAddress: (state) => {
     return state.serverConnectionConfig?.address || null
   },
+  getActiveServerAddress: (state, getters, rootState) => {
+    return rootState.activeServerAddress || state.serverConnectionConfig?.address || null
+  },
   getServerConfigName: (state) => {
     return state.serverConnectionConfig?.name || null
   },
@@ -127,7 +130,7 @@ export const actions = {
     }
   },
   async openWebClient({ getters }, path = null) {
-    const serverAddress = getters.getServerAddress
+    const serverAddress = await this.$serverAddress.resolve(state.serverConnectionConfig)
     if (!serverAddress) {
       console.error('openWebClient: No server address')
       return
@@ -164,6 +167,7 @@ export const actions = {
     this.$socket.logout()
     this.$localStore.removeLastLibraryId()
     commit('logout')
+    commit('setActiveServerAddress', null, { root: true })
     commit('libraries/setCurrentLibrary', null, { root: true })
     await AbsLogger.info({ tag: 'user', message: `Logged out from server ${state.serverConnectionConfig?.name || 'Not connected'}` })
   },
@@ -174,7 +178,7 @@ export const actions = {
       return null
     }
 
-    const serverAddress = getters.getServerAddress
+    const serverAddress = await this.$serverAddress.resolve(state.serverConnectionConfig, { forceRefresh: true })
 
     const response = await CapacitorHttp.post({
       url: `${serverAddress}/auth/refresh`,
