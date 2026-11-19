@@ -2,7 +2,7 @@
   <modals-modal v-model="show" width="90%">
     <div class="w-full h-full bg-primary rounded-lg border border-fg/20">
       <ul class="w-full rounded-lg text-base max-h-[70vh] overflow-y-auto overscroll-contain" role="listbox" aria-labelledby="listbox-label">
-        <template v-for="item in items">
+        <template v-for="item in resolvedItems">
           <li :key="item.value" class="text-fg select-none relative py-4 pr-9 cursor-pointer" :class="item.value === selected ? 'bg-bg bg-opacity-50' : ''" role="option" @click="clickedOption(item.value)">
             <div class="flex items-center">
               <span class="font-normal ml-3 block truncate text-lg">{{ item.text }}</span>
@@ -23,7 +23,8 @@ export default {
     value: Boolean,
     orderBy: String,
     descending: Boolean,
-    episodes: Boolean
+    episodes: Boolean,
+    items: Array
   },
   data() {
     return {
@@ -167,7 +168,8 @@ export default {
     isPodcast() {
       return this.$store.getters['libraries/getCurrentLibraryMediaType'] === 'podcast'
     },
-    items() {
+    resolvedItems() {
+      if (this.items) return this.items
       if (this.episodes) return this.episodeItems
       if (this.isPodcast) return this.podcastItems
       return this.bookItems
@@ -179,7 +181,12 @@ export default {
       if (this.selected === val) {
         this.selectedDesc = !this.selectedDesc
       } else {
-        if (val === 'recent' || val === 'addedAt') this.selectedDesc = true // Progress defaults to descending
+        const item = this.resolvedItems.find((item) => item.value === val)
+        if (item && typeof item.defaultDesc === 'boolean') {
+          this.selectedDesc = item.defaultDesc
+        } else if (val === 'recent' || val === 'addedAt') {
+          this.selectedDesc = true // Progress defaults to descending
+        }
         this.selected = val
       }
       this.show = false
