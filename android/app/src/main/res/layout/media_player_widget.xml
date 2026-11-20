@@ -33,11 +33,6 @@
       android:orientation="vertical"
       android:gravity="center_vertical">
 
-      <!-- ponytail: golden layout. Free space = cover edge to corner icon (column + the icon's 6dp margin, hence marginEnd -6dp
-           on the button row). Play is centered; rewind/ff centers sit at 1/(2φ²) = 19.1% and 80.9%, so edge→skip : skip→play = 1 : φ.
-           Each button cell is 1/(2φ) = 30.9% wide; gravity centers the three cells. Text starts at the rewind cell's center
-           (spacer weight 0.191) pulled left to the rewind icon's visible edge (~h/3 of the icon box) via a negative margin tuned
-           for 1-cell widget height. -->
       <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="0dp"
