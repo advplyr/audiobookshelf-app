@@ -22,7 +22,7 @@
     </div>
 
     <!-- ereader -->
-    <component v-if="readerComponentName" ref="readerComponent" :is="readerComponentName" :url="ebookUrl" :library-item="selectedLibraryItem" :is-local="isLocal" :keep-progress="keepProgress" :showing-toolbar="showingToolbar" @touchstart="touchstart" @touchend="touchend" @loaded="readerLoaded" @hook:mounted="readerMounted" />
+    <component v-if="readerComponentName" ref="readerComponent" :is="readerComponentName" :url="ebookUrl" :library-item="selectedLibraryItem" :is-local="isLocal" :keep-progress="keepProgress" :showing-toolbar="showingToolbar" @touchstart="touchstart" @touchend="touchend" @pdf-tap="toggleToolbar" @loaded="readerLoaded" @hook:mounted="readerMounted" />
 
     <!-- table of contents modal -->
     <modals-fullscreen-modal v-model="showTOCModal" :theme="ereaderTheme">
@@ -392,6 +392,8 @@ export default {
       }
     },
     handleGesture() {
+      if (this.isPdf) return
+
       // Touch must be less than 1s. Must be > 60px drag and X distance > Y distance
       const touchTimeMs = Date.now() - this.touchstartTime
       if (touchTimeMs >= 1000) {
@@ -436,6 +438,8 @@ export default {
       else this.showToolbar()
     },
     touchstart(e) {
+      if (this.isPdf) return
+
       // Ignore rapid touch
       if (this.touchstartTime && Date.now() - this.touchstartTime < 250) {
         return
@@ -447,6 +451,8 @@ export default {
       this.touchIdentifier = e.touches[0].identifier
     },
     touchend(e) {
+      if (this.isPdf) return
+
       if (this.touchIdentifier !== e.changedTouches[0].identifier) {
         return
       }
