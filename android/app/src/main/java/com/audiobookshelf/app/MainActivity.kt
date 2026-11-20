@@ -12,6 +12,7 @@ import android.os.IBinder
 import android.util.Log
 import android.view.ViewGroup
 import android.view.WindowInsets
+import android.webkit.ClientCertRequest
 import android.webkit.WebView
 import androidx.core.app.ActivityCompat
 import androidx.core.view.updateLayoutParams
@@ -20,11 +21,17 @@ import com.anggrayudi.storage.SimpleStorageHelper
 import com.audiobookshelf.app.managers.DbManager
 import com.audiobookshelf.app.player.PlayerNotificationService
 import com.audiobookshelf.app.plugins.AbsAudioPlayer
+import com.audiobookshelf.app.plugins.AbsCertificate
 import com.audiobookshelf.app.plugins.AbsDatabase
 import com.audiobookshelf.app.plugins.AbsDownloader
 import com.audiobookshelf.app.plugins.AbsFileSystem
 import com.audiobookshelf.app.plugins.AbsLogger
+import com.audiobookshelf.app.server.MtlsManager
 import com.getcapacitor.BridgeActivity
+import com.getcapacitor.BridgeWebViewClient
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 
 class MainActivity : BridgeActivity() {
@@ -43,15 +50,38 @@ class MainActivity : BridgeActivity() {
 
   public override fun onCreate(savedInstanceState: Bundle?) {
     DbManager.initialize(applicationContext)
+    MtlsManager.initialize(applicationContext)
+    MtlsManager.refreshGlobalDefault()
 
     registerPlugin(AbsAudioPlayer::class.java)
     registerPlugin(AbsDownloader::class.java)
     registerPlugin(AbsFileSystem::class.java)
     registerPlugin(AbsDatabase::class.java)
     registerPlugin(AbsLogger::class.java)
+    registerPlugin(AbsCertificate::class.java)
 
     super.onCreate(savedInstanceState)
     Log.d(tag, "onCreate")
+
+    // Respond to the server's mTLS client certificate challenge (for direct WebView resource
+    // loads, e.g. cover images) using the certificate selected for the current server, if any.
+    bridge.setWebViewClient(object : BridgeWebViewClient(bridge) {
+      override fun onReceivedClientCertRequest(view: WebView, request: ClientCertRequest) {
+        val alias = MtlsManager.getEffectiveAlias()
+        if (alias == null) {
+          request.ignore()
+          return
+        }
+        CoroutineScope(Dispatchers.IO).launch {
+          val credentials = MtlsManager.getPrivateKeyAndChain(alias)
+          if (credentials != null) {
+            request.proceed(credentials.first, credentials.second)
+          } else {
+            request.ignore()
+          }
+        }
+      }
+    })
 
     // Update the margins to handle edge-to-edge enforced in SDK 35
     // See: https://developer.android.com/develop/ui/views/layout/edge-to-edge
