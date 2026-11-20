@@ -639,7 +639,7 @@ export default {
         'x-return-tokens': 'true',
         ...(this.serverConfig.customHeaders || {})
       }
-      return this.postRequest(`${this.serverConfig.address}/login`, { username: this.serverConfig.username, password: this.password || '' }, headers, 20000)
+      return this.postRequest(`${this.serverConfig.address}/login`, { username: this.serverConfig.username.trim(), password: this.password || '' }, headers, 20000)
         .then((data) => {
           if (!data.user) {
             console.error(data.error)
