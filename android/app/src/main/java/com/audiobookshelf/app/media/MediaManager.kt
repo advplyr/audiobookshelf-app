@@ -829,6 +829,41 @@ class MediaManager(private var apiHandler: ApiHandler, var ctx: Context) {
     }
   }
 
+  /**
+   * Updates cached server progress with the current position of [playbackSession]
+   * so Android Auto lists show up to date progress without reloading from server
+   */
+  fun updateServerUserMediaProgress(playbackSession: PlaybackSession) {
+    val libraryItemId = playbackSession.libraryItemId
+    if (libraryItemId.isNullOrEmpty()) return
+
+    val mediaProgress =
+      serverUserMediaProgress.find { it.mediaItemId == playbackSession.mediaItemId }
+    if (mediaProgress != null) {
+      mediaProgress.currentTime = playbackSession.currentTime
+      mediaProgress.progress = playbackSession.progress
+      mediaProgress.duration = playbackSession.getTotalDuration()
+      mediaProgress.lastUpdate = playbackSession.updatedAt
+    } else {
+      serverUserMediaProgress.add(
+        MediaProgress(
+          playbackSession.mediaItemId,
+          libraryItemId,
+          playbackSession.episodeId,
+          playbackSession.getTotalDuration(),
+          playbackSession.progress,
+          playbackSession.currentTime,
+          false,
+          null,
+          null,
+          playbackSession.updatedAt,
+          playbackSession.startedAt,
+          null
+        )
+      )
+    }
+  }
+
   fun initializeInProgressItems(cb: () -> Unit) {
     Log.d(tag, "Initializing inprogress items")
 

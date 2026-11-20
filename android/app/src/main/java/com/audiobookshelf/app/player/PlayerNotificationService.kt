@@ -1123,6 +1123,13 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
     clientEventEmitter?.onProgressSyncSuccess()
   }
 
+  // Called on every progress sync so android auto shows the current progress in continue
+  fun onPlaybackProgressSynced(playbackSession: PlaybackSession) {
+    if (!firstLoadDone) return // Android Auto not browsing
+    mediaManager.updateServerUserMediaProgress(playbackSession)
+    notifyChildrenChanged(CONTINUE_ROOT)
+  }
+
   //
   // MEDIA BROWSER STUFF (ANDROID AUTO)
   //
