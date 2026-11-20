@@ -117,8 +117,25 @@ class AbsAudioPlayer : Plugin() {
       })
 
       MediaEventManager.clientEventEmitter = playerNotificationService.clientEventEmitter
+
+      sendCurrentSession()
     }
     mainActivity.pluginCallback = foregroundServiceReady
+  }
+
+  // Send current session to UI for playback started while the app was closed
+  private fun sendCurrentSession() {
+    val playbackSession = playerNotificationService.mediaProgressSyncer.currentPlaybackSession ?: playerNotificationService.currentPlaybackSession ?: return
+    Log.d(tag, "sendCurrentSession: ${playbackSession.displayTitle}")
+
+    notifyListeners("onPlaybackSession", JSObject(jacksonMapper.writeValueAsString(playbackSession)), true)
+
+    val ret = JSObject()
+    ret.put("value", playerNotificationService.currentPlayer.isPlaying)
+    notifyListeners("onPlayingUpdate", ret, true)
+
+    val metadata = PlaybackMetadata(playbackSession.getTotalDuration(), playerNotificationService.getCurrentTimeSeconds(), PlayerState.READY)
+    notifyListeners("onMetadata", JSObject(jacksonMapper.writeValueAsString(metadata)), true)
   }
 
   fun emit(evtName: String, value: Any) {
