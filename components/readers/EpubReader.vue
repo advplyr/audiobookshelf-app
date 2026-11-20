@@ -321,7 +321,7 @@ export default {
 
       /** @type {ePub.Rendition} */
       reader.rendition = reader.book.renderTo('viewer', {
-        width: window.innerWidth,
+        width: this.$el.clientWidth,
         height: window.innerHeight - this.readerHeightOffset,
         snap: true,
         manager: 'continuous',
@@ -416,7 +416,7 @@ export default {
     },
     refreshUI() {
       if (this.rendition?.resize) {
-        this.rendition.resize(window.innerWidth, window.innerHeight - this.readerHeightOffset)
+        this.rendition.resize(this.$el.clientWidth, window.innerHeight - this.readerHeightOffset)
       }
     }
   },

@@ -2,7 +2,7 @@
   <div v-if="!libraryItem" class="w-full h-full relative flex items-center justify-center bg-bg">
     <ui-loading-indicator />
   </div>
-  <div v-else id="item-page" class="w-full h-full overflow-y-auto overflow-x-hidden relative bg-bg">
+  <div v-else id="item-page" class="w-full h-full overflow-y-auto overflow-x-hidden relative bg-bg bleed safe-px">
     <!-- cover -->
     <div class="w-full flex justify-center relative">
       <div style="width: 0; transform: translateX(-50vw); overflow: visible">
@@ -20,7 +20,7 @@
 
     <div class="relative">
       <!-- background gradient -->
-      <div id="item-page-bg-gradient" class="absolute top-0 left-0 w-full pointer-events-none z-0" :style="{ opacity: coverRgb ? 1 : 0 }">
+      <div id="item-page-bg-gradient" class="absolute top-0 left-0 w-full pointer-events-none z-0 bleed" :style="{ opacity: coverRgb ? 1 : 0 }">
         <div class="w-full h-full" :style="{ backgroundColor: coverRgb }" />
         <div class="w-full h-full absolute top-0 left-0" style="background: var(--gradient-item-page)" />
       </div>

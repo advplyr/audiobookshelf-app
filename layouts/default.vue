@@ -1,7 +1,7 @@
 <template>
   <div class="w-full layout-wrapper bg-bg">
     <app-appbar />
-    <div id="content" class="overflow-hidden relative" :class="isPlayerOpen ? 'playerOpen' : ''">
+    <div id="content" class="overflow-hidden relative bleed safe-px" :class="isPlayerOpen ? 'playerOpen' : ''">
       <Nuxt :key="currentLang" />
     </div>
     <app-audio-player-container ref="streamContainer" />
