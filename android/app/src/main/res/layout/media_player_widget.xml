@@ -42,13 +42,13 @@
         <FrameLayout
           android:layout_width="0dp"
           android:layout_height="match_parent"
-          android:layout_weight="0.190983" />
+          android:layout_weight="0.19" />
 
         <LinearLayout
           android:layout_width="0dp"
           android:layout_height="match_parent"
-          android:layout_weight="0.809017"
-          android:layout_marginStart="-8.5dp"
+          android:layout_weight="0.81"
+          android:layout_marginStart="-8dp"
           android:orientation="vertical">
 
           <TextView
@@ -89,7 +89,7 @@
           android:id="@+id/widgetRewindButton"
           android:layout_width="0dp"
           android:layout_height="match_parent"
-          android:layout_weight="0.309017"
+          android:layout_weight="0.31"
           android:layout_margin="8dp"
           android:src="@drawable/exo_icon_rewind"
           style="@style/Widget.Android.AppWidget.InnerView"/>
@@ -98,7 +98,7 @@
           android:id="@+id/widgetPlayPauseButton"
           android:layout_width="0dp"
           android:layout_height="match_parent"
-          android:layout_weight="0.309017"
+          android:layout_weight="0.31"
           android:layout_margin="6dp"
           android:src="@drawable/ic_media_play_dark" />
 
@@ -106,7 +106,7 @@
           android:id="@+id/widgetFastForwardButton"
           android:layout_width="0dp"
           android:layout_height="match_parent"
-          android:layout_weight="0.309017"
+          android:layout_weight="0.31"
           android:layout_margin="8dp"
           android:src="@drawable/exo_icon_fastforward" />
       </LinearLayout>
