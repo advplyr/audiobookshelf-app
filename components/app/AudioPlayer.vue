@@ -2,9 +2,9 @@
   <!-- Main container - only shows when playback session exists, applies fullscreen/platform classes -->
   <div v-if="playbackSession" id="streamContainer" class="fixed top-0 left-0 layout-wrapper right-0 z-50 pointer-events-none" :class="{ fullscreen: showFullscreen, 'ios-player': $platform === 'ios', 'web-player': $platform === 'web' }">
     <!-- Fullscreen overlays: colored background and menu overlays -->
-    <div v-if="showFullscreen" class="w-full h-full z-10 absolute top-0 left-0 pointer-events-auto" :style="{ backgroundColor: coverRgb }">
+    <div v-if="showFullscreen" class="w-full h-full z-10 absolute top-0 left-0 pointer-events-auto bleed safe-x" :style="{ backgroundColor: coverRgb }">
       <!-- Background gradient for player -->
-      <div class="w-full h-full absolute top-0 left-0 pointer-events-none" style="background: var(--gradient-audio-player)" />
+      <div class="w-full h-full absolute top-0 left-0 pointer-events-none bleed" style="background: var(--gradient-audio-player)" />
 
       <!-- Collapse button - minimizes player -->
       <div class="top-4 left-4 absolute cursor-pointer">
@@ -61,7 +61,7 @@
       <p class="author-text text-fg text-opacity-75 truncate">{{ authorName }}</p>
     </div>
 
-    <div id="playerContent" class="playerContainer w-full z-20 absolute bottom-0 left-0 right-0 p-2 pointer-events-auto transition-all" :style="{ backgroundColor: showFullscreen ? '' : coverRgb }" @click="clickContainer">
+    <div id="playerContent" class="playerContainer w-full z-20 absolute bottom-0 left-0 right-0 p-2 pointer-events-auto transition-all" :class="{ 'bleed safe-x': !showFullscreen }" :style="{ backgroundColor: showFullscreen ? '' : coverRgb }" @click="clickContainer">
       <!-- Top controls bar - fullscreen only: bookmarks, speed, sleep timer, chapters -->
       <div v-if="showFullscreen" class="absolute bottom-4 left-0 right-0 w-full pb-4 pt-2 mx-auto px-6" style="max-width: 414px">
         <div class="flex items-center justify-between pointer-events-auto">
@@ -80,7 +80,7 @@
           <span class="material-symbols text-3xl text-fg cursor-pointer" :class="chapters.length ? 'text-opacity-75' : 'text-opacity-10'" @click="clickChaptersBtn">format_list_bulleted</span>
         </div>
       </div>
-      <div v-else class="w-full h-full absolute top-0 left-0 pointer-events-none" style="background: var(--gradient-minimized-audio-player)" />
+      <div v-else class="w-full h-full absolute top-0 left-0 pointer-events-none bleed" style="background: var(--gradient-minimized-audio-player)" />
 
       <!-- Playback controls - jump buttons, play/pause, chapter navigation -->
       <div id="playerControls" class="absolute right-0 bottom-0 mx-auto" style="max-width: 414px">
@@ -1127,7 +1127,7 @@ export default {
   transition-property: left, bottom, width, height;
   transform-origin: left bottom;
 
-  width: var(--title-author-width-collapsed);
+  width: calc(100% - 138px - var(--title-author-left-offset-collapsed));
   bottom: 76px;
   left: var(--title-author-left-offset-collapsed);
   text-align: left;

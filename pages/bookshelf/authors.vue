@@ -30,7 +30,7 @@ export default {
   },
   methods: {
     async init() {
-      this.cardWidth = (window.innerWidth - 64) / 2
+      this.cardWidth = (this.$el.clientWidth - 64) / 2
       if (!this.currentLibraryId) {
         return
       }

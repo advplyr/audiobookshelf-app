@@ -222,7 +222,7 @@ export default {
       console.error(err)
     },
     screenOrientationChange() {
-      this.windowWidth = window.innerWidth
+      this.windowWidth = this.$el.clientWidth
       this.windowHeight = window.innerHeight
     },
     init() {
@@ -235,7 +235,7 @@ export default {
     }
   },
   mounted() {
-    this.windowWidth = window.innerWidth
+    this.windowWidth = this.$el.clientWidth
     this.windowHeight = window.innerHeight
 
     if (screen.orientation) {

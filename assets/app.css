@@ -24,6 +24,23 @@ textarea {
   margin-top: env(safe-area-inset-top);
 }
 
+.layout-wrapper,
+.layout-wrapper .fixed,
+.safe-x {
+  border-left: env(safe-area-inset-left) solid transparent;
+  border-right: env(safe-area-inset-right) solid transparent;
+}
+
+.safe-px {
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+
+.bleed {
+  width: calc(100% + env(safe-area-inset-left) + env(safe-area-inset-right));
+  margin-left: calc(-1 * env(safe-area-inset-left));
+}
+
 #content {
   height: calc(100% - 64px);
   min-height: calc(100% - 64px);
