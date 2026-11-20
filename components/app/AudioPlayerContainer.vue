@@ -426,6 +426,12 @@ export default {
         if (!data) return
         if (!this.$refs.audioPlayer?.isPlaying) {
           console.log('[AudioPlayerContainer] device visibility: got server media progress', data.currentTime, 'last time in player is', this.currentTime)
+          // Progress saved before this player paused is our own older position (e.g. the pause sync has not reached the server yet)
+          const pausedAt = this.$refs.audioPlayer?.pausedAt
+          if (pausedAt && data.lastUpdate && data.lastUpdate < pausedAt) {
+            console.log('[AudioPlayerContainer] device visibility: server progress is older than the pause, not seeking', data.lastUpdate, pausedAt)
+            return
+          }
           // Only seek if the difference is greater than 1 second
           if (Math.abs(data.currentTime - this.currentTime) > 1) {
             // Use seek() so the native audio player's current session is updated

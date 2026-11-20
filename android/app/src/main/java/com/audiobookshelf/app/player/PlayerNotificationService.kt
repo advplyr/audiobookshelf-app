@@ -54,6 +54,7 @@ import com.google.android.exoplayer2.ui.PlayerNotificationManager
 import com.google.android.exoplayer2.upstream.*
 import java.util.*
 import kotlin.concurrent.schedule
+import kotlin.math.abs
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -73,6 +74,11 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
     var isUnmeteredNetwork = false
     var hasNetworkConnectivity = false // Not 100% reliable has internet
     var isSwitchingPlayer = false // Used when switching between cast player and exoplayer
+
+    // Shorter pauses resume right away without asking the server for progress from other devices
+    private const val MIN_PAUSE_BEFORE_PROGRESS_CHECK_MS = 5000L
+    // Server progress request times out after 3s, so this only triggers if its callback never comes
+    private const val PROGRESS_CHECK_TIMEOUT_MS = 4000L
   }
 
   private val tag = "PlayerNotificationServ"
@@ -120,6 +126,10 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
 
   var currentPlaybackSession: PlaybackSession? = null
   private var initialPlaybackRate: Float? = null
+
+  // Play requests waiting on checkServerProgressBeforePlay; bumping the id cancels a waiting play
+  private var playRequestId = 0
+  private var progressCheckPending = false
 
   private val metadataScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
   private var metadataArtJob: Job? = null
@@ -444,6 +454,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
     }
 
     isClosed = false
+    cancelPendingPlay()
 
     val mediaItems = playbackSession.getMediaItems(ctx)
     val playbackRateToUse = playbackRate ?: initialPlaybackRate ?: 1f
@@ -694,6 +705,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
   }
 
   fun switchToPlayer(useCastPlayer: Boolean) {
+    cancelPendingPlay()
     val wasPlaying = currentPlayer.isPlaying
     if (useCastPlayer) {
       if (currentPlayer == castPlayer) {
@@ -952,12 +964,94 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
       Log.d(tag, "Already playing")
       return
     }
+    if (checkServerProgressBeforePlay()) return
     currentPlayer.volume = 1F
     currentPlayer.play()
   }
 
   fun pause() {
+    cancelPendingPlay()
     currentPlayer.pause()
+  }
+
+  /** Cancels a play waiting on checkServerProgressBeforePlay */
+  private fun cancelPendingPlay() {
+    playRequestId++
+    progressCheckPending = false
+  }
+
+  /**
+   * Before resuming a paused server stream, check if another device (e.g. the web app) moved the
+   * progress while this player was paused, and continue from there. Resuming from the lock screen,
+   * media notification or headset never reaches the webview, so this has to happen natively.
+   * (On Android 12 and below the notification play button goes straight to the player instead.)
+   *
+   * Uses values instead of timestamps so device and server clocks don't matter: if the server
+   * still holds the position this device last synced, nobody else changed it.
+   *
+   * @return true if playback will start once the check completes
+   */
+  private fun checkServerProgressBeforePlay(): Boolean {
+    val playbackSession = mediaProgressSyncer.currentPlaybackSession ?: return false
+    val libraryItemId = playbackSession.libraryItemId
+    val pausedAt = mediaProgressSyncer.pausedAt
+    // The syncer still holds the previous session until the new one first plays
+    if (playbackSession.id != currentPlaybackSession?.id ||
+                    playbackSession.isLocal ||
+                    libraryItemId.isNullOrEmpty() ||
+                    mediaProgressSyncer.confirmedServerTime == null ||
+                    pausedAt <= 0L ||
+                    System.currentTimeMillis() - pausedAt < MIN_PAUSE_BEFORE_PROGRESS_CHECK_MS ||
+                    !DeviceManager.checkConnectivity(ctx)
+    ) {
+      return false
+    }
+
+    if (progressCheckPending) return true // Playback starts when the running check completes
+
+    AbsLogger.info("PlayerNotificationService", "checkServerProgressBeforePlay: Checking server progress before resuming (title: \"${playbackSession.displayTitle}\")")
+    val requestId = ++playRequestId
+    progressCheckPending = true
+    val mainHandler = Handler(Looper.getMainLooper())
+    var handled = false
+
+    // Runs on the main thread, once: when the server answers or when the fallback timeout fires
+    val finish = finish@{ mediaProgress: MediaProgress?, timedOut: Boolean ->
+      if (handled) return@finish
+      handled = true
+      // Paused, closed or another session prepared meanwhile
+      if (requestId != playRequestId || isClosed) return@finish
+      progressCheckPending = false
+      if (currentPlayer.isPlaying || currentPlaybackSession?.id != playbackSession.id) return@finish
+
+      val confirmedTime = mediaProgressSyncer.confirmedServerTime
+      if (timedOut) {
+        AbsLogger.info("PlayerNotificationService", "checkServerProgressBeforePlay: No server response in time, playing from current position")
+      } else {
+        AbsLogger.info("PlayerNotificationService", "checkServerProgressBeforePlay: Server progress ${mediaProgress?.currentTime} (lastUpdate ${mediaProgress?.lastUpdate}), last synced by this device $confirmedTime, player at ${getCurrentTimeSeconds()}")
+      }
+      if (mediaProgress != null &&
+                      confirmedTime != null &&
+                      !mediaProgress.isFinished &&
+                      mediaProgressSyncer.currentSessionId == playbackSession.id &&
+                      abs(mediaProgress.currentTime - confirmedTime) > 1.0
+      ) {
+        AbsLogger.info("PlayerNotificationService", "checkServerProgressBeforePlay: Progress changed on another device from $confirmedTime to ${mediaProgress.currentTime}, seeking before play (title: \"${playbackSession.displayTitle}\")")
+        seekPlayer((mediaProgress.currentTime * 1000).toLong())
+      } else if (mediaProgress == null && !timedOut) {
+        AbsLogger.info("PlayerNotificationService", "checkServerProgressBeforePlay: Could not get server progress, playing from current position")
+      }
+
+      currentPlayer.volume = 1F
+      currentPlayer.play()
+    }
+
+    // Never leave the user waiting on the network: play anyway if the server is slow to answer
+    mainHandler.postDelayed({ finish(null, true) }, PROGRESS_CHECK_TIMEOUT_MS)
+    apiHandler.getMediaProgress(libraryItemId, playbackSession.episodeId, null) { mediaProgress ->
+      mainHandler.post { finish(mediaProgress, false) }
+    }
+    return true
   }
 
   fun playPause(): Boolean {
@@ -1026,6 +1120,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
 
   fun closePlayback(calledOnError: Boolean? = false) {
     Log.d(tag, "closePlayback")
+    cancelPendingPlay()
     val config = DeviceManager.serverConnectionConfig
 
     val isLocal = mediaProgressSyncer.currentIsLocal
@@ -1044,9 +1139,9 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
           }
         }
       }
-    } else {
-      // If not local session then close on server
-      if (!isLocal && currentSessionId != "") {
+    } else if (!isLocal && currentSessionId != "") {
+      // Close on server once the pause sync, which may still be queued, has been sent
+      mediaProgressSyncer.afterPendingSyncs {
         apiHandler.closePlaybackSession(currentSessionId, config) {
           Log.d(tag, "Closed playback session $currentSessionId")
         }

@@ -59,7 +59,12 @@ class AbsAudioPlayer : Plugin() {
         }
 
         override fun onPlayingUpdate(isPlaying: Boolean) {
-          emit("onPlayingUpdate", isPlaying)
+          // changedAt lets the webview tell its own pause apart from progress saved before it,
+          // even when the event is delivered late because the app was in the background
+          val ret = JSObject()
+          ret.put("value", isPlaying)
+          ret.put("changedAt", System.currentTimeMillis())
+          notifyListeners("onPlayingUpdate", ret)
         }
 
         override fun onMetadata(metadata: PlaybackMetadata) {

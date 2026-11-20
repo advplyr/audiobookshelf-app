@@ -38,6 +38,15 @@ class PlayerListener(var playerNotificationService:PlayerNotificationService) : 
     }
   }
 
+  override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
+    // Pausing while buffering does not fire onIsPlayingChanged because isPlaying is already false,
+    // so the pause (and its progress sync) would be missed
+    if (!playWhenReady && lazyIsPlaying) {
+      Log.d(tag, "onPlayWhenReadyChanged: Paused while not playing (playbackState=${playerNotificationService.currentPlayer.playbackState})")
+      onIsPlayingChanged(false)
+    }
+  }
+
   override fun onIsPlayingChanged(isPlaying: Boolean) {
     Log.d(tag, "onIsPlayingChanged to $isPlaying | ${playerNotificationService.getMediaPlayer()} | playbackState=${playerNotificationService.currentPlayer.playbackState}")
 
@@ -45,7 +54,8 @@ class PlayerListener(var playerNotificationService:PlayerNotificationService) : 
 
     // Goal of these 2 if statements and the lazyIsPlaying is to ignore this event when it is triggered by a seek
     //  When a seek occurs the player is paused and buffering, then plays again right afterwards.
-    if (!isPlaying && player.playbackState == Player.STATE_BUFFERING) {
+    //  A pause requested by the user (playWhenReady false) is still handled while buffering.
+    if (!isPlaying && player.playbackState == Player.STATE_BUFFERING && player.playWhenReady) {
       Log.d(tag, "onIsPlayingChanged: Pause event when buffering is ignored")
       return
     }

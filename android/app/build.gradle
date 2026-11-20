@@ -128,6 +128,9 @@ dependencies {
 
   // Jackson for JSON
   implementation 'com.fasterxml.jackson.module:jackson-module-kotlin:2.12.2'
+
+  testImplementation "junit:junit:$junitVersion"
+  testImplementation "org.jetbrains.kotlinx:kotlinx-coroutines-test:$kotlin_coroutines_version"
 }
 
 apply from: 'capacitor.build.gradle'

@@ -30,7 +30,74 @@ import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
 import java.io.IOException
+import java.net.ConnectException
+import java.net.NoRouteToHostException
+import java.net.UnknownHostException
+import javax.net.ssl.SSLHandshakeException
 import java.util.concurrent.TimeUnit
+
+/**
+ * Whether the server applied a progress sync. Positions are absolute, but the server adds the
+ * listening time of every sync request, so a sync that may have been applied must not be resent.
+ */
+enum class SyncOutcome {
+  APPLIED,
+  /** The request never reached the server, or the server rejected it before applying it (4xx) */
+  NOT_APPLIED,
+  /** Failed after the request may have been applied, e.g. a timeout, dropped connection or 5xx */
+  UNKNOWN
+}
+
+// The body is only read after a success status, so this error means the server handled the request
+internal const val RESPONSE_BODY_READ_FAILED = "Failed to read response"
+
+/** Failures that happen before any request data is sent, so the server never saw the request */
+internal fun IOException.isBeforeRequestSent() =
+        this is ConnectException ||
+                this is UnknownHostException ||
+                this is NoRouteToHostException ||
+                this is SSLHandshakeException
+
+/**
+ * Whether an error status means the server rejected the request without changing anything. 4xx
+ * (auth, not found, bad request) are returned before a sync is applied. A 5xx can come after the
+ * update was saved, e.g. from a proxy timing out, so it does not prove the sync was not applied.
+ */
+internal fun isRejectedBeforeApplying(statusCode: Int) = statusCode in 400..499
+
+/**
+ * Outcome of a sync request from its error result. Sync responses carry no data the app needs, so
+ * a success status whose body could not be read still means the server applied the sync.
+ */
+internal fun syncOutcomeOf(error: String?, notApplied: Boolean): SyncOutcome =
+        when {
+          error.isNullOrEmpty() || error == RESPONSE_BODY_READ_FAILED -> SyncOutcome.APPLIED
+          notApplied -> SyncOutcome.NOT_APPLIED
+          else -> SyncOutcome.UNKNOWN
+        }
+
+/**
+ * Cancels a request, including a retry made after a token refresh. Once cancelled, no further call
+ * is started for the request, so a request abandoned by its caller cannot reach the server later.
+ */
+class RequestCancellation {
+  private var cancelled = false
+  private var call: Call? = null
+
+  /** Tracks the call about to be enqueued. Returns false if the request was already cancelled. */
+  @Synchronized
+  fun track(newCall: Call): Boolean {
+    if (cancelled) return false
+    call = newCall
+    return true
+  }
+
+  @Synchronized
+  fun cancel() {
+    cancelled = true
+    call?.cancel()
+  }
+}
 
 class ApiHandler(var ctx:Context) {
   val tag = "ApiHandler"
@@ -42,6 +109,13 @@ class ApiHandler(var ctx:Context) {
     fun checkAbsDatabaseNotifyListenersInitted():Boolean {
       return ::absDatabaseNotifyListeners.isInitialized
     }
+
+    // Set on error results when the request certainly did not change anything on the server
+    private const val NOT_APPLIED_KEY = "notApplied"
+
+    // Callbacks waiting on the token refresh in flight, per server connection config id.
+    // Shared because several ApiHandler instances exist (player, plugins, downloads).
+    private val inFlightRefreshes = HashMap<String, MutableList<(RefreshResult) -> Unit>>()
   }
 
   private var defaultClient = OkHttpClient()
@@ -70,7 +144,7 @@ class ApiHandler(var ctx:Context) {
     }
   }
 
-  private fun postRequest(endpoint:String, payload: JSObject?, config:ServerConnectionConfig?, cb: (JSObject) -> Unit) {
+  private fun postRequest(endpoint:String, payload: JSObject?, config:ServerConnectionConfig?, cancellation: RequestCancellation? = null, cb: (JSObject) -> Unit) {
     val address = config?.address ?: DeviceManager.serverAddress
     val token = config?.token ?: DeviceManager.token
     val mediaType = "application/json; charset=utf-8".toMediaType()
@@ -81,7 +155,7 @@ class ApiHandler(var ctx:Context) {
       val request = Request.Builder().post(requestBody)
         .url(requestUrl).addHeader("Authorization", "Bearer ${token}")
         .build()
-      makeRequest(request, null, cb)
+      makeRequest(request, null, cb, cancellation)
     } catch(e: Exception) {
       e.printStackTrace()
       val jsobj = JSObject()
@@ -106,16 +180,22 @@ class ApiHandler(var ctx:Context) {
     }
   }
 
-  private fun makeRequest(request:Request, httpClient:OkHttpClient?, cb: (JSObject) -> Unit) {
+  private fun makeRequest(request:Request, httpClient:OkHttpClient?, cb: (JSObject) -> Unit, cancellation: RequestCancellation? = null) {
     val client = httpClient ?: defaultClient
 
-    client.newCall(request).enqueue(object : Callback {
+    val call = client.newCall(request)
+    if (cancellation?.track(call) == false) {
+      cb(JSObject().put("error", "Request cancelled").put(NOT_APPLIED_KEY, true))
+      return
+    }
+    call.enqueue(object : Callback {
       override fun onFailure(call: Call, e: IOException) {
         Log.d(tag, "FAILURE TO CONNECT")
         e.printStackTrace()
 
         val jsobj = JSObject()
         jsobj.put("error", "Failed to connect")
+        if (e.isBeforeRequestSent()) jsobj.put(NOT_APPLIED_KEY, true)
         cb(jsobj)
       }
 
@@ -124,18 +204,32 @@ class ApiHandler(var ctx:Context) {
           if (it.code == 401) {
             // Handle 401 Unauthorized by attempting token refresh
             AbsLogger.info(tag, "makeRequest: 401 Unauthorized for request to \"${request.url}\" - attempt token refresh")
-            handleTokenRefresh(request, httpClient, cb)
+            handleTokenRefresh(request, httpClient, cb, cancellation)
             return
           }
 
           if (!it.isSuccessful) {
             val jsobj = JSObject()
             jsobj.put("error", "Unexpected code $response")
+            if (isRejectedBeforeApplying(it.code)) jsobj.put(NOT_APPLIED_KEY, true)
             cb(jsobj)
             return
           }
 
-          val bodyString = it.body!!.string()
+          // Reading the body can still fail (e.g. call timeout mid-body). An exception here would be
+          // swallowed by OkHttp and cb never called, leaving callers waiting forever.
+          val bodyString = try {
+            it.body!!.string()
+          } catch (e: IOException) {
+            AbsLogger.error(tag, "makeRequest: Failed to read response from \"${request.url.encodedPath}\" (${e.message})")
+            // Headers arrived but the body stalled: the pooled connection is likely half dead and
+            // would stall the following requests too, so make them open a new connection.
+            // Close first: only idle connections are evicted.
+            it.close()
+            client.connectionPool.evictAll()
+            cb(JSObject().put("error", RESPONSE_BODY_READ_FAILED))
+            return
+          }
           if (bodyString == "OK") {
             cb(JSObject())
           } else {
@@ -173,13 +267,24 @@ class ApiHandler(var ctx:Context) {
    * @param httpClient The HTTP client to use for the request
    * @param callback The callback to return the response
    */
-  private fun handleTokenRefresh(originalRequest: Request, httpClient: OkHttpClient?, callback: (JSObject) -> Unit) {
+  private fun handleTokenRefresh(originalRequest: Request, httpClient: OkHttpClient?, callback: (JSObject) -> Unit, cancellation: RequestCancellation? = null) {
     val serverConnectionConfigId = DeviceManager.serverConnectionConfigId
+
+    // Another request may have refreshed the token while this one was in flight. Retry with the
+    // new token instead of refreshing again with a refresh token that may already be rotated.
+    val currentToken = DeviceManager.getServerConnectionConfig(serverConnectionConfigId)?.token
+    val sentToken = originalRequest.header("Authorization")?.removePrefix("Bearer ")
+    if (!currentToken.isNullOrEmpty() && sentToken != null && sentToken != currentToken) {
+      AbsLogger.info(tag, "handleTokenRefresh: Token already refreshed, retrying request to \"${originalRequest.url}\"")
+      retryOriginalRequest(originalRequest, currentToken, httpClient, callback, cancellation)
+      return
+    }
+
     refreshAuthTokens(serverConnectionConfigId, httpClient) { result ->
       if (result is RefreshResult.Success) {
-        retryOriginalRequest(originalRequest, result.accessToken, httpClient, callback)
+        retryOriginalRequest(originalRequest, result.accessToken, httpClient, callback, cancellation)
       } else {
-        callback(JSObject().put("error", "Authentication failed - login again"))
+        callback(JSObject().put("error", "Authentication failed - login again").put(NOT_APPLIED_KEY, true))
       }
     }
   }
@@ -194,10 +299,36 @@ class ApiHandler(var ctx:Context) {
     data object Transient : RefreshResult
   }
 
-  /** Refreshes tokens for a specific saved server, including downloads queued while another server is active. */
+  /**
+   * Refreshes tokens for a specific saved server, including downloads queued while another server is active.
+   *
+   * Concurrent calls for the same server share one refresh request. The server rotates the refresh
+   * token, so a second parallel refresh with the old token would be rejected and log the user out.
+   */
   fun refreshAuthTokens(
           serverConnectionConfigId: String,
           httpClient: OkHttpClient? = null,
+          onResult: (RefreshResult) -> Unit
+  ) {
+    synchronized(inFlightRefreshes) {
+      val waiting = inFlightRefreshes[serverConnectionConfigId]
+      if (waiting != null) {
+        AbsLogger.info(tag, "refreshAuthTokens: Refresh already in progress for $serverConnectionConfigId, waiting for it")
+        waiting.add(onResult)
+        return
+      }
+      inFlightRefreshes[serverConnectionConfigId] = mutableListOf(onResult)
+    }
+
+    requestTokenRefresh(serverConnectionConfigId, httpClient) { result ->
+      val waiting = synchronized(inFlightRefreshes) { inFlightRefreshes.remove(serverConnectionConfigId) }
+      waiting?.forEach { it(result) }
+    }
+  }
+
+  private fun requestTokenRefresh(
+          serverConnectionConfigId: String,
+          httpClient: OkHttpClient?,
           onResult: (RefreshResult) -> Unit
   ) {
     val config = DeviceManager.getServerConnectionConfig(serverConnectionConfigId)
@@ -325,7 +456,7 @@ class ApiHandler(var ctx:Context) {
    * @param httpClient The HTTP client to use
    * @param callback The callback to return the response
    */
-  private fun retryOriginalRequest(originalRequest: Request, newAccessToken: String, httpClient: OkHttpClient?, callback: (JSObject) -> Unit) {
+  private fun retryOriginalRequest(originalRequest: Request, newAccessToken: String, httpClient: OkHttpClient?, callback: (JSObject) -> Unit, cancellation: RequestCancellation? = null) {
     try {
       // Create a new request with the updated authorization header
       val newRequest = originalRequest.newBuilder()
@@ -337,12 +468,18 @@ class ApiHandler(var ctx:Context) {
 
       // Make the retry request
       val client = httpClient ?: defaultClient
-      client.newCall(newRequest).enqueue(object : Callback {
+      val call = client.newCall(newRequest)
+      if (cancellation?.track(call) == false) {
+        callback(JSObject().put("error", "Request cancelled").put(NOT_APPLIED_KEY, true))
+        return
+      }
+      call.enqueue(object : Callback {
         override fun onFailure(call: Call, e: IOException) {
           Log.e(tag, "retryOriginalRequest: Failed to retry request", e)
           AbsLogger.error(tag, "retryOriginalRequest: Failed to retry request after token refresh for server ${DeviceManager.serverConnectionConfigString} (error: ${e.message})")
           val errorObj = JSObject()
           errorObj.put("error", "Failed to retry request after token refresh")
+          if (e.isBeforeRequestSent()) errorObj.put(NOT_APPLIED_KEY, true)
           callback(errorObj)
         }
 
@@ -353,11 +490,20 @@ class ApiHandler(var ctx:Context) {
               AbsLogger.error(tag, "retryOriginalRequest: Retry request failed with status ${it.code} for server ${DeviceManager.serverConnectionConfigString}")
               val errorObj = JSObject()
               errorObj.put("error", "Retry request failed with status ${it.code}")
+              if (isRejectedBeforeApplying(it.code)) errorObj.put(NOT_APPLIED_KEY, true)
               callback(errorObj)
               return
             }
 
-            val bodyString = it.body!!.string()
+            val bodyString = try {
+              it.body!!.string()
+            } catch (e: IOException) {
+              AbsLogger.error(tag, "retryOriginalRequest: Failed to read response (${e.message})")
+              it.close()
+              client.connectionPool.evictAll()
+              callback(JSObject().put("error", RESPONSE_BODY_READ_FAILED))
+              return
+            }
             if (bodyString == "OK") {
               callback(JSObject())
             } else {
@@ -607,15 +753,11 @@ class ApiHandler(var ctx:Context) {
     }
   }
 
-  fun sendProgressSync(sessionId:String, syncData: MediaProgressSyncData, cb: (Boolean, String?) -> Unit) {
+  fun sendProgressSync(sessionId:String, syncData: MediaProgressSyncData, cancellation: RequestCancellation? = null, cb: (SyncOutcome, String?) -> Unit) {
     val payload = JSObject(jacksonMapper.writeValueAsString(syncData))
 
-    postRequest("/api/session/$sessionId/sync", payload, null) {
-      if (!it.getString("error").isNullOrEmpty()) {
-        cb(false, it.getString("error"))
-      } else {
-        cb(true, null)
-      }
+    postRequest("/api/session/$sessionId/sync", payload, null, cancellation) {
+      reportSyncResult(it, cb)
     }
   }
 
@@ -638,16 +780,18 @@ class ApiHandler(var ctx:Context) {
     return json
   }
 
-  fun sendLocalProgressSync(playbackSession:PlaybackSession, cb: (Boolean, String?) -> Unit) {
+  fun sendLocalProgressSync(playbackSession:PlaybackSession, cancellation: RequestCancellation? = null, cb: (SyncOutcome, String?) -> Unit) {
     val partialSession = createPartialPlaybackSession(playbackSession)
     partialSession.set<ObjectNode>("deviceInfo", jacksonMapper.valueToTree(playbackSession.deviceInfo))
-    postRequest("/api/session/local", JSObject(partialSession.toString()), null) {
-      if (!it.getString("error").isNullOrEmpty()) {
-        cb(false, it.getString("error"))
-      } else {
-        cb(true, null)
-      }
+    postRequest("/api/session/local", JSObject(partialSession.toString()), null, cancellation) {
+      reportSyncResult(it, cb)
     }
+  }
+
+  private fun reportSyncResult(response: JSObject, cb: (SyncOutcome, String?) -> Unit) {
+    val error = response.getString("error")
+    val outcome = syncOutcomeOf(error, response.optBoolean(NOT_APPLIED_KEY))
+    cb(outcome, if (outcome == SyncOutcome.APPLIED) null else error)
   }
 
   fun updateMediaProgress(libraryItemId:String,episodeId:String?,updatePayload:JSObject, cb: () -> Unit) {
@@ -668,7 +812,13 @@ class ApiHandler(var ctx:Context) {
         Log.e(tag, "getMediaProgress: Failed to get progress")
         cb(null)
       } else {
-        val progress = jacksonMapper.readValue<MediaProgress>(it.toString())
+        // Callers may be waiting on this to start playback, so a parse error must still call back
+        val progress = try {
+          jacksonMapper.readValue<MediaProgress>(it.toString())
+        } catch (e: Exception) {
+          AbsLogger.error(tag, "getMediaProgress: Invalid progress response (${e.message})")
+          null
+        }
         cb(progress)
       }
     }

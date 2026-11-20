@@ -782,6 +782,8 @@ export default {
   async mounted() {
     if (!this.libraryItem) {
       await this.loadServerLibraryItem()
+      // Loading failed and the page is navigating away
+      if (!this.libraryItem) return
     }
     this.init()
   },
