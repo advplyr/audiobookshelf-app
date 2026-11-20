@@ -1,14 +1,18 @@
 package com.audiobookshelf.app.plugins
 
+import android.content.Intent
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import androidx.annotation.OptIn
+import androidx.media3.common.util.UnstableApi
+import com.audiobookshelf.app.BuildConfig
 import com.audiobookshelf.app.MainActivity
 import com.audiobookshelf.app.data.*
 import com.audiobookshelf.app.device.DeviceManager
+import com.audiobookshelf.app.managers.SecureStorage
 import com.audiobookshelf.app.media.MediaEventManager
 import com.audiobookshelf.app.server.ApiHandler
-import com.audiobookshelf.app.managers.SecureStorage
 import com.fasterxml.jackson.core.json.JsonReadFeature
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
@@ -44,11 +48,18 @@ class AbsDatabase : Plugin() {
     DeviceManager.dbManager.cleanLogs()
   }
 
+  // Lets the webview hide player-specific settings on the flavor that doesn't support them
+  private fun deviceDataToJSObject(deviceData: DeviceData): JSObject {
+    val jsobj = JSObject(jacksonMapper.writeValueAsString(deviceData))
+    jsobj.put("usesMedia3Player", BuildConfig.USE_MEDIA3)
+    return jsobj
+  }
+
   @PluginMethod
   fun getDeviceData(call:PluginCall) {
     GlobalScope.launch(Dispatchers.IO) {
       val deviceData = DeviceManager.dbManager.getDeviceData()
-      call.resolve(JSObject(jacksonMapper.writeValueAsString(deviceData)))
+      call.resolve(deviceDataToJSObject(deviceData))
     }
   }
 
@@ -385,7 +396,7 @@ class AbsDatabase : Plugin() {
     var localMediaProgress = DeviceManager.dbManager.getLocalMediaProgress(localMediaProgressId)
 
     if (localMediaProgress == null) { // Create new local media progress if does not exist
-     Log.d(tag, "updateLocalMediaProgressFinished Local Media Progress not found $localMediaProgressId - Creating new")
+      Log.d(tag, "updateLocalMediaProgressFinished Local Media Progress not found $localMediaProgressId - Creating new")
       val localLibraryItem = DeviceManager.dbManager.getLocalLibraryItem(localLibraryItemId)
 
       if (localLibraryItem == null) {
@@ -398,10 +409,10 @@ class AbsDatabase : Plugin() {
       val duration: Double
       var podcastEpisode: PodcastEpisode? = null
       if (!localEpisodeId.isNullOrEmpty()) {
-          val podcast = localLibraryItem.media as Podcast
+        val podcast = localLibraryItem.media as Podcast
         podcastEpisode = podcast.episodes?.find { episode ->
-            episode.id == localEpisodeId
-          }
+          episode.id == localEpisodeId
+        }
         if (podcastEpisode == null) {
           return call.resolve(JSObject("{\"error\":\"Podcast episode not found\"}"))
         }
@@ -556,6 +567,7 @@ class AbsDatabase : Plugin() {
     }
   }
 
+  @OptIn(UnstableApi::class)
   @PluginMethod
   fun updateDeviceSettings(call:PluginCall) { // Returns device data
     Log.d(tag, "updateDeviceSettings called")
@@ -570,7 +582,17 @@ class AbsDatabase : Plugin() {
         mainActivity.foregroundService.setMediaSessionConnectorPlaybackActions()
       }
 
-      call.resolve(JSObject(jacksonMapper.writeValueAsString(DeviceManager.deviceData)))
+      // Also notify Media3 playback service (if present) to refresh media session / notification commands
+      try {
+        val intent =
+          Intent(mainActivity, com.audiobookshelf.app.player.media3.Media3PlaybackService::class.java)
+        intent.action = "UPDATE_COMMANDS"
+        mainActivity.startService(intent)
+      } catch (t: Throwable) {
+        Log.w(tag, "Failed to notify Media3PlaybackService: ${t.message}")
+      }
+
+      call.resolve(deviceDataToJSObject(DeviceManager.deviceData))
     }
   }
 

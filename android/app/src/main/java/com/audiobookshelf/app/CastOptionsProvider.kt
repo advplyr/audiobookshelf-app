@@ -11,10 +11,8 @@ import com.google.android.gms.cast.framework.media.CastMediaOptions
 class CastOptionsProvider : OptionsProvider {
   override fun getCastOptions(context: Context): CastOptions {
     Log.d("CastOptionsProvider", "getCastOptions")
-    var appId = "FD1F76C5"
-//    var defaultId =CastMediaControlIntent.DEFAULT_MEDIA_RECEIVER_APPLICATION_ID
     return CastOptions.Builder()
-      .setReceiverApplicationId(appId).setCastMediaOptions(
+      .setReceiverApplicationId(CastConstants.RECEIVER_APPLICATION_ID).setCastMediaOptions(
         CastMediaOptions.Builder()
           // We manage the media session and the notifications ourselves.
           .setMediaSessionEnabled(false)

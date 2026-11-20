@@ -104,6 +104,8 @@
   "LabelAndroidAutoBrowseLimitForGrouping": "Alphabetical drawdown limit",
   "LabelAndroidAutoBrowseLimitForGroupingHelp": "Don't use alphabetical drawdown when there is less than this amount of items to show",
   "LabelAndroidAutoBrowseSeriesSequenceOrder": "Series books order",
+  "LabelAndroidAutoPlaybackResumption": "Resume playback on connect",
+  "LabelAndroidAutoPlaybackResumptionHelp": "Let Android Auto resume your last book when you connect. Android Auto only resumes automatically when it was playing as you disconnected, and its own autoplay setting is on.",
   "LabelAskConfirmation": "Ask for confirmation",
   "LabelAuthor": "Author",
   "LabelAuthorFirstLast": "Author (First Last)",
