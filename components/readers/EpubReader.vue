@@ -345,6 +345,19 @@ export default {
             let snapWidth = this.layout.pageWidth * this.layout.divisor
             return left % snapWidth !== 0
           }
+
+          // Overriding the snap function in epubjs `snap.js` to fix swipes turning 2 pages (#1107).
+          // scrollLeft already includes the drag distance, so rounding it and then adding howMany
+          // double-counts any drag past half a page. Move exactly one page from where the drag started.
+          reader.rendition.manager.snapper.snap = function (howMany = 0) {
+            const left = this.scrollLeft
+            const snapWidth = this.layout.pageWidth * this.layout.divisor
+            let page
+            if (howMany > 0) page = Math.floor(left / snapWidth) + 1
+            else if (howMany < 0) page = Math.ceil(left / snapWidth) - 1
+            else page = Math.round(left / snapWidth)
+            return this.smoothScrollTo(Math.max(0, page) * snapWidth)
+          }
         })
 
         reader.rendition.on('rendered', (section, view) => {
