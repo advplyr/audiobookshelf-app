@@ -514,6 +514,10 @@ class AudioPlayer: NSObject {
         self.updateNowPlaying()
     }
 
+    public func setUseAuthorAsChapterSubtitle() {
+        self.updateNowPlaying()
+    }
+
     public func getCurrentTime() -> Double? {
         guard let playbackSession = self.getPlaybackSession() else { return nil }
         let audioTrack = playbackSession.audioTracks[currentTrackIndex]
@@ -789,7 +793,10 @@ class AudioPlayer: NSObject {
     }
     private func updateNowPlaying() {
         NotificationCenter.default.post(name: NSNotification.Name(PlayerEvents.update.rawValue), object: nil)
-        if let session = self.getPlaybackSession(), let currentChapter = session.getCurrentChapter(), PlayerSettings.main().chapterTrack {
+        let settings = PlayerSettings.main()
+        if let session = self.getPlaybackSession(), let currentChapter = session.getCurrentChapter(), settings.chapterTrack {
+            // Secondary slot is book title by default; author when user opts in
+            let artist: String? = settings.useAuthorAsChapterSubtitle ? session.displayAuthor : session.displayTitle
             NowPlayingInfo.shared.update(
                 duration: currentChapter.getRelativeChapterEndTime(),
                 currentTime: currentChapter.getRelativeChapterCurrentTime(sessionCurrentTime: session.currentTime),
@@ -797,10 +804,13 @@ class AudioPlayer: NSObject {
                 defaultRate: self.rateManager.defaultRate,
                 chapterName: currentChapter.title,
                 chapterNumber: (session.chapters.firstIndex(of: currentChapter) ?? 0) + 1,
-                chapterCount: session.chapters.count
+                chapterCount: session.chapters.count,
+                artist: artist
             )
         } else if let duration = self.getDuration(), let currentTime = self.getCurrentTime() {
-            NowPlayingInfo.shared.update(duration: duration, currentTime: currentTime, rate: self.rateManager.rate, defaultRate: self.rateManager.defaultRate)
+            // Restore the original author in the secondary slot when chapter mode is off
+            let artist: String? = self.getPlaybackSession()?.displayAuthor
+            NowPlayingInfo.shared.update(duration: duration, currentTime: currentTime, rate: self.rateManager.rate, defaultRate: self.rateManager.defaultRate, artist: artist)
         }
     }
     
