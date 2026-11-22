@@ -1,5 +1,5 @@
 <template>
-  <div class="w-full h-full px-3 py-4 overflow-y-auto overflow-x-hidden relative bg-bg">
+  <div id="episode-page" class="w-full h-full px-3 py-4 overflow-y-auto overflow-x-hidden relative bg-bg">
     <div class="flex mb-2">
       <div class="w-10 min-w-10">
         <covers-preview-cover :src="coverUrl" :width="40" :book-cover-aspect-ratio="bookCoverAspectRatio" :show-resolution="false" class="md:hidden" />
@@ -29,7 +29,7 @@
 
     <!-- action buttons -->
     <div class="flex mt-4 -mx-1">
-      <ui-btn color="success" class="flex items-center justify-center flex-grow mx-1" :loading="playerIsStartingForThisMedia" :padding-x="4" @click="playClick">
+      <ui-btn color="success" data-tv-target="play-button" class="flex items-center justify-center flex-grow mx-1" :loading="playerIsStartingForThisMedia" :padding-x="4" @click="playClick">
         <span class="material-symbols text-2xl fill">{{ playerIsPlaying ? 'pause' : 'play_arrow' }}</span>
         <span class="px-1 text-sm">{{ playerIsPlaying ? $strings.ButtonPause : localEpisodeId ? $strings.ButtonPlay : $strings.ButtonStream }}</span>
       </ui-btn>

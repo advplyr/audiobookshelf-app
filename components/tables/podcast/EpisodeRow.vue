@@ -13,7 +13,7 @@
 
       <p v-if="publishedAt" class="text-xs text-fg-muted mb-1">{{ $getString('LabelPublishedDate', [$formatDate(publishedAt, 'MMM do, yyyy')]) }}</p>
 
-      <p class="text-sm font-semibold">{{ title }}</p>
+      <p tabindex="0" :id="`episode-${episode.id}`" class="text-sm font-semibold cursor-pointer" @click.stop="goToEpisodePage" @keydown.enter.prevent.stop="goToEpisodePage">{{ title }}</p>
 
       <p class="text-sm text-fg episode-subtitle mt-1.5 mb-0.5" v-html="subtitle" />
 
@@ -30,7 +30,7 @@
 
       <div class="flex items-center pt-2">
         <!-- Play/Pause Button -->
-        <div class="h-10 px-4 border border-border rounded-full flex items-center justify-center cursor-pointer" :class="userIsFinished ? 'text-white text-opacity-40' : ''" @click.stop="playClick">
+        <div tabindex="0" class="h-10 px-4 border border-border rounded-full flex items-center justify-center cursor-pointer" :class="userIsFinished ? 'text-white text-opacity-40' : ''" @click.stop="playClick" @keydown.enter.prevent.stop="playClick">
           <span v-if="!playerIsStartingForThisMedia" class="material-symbols text-2xl fill leading-none" :class="streamIsPlaying ? '' : 'text-success'">
             {{ streamIsPlaying ? 'pause' : 'play_arrow' }}
           </span>
@@ -44,14 +44,14 @@
         <ui-read-icon-btn :disabled="isProcessingReadUpdate" :is-read="userIsFinished" borderless class="mx-1" @click="toggleFinished" />
 
         <!-- Add to Playlist Button -->
-        <button v-if="!isLocal" class="mx-1.5" @click.stop="addToPlaylist">
+        <button v-if="!isLocal" class="mx-1.5" @click.stop="addToPlaylist" @keydown.enter.prevent.stop="addToPlaylist">
           <span class="material-symbols text-2xl leading-none">playlist_add</span>
         </button>
 
         <!-- Download Section -->
-        <div v-if="userCanDownload" class="flex items-center">
+        <div v-if="userCanDownload" tabindex="0" class="flex items-center cursor-pointer" @keydown.enter.prevent.stop="!isLocal && !localEpisode && downloadClick()" @click.stop="!isLocal && !localEpisode && downloadClick()">
           <span v-if="isLocal" class="material-symbols px-2 text-success text-2xl leading-none">audio_file</span>
-          <span v-else-if="!localEpisode" class="material-symbols mx-1.5 text-2xl leading-none" :class="downloadItem || startingDownload ? 'animate-bounce text-warning text-opacity-75' : ''" @click.stop="downloadClick">
+          <span v-else-if="!localEpisode" class="material-symbols mx-1.5 text-2xl leading-none" :class="downloadItem || startingDownload ? 'animate-bounce text-warning text-opacity-75' : ''">
             {{ downloadItem || startingDownload ? 'downloading' : 'download' }}
           </span>
           <span v-else class="material-symbols px-2 text-success text-2xl leading-none">download_done</span>
