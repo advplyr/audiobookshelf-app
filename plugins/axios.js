@@ -96,7 +96,6 @@ export default function ({ $axios, store, $db }) {
 
       try {
         // Attempt to refresh the token
-        // Updates store if successful, otherwise clears store and throw error
         const newAccessToken = await store.dispatch('user/refreshToken')
         if (!newAccessToken) {
           console.error('No new access token received')
@@ -120,7 +119,7 @@ export default function ({ $axios, store, $db }) {
         // Process queued requests with error
         processQueue(refreshError, null)
 
-        await handleRefreshFailure(store.getters['user/getServerConnectionConfigId'])
+        if (refreshError?.response?.status === 401) await handleRefreshFailure(store.getters['user/getServerConnectionConfigId'])
 
         return Promise.reject(refreshError)
       } finally {
