@@ -60,7 +60,7 @@
               <span v-if="!showPlay" class="px-2 text-base">{{ $strings.ButtonRead }} {{ ebookFormat }}</span>
             </ui-btn>
             <ui-btn v-if="showDownload" :color="downloadItem ? 'warning' : 'primary'" class="flex items-center justify-center mx-1" :padding-x="2" @click="downloadClick">
-              <span class="material-symbols text-2xl" :class="downloadItem || startingDownload ? 'animate-pulse' : ''">{{ downloadItem || startingDownload ? 'downloading' : 'download' }}</span>
+              <span class="material-symbols text-2xl" :class="downloadItem || startingDownload ? 'animate-pulse' : ''">{{ downloadItem || startingDownload ? 'downloading' : localCopyIsOutdated ? 'sync' : 'download' }}</span>
             </ui-btn>
             <ui-btn color="primary" class="flex items-center justify-center mx-1" :padding-x="2" @click="moreButtonPress">
               <span class="material-symbols text-2xl">more_vert</span>
@@ -248,6 +248,22 @@ export default {
     },
     localLibraryItemId() {
       return this.localLibraryItem?.id || null
+    },
+    localCopyIsOutdated() {
+      // Downloaded copy is missing audio tracks the server item has. Happens
+      // when tracks are added to an item after it was downloaded, and when a
+      // download only partly completed: the local copy plays what it has and
+      // offers no way to fetch the rest, while this page lists the server's
+      // tracks - visible and unplayable.
+      if (this.isPodcast || this.isLocal || !this.localLibraryItem) return false
+      return this.localTrackCount > 0 && this.numTracks > this.localTrackCount
+    },
+    localTrackCount() {
+      return this.localLibraryItem?.media?.tracks?.length || 0
+    },
+    missingTrackCount() {
+      if (!this.localCopyIsOutdated) return 0
+      return this.numTracks - this.localTrackCount
     },
     localLibraryItemEpisodes() {
       if (!this.isPodcast || !this.localLibraryItem) return []
@@ -449,7 +465,8 @@ export default {
       return this.ebookFile
     },
     showDownload() {
-      if (this.isPodcast || this.hasLocal) return false
+      if (this.isPodcast) return false
+      if (this.hasLocal && !this.localCopyIsOutdated) return false
       return this.user && this.userCanDownload && (this.showPlay || this.showRead)
     },
     libraryFiles() {
@@ -632,6 +649,12 @@ export default {
     async download(selectedLocalFolder = null) {
       // Get the local folder to download to
       let localFolder = selectedLocalFolder
+      if (!localFolder && this.localCopyIsOutdated) {
+        // Updating a copy that already exists: put it back where it lives,
+        // rather than asking again and risking a second copy elsewhere.
+        const localFolders = (await this.$db.getLocalFolders()) || []
+        localFolder = localFolders.find((lf) => lf.id === this.localLibraryItem.folderId) || null
+      }
       if (!localFolder) {
         const localFolders = (await this.$db.getLocalFolders()) || []
         console.log('Local folders loaded', localFolders.length)
@@ -662,7 +685,9 @@ export default {
 
       console.log('Local folder', JSON.stringify(localFolder))
       let startDownloadMessage = `Start download for "${this.title}" with ${this.numTracks} audio track${this.numTracks == 1 ? '' : 's'} to folder ${localFolder.name}?`
-      if (!this.isIos && this.showRead) {
+      if (this.localCopyIsOutdated) {
+        startDownloadMessage = `"${this.title}" has ${this.missingTrackCount} more audio track${this.missingTrackCount == 1 ? '' : 's'} on the server than the copy in ${localFolder.name}. Update the download?`
+      } else if (!this.isIos && this.showRead) {
         if (this.numTracks > 0) {
           startDownloadMessage = `Start download for "${this.title}" with ${this.numTracks} audio track${this.numTracks == 1 ? '' : 's'} and ebook file to folder ${localFolder.name}?`
         } else {
