@@ -22,9 +22,22 @@
             <span class="material-symbols">remove</span>
           </button>
           <div class="w-24 text-center">
-            <p class="text-xl">{{ playbackRate }}<span class="text-lg">⨯</span></p>
+            <p class="text-xs text-fg-muted leading-none">{{ $strings.LabelSpeed }}</p>
+            <p class="text-xl leading-tight">{{ playbackRate }}<span class="text-lg">⨯</span></p>
           </div>
           <button :disabled="!canIncrement" @click="increment" class="icon-num-btn w-8 h-8 text-fg-muted rounded border border-border flex items-center justify-center">
+            <span class="material-symbols">add</span>
+          </button>
+        </div>
+        <div class="flex items-center justify-center py-3 border-t border-fg/10">
+          <button :disabled="!canDecrementPitch" @click="decrementPitch" class="icon-num-btn w-8 h-8 text-fg-muted rounded border border-border flex items-center justify-center">
+            <span class="material-symbols">remove</span>
+          </button>
+          <div class="w-24 text-center">
+            <p class="text-xs text-fg-muted leading-none">{{ $strings.LabelPitchAdjust }}</p>
+            <p class="text-xl leading-tight">{{ currentPitchDisplay }}</p>
+          </div>
+          <button :disabled="!canIncrementPitch" @click="incrementPitch" class="icon-num-btn w-8 h-8 text-fg-muted rounded border border-border flex items-center justify-center">
             <span class="material-symbols">add</span>
           </button>
         </div>
@@ -37,19 +50,28 @@
 export default {
   props: {
     value: Boolean,
-    playbackRate: Number
+    playbackRate: Number,
+    pitchAdjust: {
+      type: Number,
+      default: 1.0
+    }
   },
   data() {
     return {
       currentPlaybackRate: 0,
+      currentPitch: 1.0,
       MIN_SPEED: 0.5,
-      MAX_SPEED: 10
+      MAX_SPEED: 10,
+      MIN_PITCH: 0.5,
+      MAX_PITCH: 2.0,
+      PITCH_STEP: 0.05
     }
   },
   watch: {
     show(newVal) {
       if (newVal) {
         this.currentPlaybackRate = this.selected
+        this.currentPitch = this.pitchAdjust
       }
     }
   },
@@ -78,6 +100,15 @@ export default {
     },
     canDecrement() {
       return this.playbackRate - 0.1 >= this.MIN_SPEED
+    },
+    canIncrementPitch() {
+      return this.currentPitch + this.PITCH_STEP <= this.MAX_PITCH
+    },
+    canDecrementPitch() {
+      return this.currentPitch - this.PITCH_STEP >= this.MIN_PITCH
+    },
+    currentPitchDisplay() {
+      return this.currentPitch.toFixed(2)
     }
   },
   methods: {
@@ -90,6 +121,16 @@ export default {
       if (this.selected - 0.1 < this.MIN_SPEED) return
       var newPlaybackRate = this.selected - 0.1
       this.selected = Number(newPlaybackRate.toFixed(1))
+    },
+    incrementPitch() {
+      if (this.currentPitch + this.PITCH_STEP > this.MAX_PITCH) return
+      this.currentPitch = Number((this.currentPitch + this.PITCH_STEP).toFixed(2))
+      this.$emit('changePitch', this.currentPitch)
+    },
+    decrementPitch() {
+      if (this.currentPitch - this.PITCH_STEP < this.MIN_PITCH) return
+      this.currentPitch = Number((this.currentPitch - this.PITCH_STEP).toFixed(2))
+      this.$emit('changePitch', this.currentPitch)
     },
     modalInput(val) {
       if (!val) {
@@ -104,7 +145,9 @@ export default {
       this.$emit('change', Number(rate))
     }
   },
-  mounted() {}
+  mounted() {
+    this.currentPitch = this.pitchAdjust
+  }
 }
 </script>
 

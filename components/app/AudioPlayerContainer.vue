@@ -2,7 +2,7 @@
   <div>
     <app-audio-player ref="audioPlayer" :bookmarks="bookmarks" :sleep-timer-running="isSleepTimerRunning" :sleep-time-remaining="sleepTimeRemaining" :serverLibraryItemId="serverLibraryItemId" @selectPlaybackSpeed="showPlaybackSpeedModal = true" @updateTime="(t) => (currentTime = t)" @showSleepTimer="showSleepTimer" @showBookmarks="showBookmarks" />
 
-    <modals-playback-speed-modal v-model="showPlaybackSpeedModal" :playback-rate.sync="playbackSpeed" @update:playbackRate="updatePlaybackSpeed" @change="changePlaybackSpeed" />
+    <modals-playback-speed-modal v-model="showPlaybackSpeedModal" :playback-rate.sync="playbackSpeed" :pitch-adjust="currentPitchAdjust" @update:playbackRate="updatePlaybackSpeed" @change="changePlaybackSpeed" @changePitch="changePitchAdjust" />
     <modals-sleep-timer-modal v-model="showSleepTimerModal" :current-time="sleepTimeRemaining" :sleep-timer-running="isSleepTimerRunning" :current-end-of-chapter-time="currentEndOfChapterTime" :is-auto="isAutoSleepTimer" @change="selectSleepTimeout" @cancel="cancelSleepTimer" @increase="increaseSleepTimer" @decrease="decreaseSleepTimer" />
     <modals-bookmarks-modal v-model="showBookmarksModal" :bookmarks="bookmarks" :current-time="currentTime" :library-item-id="serverLibraryItemId" :playback-rate="playbackSpeed" @select="selectBookmark" />
   </div>
@@ -25,6 +25,7 @@ export default {
       showBookmarksModal: false,
       showSleepTimerModal: false,
       playbackSpeed: 1,
+      currentPitchAdjust: 1.0,
       currentTime: 0,
       isSleepTimerRunning: false,
       sleepTimerEndTime: 0,
@@ -143,6 +144,11 @@ export default {
     changePlaybackSpeed(speed) {
       console.log(`[AudioPlayerContainer] Change Playback Speed: ${speed}`)
       this.$store.dispatch('user/updateUserSettings', { playbackRate: speed })
+    },
+    async changePitchAdjust(pitch) {
+      console.log(`[AudioPlayerContainer] Change Pitch: ${pitch}`)
+      this.currentPitchAdjust = pitch
+      AbsAudioPlayer.setPitch({ value: pitch })
     },
     settingsUpdated(settings) {
       console.log(`[AudioPlayerContainer] Settings Update | PlaybackRate: ${settings.playbackRate}`)
@@ -443,6 +449,10 @@ export default {
 
     this.playbackSpeed = this.$store.getters['user/getUserSetting']('playbackRate')
     console.log(`[AudioPlayerContainer] Init Playback Speed: ${this.playbackSpeed}`)
+
+    const pitchResult = await AbsAudioPlayer.getPitchAdjust()
+    this.currentPitchAdjust = pitchResult?.value ?? 1.0
+    console.log(`[AudioPlayerContainer] Init Pitch: ${this.currentPitchAdjust}`)
 
     this.$eventBus.$on('abs-ui-ready', this.onReady)
     this.$eventBus.$on('play-item', this.playLibraryItem)
