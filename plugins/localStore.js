@@ -78,6 +78,24 @@ class LocalStorage {
     }
   }
 
+  async setAuthorsListView(useIt) {
+    try {
+      await Preferences.set({ key: 'authorsListView', value: useIt ? '1' : '0' })
+    } catch (error) {
+      console.error('[LocalStorage] Failed to set authors list view', error)
+    }
+  }
+
+  async getAuthorsListView() {
+    try {
+      var obj = await Preferences.get({ key: 'authorsListView' }) || {}
+      return obj.value === '1'
+    } catch (error) {
+      console.error('[LocalStorage] Failed to get authors list view', error)
+      return false
+    }
+  }
+
   async setLastLibraryId(libraryId) {
     try {
       await Preferences.set({ key: 'lastLibraryId', value: libraryId })
