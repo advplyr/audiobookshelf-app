@@ -1,7 +1,16 @@
 <template>
   <div class="w-full h-full px-4 py-8 overflow-y-auto">
+    <!-- TV settings (Android TV only) -->
+    <template v-if="isAndroidTv">
+      <p class="uppercase text-xs font-semibold text-fg-muted mb-2">TV Settings</p>
+      <div class="py-3 flex items-center">
+        <p class="pr-4 w-36">Focus Ring Color</p>
+        <TvFocusColorPicker :value="tvFocusColor" @input="setTvFocusColor" />
+      </div>
+    </template>
+
     <!-- Display settings -->
-    <p class="uppercase text-xs font-semibold text-fg-muted mb-2">{{ $strings.HeaderUserInterfaceSettings }}</p>
+    <p class="uppercase text-xs font-semibold text-fg-muted mb-2" :class="{ 'mt-10': isAndroidTv }">{{ $strings.HeaderUserInterfaceSettings }}</p>
     <div class="flex items-center py-3">
       <div class="w-10 flex justify-center" @click="toggleEnableAltView">
         <ui-toggle-switch v-model="enableBookshelfView" @input="saveSettings" />
@@ -188,9 +197,13 @@
 <script>
 import { Dialog } from '@capacitor/dialog'
 import jumpLabelMixin from '@/mixins/jumpLabel'
+import TvFocusColorPicker from '@/components/ui/TvFocusColorPicker.vue'
 
 export default {
   mixins: [jumpLabelMixin],
+  components: {
+    TvFocusColorPicker
+  },
   data() {
     return {
       loading: false,
@@ -354,6 +367,12 @@ export default {
     isiOS() {
       return this.$platform === 'ios'
     },
+    isAndroidTv() {
+      return this.$store.state.isAndroidTv
+    },
+    tvFocusColor() {
+      return this.$store.state.user.settings.tvFocusColor || '#1ad691'
+    },
     jumpForwardSecondsOptions() {
       return this.$store.state.globals.jumpForwardSecondsOptions || []
     },
@@ -454,6 +473,9 @@ export default {
     }
   },
   methods: {
+    setTvFocusColor(hex) {
+      this.$store.dispatch('user/updateUserSettings', { tvFocusColor: hex })
+    },
     sleepTimerLengthModalSelection(value) {
       this.settings.sleepTimerLength = value
       this.saveSettings()
