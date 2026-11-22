@@ -172,6 +172,16 @@ object DeviceManager {
   }
 
   /**
+   * Checks if the current device is an Android TV.
+   * @param context The context to check.
+   * @return True if running on an Android TV device.
+   */
+  fun isAndroidTV(context: Context): Boolean {
+    val uiModeManager = context.getSystemService(Context.UI_MODE_SERVICE) as android.app.UiModeManager
+    return uiModeManager.currentModeType == android.content.res.Configuration.UI_MODE_TYPE_TELEVISION
+  }
+
+  /**
    * Sets the last playback session.
    * @param playbackSession The playback session to set.
    */
