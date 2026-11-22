@@ -15,7 +15,8 @@ export const state = () => ({
     collapseBookSeries: false,
     podcastEpisodesOrderBy: 'publishedAt',
     podcastEpisodesOrderDesc: null,
-    podcastEpisodesFilterBy: 'incomplete'
+    podcastEpisodesFilterBy: 'incomplete',
+    tvFocusColor: '#1ad691'
   }
 })
 
