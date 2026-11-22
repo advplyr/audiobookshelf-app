@@ -383,7 +383,12 @@ export default {
     userTimeRemaining() {
       if (!this.userItemProgress) return 0
       const duration = this.userItemProgress.duration || this.duration
-      return duration - this.userItemProgress.currentTime
+      const remaining = duration - this.userItemProgress.currentTime
+      if (this.$store.state.globals.scaleRemainingTimeBySpeed) {
+        const playbackRate = this.$store.getters['user/getUserSetting']('playbackRate') || 1
+        return remaining / playbackRate
+      }
+      return remaining
     },
     useEBookProgress() {
       if (!this.userItemProgress || this.userItemProgress.progress) return false
