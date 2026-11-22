@@ -171,6 +171,16 @@ class AbsAudioPlayerWeb extends WebPlugin {
     return false
   }
 
+  // PluginMethod
+  setPlaylistQueue() {
+    // Web: queue advancement handled in JS layer
+  }
+
+  // PluginMethod
+  clearPlaylistQueue() {
+    // Web: queue advancement handled in JS layer
+  }
+
   initializePlayer() {
     if (document.getElementById('audio-player')) {
       document.getElementById('audio-player').remove()
