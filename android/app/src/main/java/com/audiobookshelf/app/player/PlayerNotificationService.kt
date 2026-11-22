@@ -404,10 +404,16 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
                     .build()
     mPlayer.setHandleAudioBecomingNoisy(true)
     mPlayer.addListener(PlayerListener(this))
+    val contentType =
+            if (deviceSettings.enableAudioDucking) {
+              C.AUDIO_CONTENT_TYPE_MUSIC
+            } else {
+              C.AUDIO_CONTENT_TYPE_SPEECH
+            }
     val audioAttributes: AudioAttributes =
             AudioAttributes.Builder()
                     .setUsage(C.USAGE_MEDIA)
-                    .setContentType(C.AUDIO_CONTENT_TYPE_SPEECH)
+                    .setContentType(contentType)
                     .build()
     mPlayer.setAudioAttributes(audioAttributes, true)
 
