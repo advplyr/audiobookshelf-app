@@ -1487,7 +1487,33 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
         return
       }
       Log.d(tag, "Mediaparts: ${mediaIdParts.size} | $mediaIdParts")
-      if (mediaIdParts.size == 3) {
+      val isPodcastLibrary = mediaManager.getLibrary(mediaIdParts[2])?.mediaType == "podcast"
+      if (mediaIdParts.size == 3 && isPodcastLibrary) {
+        // Podcast libraries list unfinished episodes across all podcasts directly
+        mediaManager.loadLibraryLatestEpisodes(mediaIdParts[2]) { latestEpisodes ->
+          Log.d(tag, "Received ${latestEpisodes.size} unfinished recent episodes")
+          val children = latestEpisodes.map { (libraryItemWrapper, episode) ->
+            val progress = mediaManager.serverUserMediaProgress.find {
+              it.libraryItemId == libraryItemWrapper.id && it.episodeId == episode.id
+            }
+
+            // to show download icon
+            val localLibraryItem =
+              DeviceManager.dbManager.getLocalLibraryItemByLId(libraryItemWrapper.id)
+            localLibraryItem?.let { lli ->
+              val localEpisode =
+                (lli.media as Podcast).episodes?.find { it.serverEpisodeId == episode.id }
+              episode.localEpisodeId = localEpisode?.id
+            }
+
+            MediaBrowserCompat.MediaItem(
+              episode.getMediaDescription(libraryItemWrapper, progress, ctx),
+              MediaBrowserCompat.MediaItem.FLAG_PLAYABLE
+            )
+          }
+          result.sendResult(children.toMutableList())
+        }
+      } else if (mediaIdParts.size == 3) {
         mediaManager.getLibraryRecentShelfs(mediaIdParts[2]) { availableShelfs ->
           Log.d(tag, "Found ${availableShelfs.size} shelfs")
           val children: MutableList<MediaBrowserCompat.MediaItem> = mutableListOf()
