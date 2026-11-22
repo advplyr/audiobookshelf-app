@@ -238,7 +238,7 @@ export default {
     async syncLocalSessions(isFirstSync) {
       if (!this.user) {
         console.log('[default] No need to sync local sessions - not connected to server')
-        return
+        return false
       }
 
       AbsLogger.info({ tag: 'default', message: 'Calling syncLocalSessions' })
@@ -249,6 +249,18 @@ export default {
         await AbsLogger.info({ tag: 'default', message: 'syncLocalSessions: Successfully synced local sessions' })
         // Reload local media progresses
         await this.$store.dispatch('globals/loadLocalMediaProgress')
+        return true
+      }
+      return false
+    },
+    /**
+     * Auto delete relies on local progress being synced with the server first
+     */
+    async autoDeleteFinishedDownloads() {
+      if (await this.$autoDelete.isDue()) {
+        if (await this.syncLocalSessions(false)) {
+          await this.$autoDelete.sweep()
+        }
       }
     },
     userUpdated(user) {
@@ -335,6 +347,7 @@ export default {
         }
         if (document.visibilityState === 'visible') {
           this.$eventBus.$emit('device-focus-update', true)
+          if (this.hasMounted) this.autoDeleteFinishedDownloads()
         }
       } else {
         console.log('⛔️ [default] device visibility: does NOT have focus')
@@ -376,12 +389,15 @@ export default {
         await this.attemptConnection()
       }
 
-      await this.syncLocalSessions(true)
+      const didSyncLocalSessions = await this.syncLocalSessions(true)
 
       this.hasMounted = true
 
       AbsLogger.info({ tag: 'default', message: 'mounted: fully initialized' })
       this.$eventBus.$emit('abs-ui-ready')
+
+      // Not awaited so it never delays startup
+      if (didSyncLocalSessions) this.$autoDelete.sweep()
     }
   },
   beforeDestroy() {

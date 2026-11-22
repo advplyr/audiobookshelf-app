@@ -144,6 +144,45 @@ class LocalStorage {
     }
   }
 
+  async setAutoDeleteSettings(settings) {
+    try {
+      await Preferences.set({ key: 'autoDeleteSettings', value: JSON.stringify(settings) })
+    } catch (error) {
+      console.error('[LocalStorage] Failed to set auto delete settings', error)
+    }
+  }
+
+  async getAutoDeleteSettings() {
+    try {
+      const obj = (await Preferences.get({ key: 'autoDeleteSettings' })) || {}
+      return obj.value ? JSON.parse(obj.value) : null
+    } catch (error) {
+      console.error('[LocalStorage] Failed to get auto delete settings', error)
+      return null
+    }
+  }
+
+  /**
+   * Local media progress id -> timestamp the auto delete sweep first saw the item finished
+   */
+  async setAutoDeleteFirstSeen(firstSeen) {
+    try {
+      await Preferences.set({ key: 'autoDeleteFirstSeen', value: JSON.stringify(firstSeen) })
+    } catch (error) {
+      console.error('[LocalStorage] Failed to set auto delete first seen', error)
+    }
+  }
+
+  async getAutoDeleteFirstSeen() {
+    try {
+      const obj = (await Preferences.get({ key: 'autoDeleteFirstSeen' })) || {}
+      return obj.value ? JSON.parse(obj.value) : {}
+    } catch (error) {
+      console.error('[LocalStorage] Failed to get auto delete first seen', error)
+      return {}
+    }
+  }
+
   /**
    * Get preference value by key
    * 
