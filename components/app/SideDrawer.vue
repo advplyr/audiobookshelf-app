@@ -81,6 +81,9 @@ export default {
     userIsAdminOrUp() {
       return this.$store.getters['user/getIsAdminOrUp']
     },
+    isAndroidTv() {
+      return this.$store.state.isAndroidTv
+    },
     navItems() {
       var items = [
         {
@@ -139,11 +142,15 @@ export default {
       })
 
       if (this.serverConnectionConfig) {
-        items.push({
-          icon: 'language',
-          text: this.$strings.ButtonGoToWebClient,
-          action: 'openWebClient'
-        })
+        // Web client opens the server URL in an external browser. Android TV
+        // typically has no browser, so the action dead-ends — hide it on TV.
+        if (!this.isAndroidTv) {
+          items.push({
+            icon: 'language',
+            text: this.$strings.ButtonGoToWebClient,
+            action: 'openWebClient'
+          })
+        }
 
         items.push({
           icon: 'login',
