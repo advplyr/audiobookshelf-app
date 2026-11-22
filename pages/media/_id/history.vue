@@ -39,7 +39,7 @@ export default {
   },
   data() {
     return {
-      onMediaItemHistoryUpdatedListener: null
+      onMediaItemHistoryEventAddedListener: null
     }
   },
   computed: {
@@ -49,7 +49,8 @@ export default {
     },
     mediaEvents() {
       if (!this.mediaItemHistory) return []
-      return (this.mediaItemHistory.events || []).sort((a, b) => b.timestamp - a.timestamp)
+      // Sort a copy: onMediaItemHistoryEventAdded relies on the backing array staying ascending.
+      return [...(this.mediaItemHistory.events || [])].sort((a, b) => b.timestamp - a.timestamp)
     },
     mediaItemLibraryItemId() {
       if (!this.mediaItemHistory) return null
@@ -183,24 +184,42 @@ export default {
           return 'info'
       }
     },
-    onMediaItemHistoryUpdated(mediaItemHistory) {
-      if (!mediaItemHistory || !mediaItemHistory.id) {
-        console.error('Invalid media item history', mediaItemHistory)
+    onMediaItemHistoryEventAdded(payload) {
+      if (!payload || !payload.mediaItemId || !payload.event) {
+        console.error('Invalid media item history event', payload)
         return
       }
-      if (mediaItemHistory.id !== this.mediaItemHistory.id) {
-        return
-      }
-      console.log('Media Item History updated')
 
-      this.mediaItemHistory = mediaItemHistory
+      const currentMediaId = this.mediaItemHistory?.id || this.$route.params.id
+      if (payload.mediaItemId !== currentMediaId) {
+        return
+      }
+
+      if (!this.mediaItemHistory) {
+        if (!payload.mediaItemHistoryMetadata) {
+          console.error('Invalid media item history event metadata', payload)
+          return
+        }
+        this.mediaItemHistory = {
+          ...payload.mediaItemHistoryMetadata,
+          events: []
+        }
+      }
+
+      // Insert in timestamp order rather than appending: the Save/Sync collapsing in
+      // groupedMediaEvents relies on same-name events being adjacent.
+      if (!Array.isArray(this.mediaItemHistory.events)) this.mediaItemHistory.events = []
+      const events = this.mediaItemHistory.events
+      let insertAt = events.length
+      while (insertAt > 0 && events[insertAt - 1].timestamp > payload.event.timestamp) insertAt--
+      events.splice(insertAt, 0, payload.event)
     }
   },
   async mounted() {
-    this.onMediaItemHistoryUpdatedListener = await AbsAudioPlayer.addListener('onMediaItemHistoryUpdated', this.onMediaItemHistoryUpdated)
+    this.onMediaItemHistoryEventAddedListener = await AbsAudioPlayer.addListener('onMediaItemHistoryEventAdded', this.onMediaItemHistoryEventAdded)
   },
   beforeDestroy() {
-    this.onMediaItemHistoryUpdatedListener?.remove()
+    this.onMediaItemHistoryEventAddedListener?.remove()
   }
 }
 </script>
