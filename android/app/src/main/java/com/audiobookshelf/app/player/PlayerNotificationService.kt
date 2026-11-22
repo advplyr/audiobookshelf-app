@@ -1258,6 +1258,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
       mediaManager.serverItemsInProgress.forEach { itemInProgress ->
         val progress: MediaProgressWrapper?
         val mediaDescription: MediaDescriptionCompat
+        val subtitleSource: CharSequence?
         if (itemInProgress.episode != null) {
           if (itemInProgress.isLocal) {
             progress =
@@ -1290,6 +1291,12 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
                           progress,
                           ctx
                   )
+          // Podcast title without the publish date
+          subtitleSource = when (val libraryItemWrapper = itemInProgress.libraryItemWrapper) {
+            is LibraryItem -> libraryItemWrapper.title
+            is LocalLibraryItem -> libraryItemWrapper.title
+            else -> null
+          }
         } else {
           if (itemInProgress.isLocal) {
             progress =
@@ -1310,10 +1317,11 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
                     localLibraryItem?.id // To show downloaded icon
           }
           mediaDescription = itemInProgress.libraryItemWrapper.getMediaDescription(progress, ctx)
+          subtitleSource = mediaDescription.subtitle
         }
         localBrowseItems +=
                 MediaBrowserCompat.MediaItem(
-                        mediaDescription,
+                        withProgressSubtitle(mediaDescription, progress, subtitleSource),
                         MediaBrowserCompat.MediaItem.FLAG_PLAYABLE
                 )
       }
@@ -1981,6 +1989,42 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
       Log.d(tag, "Loading podcast episodes for podcast $parentMediaId")
       mediaManager.loadPodcastEpisodeMediaBrowserItems(parentMediaId, ctx) { result.sendResult(it) }
     }
+  }
+
+  // Replaces subtitle with time left and source (e.g. "1h 5m left · Podcast title")
+  private fun withProgressSubtitle(
+    description: MediaDescriptionCompat,
+    progress: MediaProgressWrapper?,
+    source: CharSequence?
+  ): MediaDescriptionCompat {
+    if (progress == null || progress.isFinished) return description
+
+    val duration = when (progress) {
+      is MediaProgress -> progress.duration
+      is LocalMediaProgress -> progress.duration
+      else -> 0.0
+    }
+    if (duration <= 0) return description
+
+    val minutesLeft = ((duration - progress.currentTime).coerceAtLeast(0.0) / 60).toInt()
+    val hoursLeft = minutesLeft / 60
+    val timeLeft = if (hoursLeft > 0) {
+      "${hoursLeft}h ${minutesLeft % 60}m left"
+    } else {
+      "${minutesLeft}m left"
+    }
+    val subtitle = if (source.isNullOrEmpty()) timeLeft else "$timeLeft · $source"
+
+    return MediaDescriptionCompat.Builder()
+      .setMediaId(description.mediaId)
+      .setTitle(description.title)
+      .setSubtitle(subtitle)
+      .setDescription(description.description)
+      .setIconUri(description.iconUri)
+      .setIconBitmap(description.iconBitmap)
+      .setMediaUri(description.mediaUri)
+      .setExtras(description.extras)
+      .build()
   }
 
   override fun onSearch(
