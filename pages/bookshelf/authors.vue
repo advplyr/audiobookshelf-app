@@ -30,7 +30,11 @@ export default {
   },
   methods: {
     async init() {
-      this.cardWidth = (window.innerWidth - 64) / 2
+      var cols = 2
+      if (window.innerWidth >= 1280) cols = 8
+      else if (window.innerWidth >= 960) cols = 6
+      else if (window.innerWidth >= 640) cols = 4
+      this.cardWidth = (window.innerWidth - 64) / cols
       if (!this.currentLibraryId) {
         return
       }
