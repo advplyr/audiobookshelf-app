@@ -125,6 +125,26 @@ class Podcast(
     }
     return podcastEpisode
   }
+
+  /**
+   * The episode that comes straight after [currentEpisodeId] in release order (oldest first),
+   * or null if it is the last one. Episodes without a publish date (e.g. local downloads) fall
+   * back to their episode number, then their index.
+   */
+  @JsonIgnore
+  fun getEpisodeAfter(currentEpisodeId:String?):PodcastEpisode? {
+    if (currentEpisodeId.isNullOrEmpty()) return null
+    val sortedEpisodes = episodes?.sortedWith(
+      compareBy<PodcastEpisode>(
+        { it.publishedAt ?: Long.MAX_VALUE },
+        { it.episode?.trim()?.toIntOrNull() ?: Int.MAX_VALUE },
+        { it.index }
+      )
+    ) ?: return null
+    val currentIndex = sortedEpisodes.indexOfFirst { it.id == currentEpisodeId }
+    if (currentIndex < 0) return null
+    return sortedEpisodes.getOrNull(currentIndex + 1)
+  }
 }
 
 @JsonIgnoreProperties(ignoreUnknown = true)

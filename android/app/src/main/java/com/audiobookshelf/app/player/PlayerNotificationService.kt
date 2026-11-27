@@ -640,31 +640,53 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
     }
   }
 
+  /**
+   * When a podcast episode finishes, start the next episode of the same podcast in release order
+   * (works on the phone, with the screen off, and in Android Auto). Stops after the last episode.
+   */
   fun handlePlaybackEnded() {
     Log.d(tag, "handlePlaybackEnded")
-    if (isAndroidAuto && currentPlaybackSession?.isPodcastEpisode == true) {
-      Log.d(tag, "Podcast playback ended on android auto")
-      val libraryItem = currentPlaybackSession?.libraryItem ?: return
+    val session = currentPlaybackSession ?: return
+    if (!session.isPodcastEpisode) return
 
-      // Need to sync with server to set as finished
-      mediaProgressSyncer.finished {
-        // Need to reload media progress
-        mediaManager.loadServerUserMediaProgress {
-          val podcast = libraryItem.media as Podcast
-          val nextEpisode = podcast.getNextUnfinishedEpisode(libraryItem.id, mediaManager)
-          Log.d(tag, "handlePlaybackEnded nextEpisode=$nextEpisode")
-          nextEpisode?.let { podcastEpisode ->
-            mediaManager.play(libraryItem, podcastEpisode, getPlayItemRequestPayload(false)) {
-              if (it == null) {
-                Log.e(tag, "Failed to play library item")
-              } else {
-                val playbackRate = mediaManager.getSavedPlaybackRate()
-                Handler(Looper.getMainLooper()).post { preparePlayer(it, true, playbackRate) }
-              }
-            }
+    val libraryItemWrapper: LibraryItemWrapper =
+            (if (session.isLocal) session.localLibraryItem else session.libraryItem) ?: return
+    val podcast = when (libraryItemWrapper) {
+      is LocalLibraryItem -> libraryItemWrapper.media
+      is LibraryItem -> libraryItemWrapper.media
+      else -> null
+    } as? Podcast ?: return
+    val currentEpisodeId = if (session.isLocal) session.localEpisodeId else session.episodeId
+    val nextEpisode = podcast.getEpisodeAfter(currentEpisodeId)
+    Log.d(tag, "handlePlaybackEnded current=$currentEpisodeId next=${nextEpisode?.id} \"${nextEpisode?.title}\"")
+    if (nextEpisode == null) return
+
+    val endedSessionId = session.id
+    val playNext = {
+      // Don't hijack playback if the user started something else meanwhile
+      if (currentPlaybackSession?.id == endedSessionId) {
+        // Drop the ended session from the syncer so the next episode syncs to its own session
+        mediaProgressSyncer.reset()
+        mediaManager.play(libraryItemWrapper, nextEpisode, getPlayItemRequestPayload(false)) {
+          if (it == null) {
+            Log.e(tag, "handlePlaybackEnded: failed to start next episode")
+          } else {
+            val playbackRate = mediaManager.getSavedPlaybackRate()
+            Handler(Looper.getMainLooper()).post { preparePlayer(it, true, playbackRate) }
           }
         }
       }
+    }
+
+    // Usually the pause triggered by the end of playback has already synced the final position
+    // (which marks the episode finished). If the syncer is still running, finish it properly first.
+    // Either way, give the in-flight sync a moment before the next session replaces this one.
+    if (mediaProgressSyncer.listeningTimerRunning) {
+      mediaProgressSyncer.finished {
+        Handler(Looper.getMainLooper()).postDelayed({ playNext() }, 1500)
+      }
+    } else {
+      Handler(Looper.getMainLooper()).postDelayed({ playNext() }, 1500)
     }
   }
 
