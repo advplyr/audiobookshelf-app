@@ -96,7 +96,14 @@ class PlayerListener(var playerNotificationService:PlayerNotificationService) : 
 
     // Start/stop progress sync interval
     if (isPlaying) {
-      val playbackSession: PlaybackSession? = playerNotificationService.mediaProgressSyncer.currentPlaybackSession ?: playerNotificationService.currentPlaybackSession
+      // The syncer keeps its (up-to-date) copy of the session after a pause. If a different session
+      // has been prepared since (next episode, Android Auto pick), use that one, otherwise syncs keep
+      // going to the old, server-closed session and the new item's progress is lost.
+      val serviceSession = playerNotificationService.currentPlaybackSession
+      val syncerSession = playerNotificationService.mediaProgressSyncer.currentPlaybackSession
+      val playbackSession: PlaybackSession? =
+              if (serviceSession != null && syncerSession != null && serviceSession.id != syncerSession.id) serviceSession
+              else syncerSession ?: serviceSession
       playbackSession?.let {
         // Handles auto-starting sleep timer and resetting sleep timer
         playerNotificationService.sleepTimerManager.handleMediaPlayEvent(it.id)
