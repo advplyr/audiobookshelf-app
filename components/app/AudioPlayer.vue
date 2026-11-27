@@ -77,7 +77,7 @@
             <p class="text-xl font-mono text-success">{{ sleepTimeRemainingPretty }}</p>
           </div>
 
-          <span class="material-symbols text-3xl text-fg cursor-pointer" :class="chapters.length ? 'text-opacity-75' : 'text-opacity-10'" @click="clickChaptersBtn">format_list_bulleted</span>
+          <span class="material-symbols text-3xl text-fg cursor-pointer" :class="chapters.length || usePodcastQueue ? 'text-opacity-75' : 'text-opacity-10'" @click="clickChaptersBtn">format_list_bulleted</span>
         </div>
       </div>
       <div v-else class="w-full h-full absolute top-0 left-0 pointer-events-none" style="background: var(--gradient-minimized-audio-player)" />
@@ -100,7 +100,7 @@
             <span class="material-symbols text-3xl leading-none">forward_media</span>
             <span v-if="showFullscreen" class="jump-label text-[10px] font-semibold leading-tight">{{ jumpForwardLabel }}</span>
           </div>
-          <span v-show="showFullscreen && !playerSettings.lockUi" class="material-symbols next-icon text-fg cursor-pointer" :class="nextChapter && !showLoadingState ? 'text-opacity-75' : 'text-opacity-10'" @click.stop="jumpNextChapter">last_page</span>
+          <span v-show="showFullscreen && !playerSettings.lockUi" class="material-symbols next-icon text-fg cursor-pointer" :class="(nextChapter || (usePodcastQueue && upNextEpisodes.length)) && !showLoadingState ? 'text-opacity-75' : 'text-opacity-10'" @click.stop="jumpNextChapter">last_page</span>
         </div>
       </div>
 
@@ -123,6 +123,7 @@
     </div>
 
     <!-- Chapters modal - lists chapters for navigation -->
+    <modals-up-next-modal v-model="showUpNextModal" :episodes="upNextEpisodes" @select="playEpisode" />
     <modals-chapters-modal v-model="showChapterModal" :current-chapter="currentChapter" :chapters="chapters" :playback-rate="currentPlaybackRate" @select="selectChapter" />
     <!-- More menu dialog - player settings and options -->
     <modals-dialog v-model="showMoreMenuDialog" :items="menuItems" width="80vw" @action="clickMenuAction" />
@@ -154,6 +155,7 @@ export default {
       windowWidth: 0,
       playbackSession: null,
       showChapterModal: false,
+      showUpNextModal: false,
       showFullscreen: false,
       totalDuration: 0,
       currentPlaybackRate: 1,
@@ -308,6 +310,29 @@ export default {
     isPodcast() {
       return this.mediaType === 'podcast'
     },
+    // Podcasts without chapters: the chapter buttons become "next episode" / "up next"
+    usePodcastQueue() {
+      return this.isPodcast && !this.chapters.length
+    },
+    isLocalSession() {
+      return !!this.playbackSession?.localLibraryItem
+    },
+    podcastEpisodesInOrder() {
+      const item = this.isLocalSession ? this.playbackSession?.localLibraryItem : this.playbackSession?.libraryItem
+      const episodes = item?.media?.episodes || []
+      const num = (e) => {
+        const n = parseInt(e.episode, 10)
+        return isNaN(n) ? Number.MAX_SAFE_INTEGER : n
+      }
+      return [...episodes].sort((a, b) => (a.publishedAt || Number.MAX_SAFE_INTEGER) - (b.publishedAt || Number.MAX_SAFE_INTEGER) || num(a) - num(b) || (a.index || 0) - (b.index || 0))
+    },
+    upNextEpisodes() {
+      if (!this.isPodcast) return []
+      const currentId = this.isLocalSession ? this.playbackSession?.localEpisodeId : this.playbackSession?.episodeId
+      const idx = this.podcastEpisodesInOrder.findIndex((e) => e.id === currentId)
+      if (idx < 0) return []
+      return this.podcastEpisodesInOrder.slice(idx + 1)
+    },
     mediaMetadata() {
       return this.playbackSession?.mediaMetadata || null
     },
@@ -426,6 +451,10 @@ export default {
       })
     },
     clickChaptersBtn() {
+      if (this.usePodcastQueue) {
+        this.showUpNextModal = true
+        return
+      }
       if (!this.chapters.length) return
       this.showChapterModal = true
     },
@@ -481,8 +510,27 @@ export default {
     async jumpNextChapter() {
       await this.$hapticsImpact()
       if (this.showLoadingState) return
+      if (this.usePodcastQueue) {
+        if (this.upNextEpisodes.length) this.playEpisode(this.upNextEpisodes[0])
+        return
+      }
       if (!this.nextChapter) return
       this.seek(this.nextChapter.start)
+    },
+    playEpisode(episode) {
+      this.showUpNextModal = false
+      if (!episode) return
+      const session = this.playbackSession
+      if (this.isLocalSession) {
+        this.$eventBus.$emit('play-item', {
+          libraryItemId: session.localLibraryItem.id,
+          episodeId: episode.id,
+          serverLibraryItemId: session.libraryItemId || null,
+          serverEpisodeId: episode.serverEpisodeId || null
+        })
+      } else {
+        this.$eventBus.$emit('play-item', { libraryItemId: session.libraryItemId, episodeId: episode.id })
+      }
     },
     async jumpChapterStart() {
       await this.$hapticsImpact()
