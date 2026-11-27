@@ -33,6 +33,7 @@ class PlayerListener(var playerNotificationService:PlayerNotificationService) : 
       Log.d(tag, "onPositionDiscontinuity: oldPosition=${oldPosition.positionMs}/${oldPosition.mediaItemIndex}, newPosition=${newPosition.positionMs}/${newPosition.mediaItemIndex}, isPlaying=${playerNotificationService.currentPlayer.isPlaying} reason=SEEK")
       playerNotificationService.mediaProgressSyncer.seek()
       lastPauseTime = 0 // When seeking while paused reset the auto-rewind
+      playerNotificationService.refreshChapterState()
     } else {
       Log.d(tag, "onPositionDiscontinuity: oldPosition=${oldPosition.positionMs}/${oldPosition.mediaItemIndex}, newPosition=${newPosition.positionMs}/${newPosition.mediaItemIndex}, isPlaying=${playerNotificationService.currentPlayer.isPlaying}, reason=$reason")
     }
@@ -116,6 +117,10 @@ class PlayerListener(var playerNotificationService:PlayerNotificationService) : 
 
   override fun onEvents(player: Player, events: Player.Events) {
     Log.d(tag, "onEvents ${playerNotificationService.getMediaPlayer()} | ${events.size()}")
+
+    if (events.contains(Player.EVENT_IS_PLAYING_CHANGED) && player.isPlaying) {
+      playerNotificationService.startChapterWatch()
+    }
 
     if (events.contains(Player.EVENT_POSITION_DISCONTINUITY)) {
       Log.d(tag, "EVENT_POSITION_DISCONTINUITY")

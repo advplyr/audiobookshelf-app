@@ -201,6 +201,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
     isClosed = true
     DeviceManager.widgetUpdater?.onPlayerChanged(this)
 
+    chapterWatchHandler.removeCallbacksAndMessages(null)
     playerNotificationManager.setPlayer(null)
     mPlayer.release()
     castPlayer?.release()
@@ -308,14 +309,39 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
     // player's own state on media item transitions/timeline changes, dropping the cover art
     // bitmap that PlaybackSession.resolveCoverBitmapAsync resolves separately.
     mediaSessionConnector.setMediaMetadataProvider { _ ->
-      currentPlaybackSession?.getMediaMetadataCompat(ctx) ?: MediaMetadataCompat.Builder().build()
+      val meta = currentPlaybackSession?.getMediaMetadataCompat(ctx)
+        ?: return@setMediaMetadataProvider MediaMetadataCompat.Builder().build()
+      val ch = getCurrentBookChapter() ?: return@setMediaMetadataProvider meta
+      // Report the chapter (not the whole book) to Android Auto and show its title
+      val author = currentPlaybackSession?.displayAuthor ?: ""
+      val chapterLine = if (ch.title.isNullOrBlank()) author else "${ch.title} \u2022 $author"
+      MediaMetadataCompat.Builder(meta)
+        .putLong(MediaMetadataCompat.METADATA_KEY_DURATION, ch.endMs - ch.startMs)
+        .putString(MediaMetadataCompat.METADATA_KEY_ARTIST, chapterLine)
+        .putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_SUBTITLE, chapterLine)
+        .build()
     }
     val queueNavigator: TimelineQueueNavigator =
             object : TimelineQueueNavigator(mediaSession) {
               override fun getSupportedQueueNavigatorActions(player: Player): Long {
-                return PlaybackStateCompat.ACTION_PLAY_PAUSE or
+                var actions = PlaybackStateCompat.ACTION_PLAY_PAUSE or
                         PlaybackStateCompat.ACTION_PLAY or
                         PlaybackStateCompat.ACTION_PAUSE
+                // Previous/next chapter buttons (Android Auto, Bluetooth, lock screen)
+                if (currentPlaybackSession?.chapters?.isNotEmpty() == true) {
+                  actions = actions or
+                          PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS or
+                          PlaybackStateCompat.ACTION_SKIP_TO_NEXT
+                }
+                return actions
+              }
+
+              override fun onSkipToPrevious(player: Player) {
+                skipToPrevious()
+              }
+
+              override fun onSkipToNext(player: Player) {
+                skipToNext()
               }
 
               override fun getMediaDescription(
@@ -414,7 +440,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
     // attach player to playerNotificationManager
     playerNotificationManager.setPlayer(mPlayer)
 
-    mediaSessionConnector.setPlayer(mPlayer)
+    mediaSessionConnector.setPlayer(chapterAware(mPlayer))
   }
 
   /*
@@ -463,7 +489,7 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
 
     if (playbackSession.mediaPlayer == PLAYER_CAST) {
       // If cast-player is the first player to be used
-      mediaSessionConnector.setPlayer(castPlayer)
+      mediaSessionConnector.setPlayer(chapterAware(castPlayer))
       playerNotificationManager.setPlayer(castPlayer)
     }
 
@@ -730,13 +756,13 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
     currentPlayer =
             if (useCastPlayer) {
               Log.d(tag, "switchToPlayer: Using Cast Player " + castPlayer?.deviceInfo)
-              mediaSessionConnector.setPlayer(castPlayer)
+              mediaSessionConnector.setPlayer(chapterAware(castPlayer))
               playerNotificationManager.setPlayer(castPlayer)
               setMediaSessionToCastVolume()
               castPlayer as CastPlayer
             } else {
               Log.d(tag, "switchToPlayer: Using ExoPlayer")
-              mediaSessionConnector.setPlayer(mPlayer)
+              mediaSessionConnector.setPlayer(chapterAware(mPlayer))
               playerNotificationManager.setPlayer(mPlayer)
               setMediaSessionToLocalVolume()
               mPlayer
@@ -993,11 +1019,59 @@ class PlayerNotificationService : MediaBrowserServiceCompat() {
   }
 
   fun skipToPrevious() {
-    currentPlayer.seekToPrevious()
+    val session = currentPlaybackSession
+    val now = getCurrentTime()
+    val ch = session?.getChapterForTime(now)
+    if (session == null || ch == null) {
+      currentPlayer.seekToPrevious()
+      return
+    }
+    // More than 3s into the chapter: restart it. Otherwise go to the previous chapter.
+    if (now - ch.startMs > 3000L) {
+      seekPlayer(ch.startMs)
+    } else {
+      val prev = session.chapters.filter { it.startMs < ch.startMs }.maxByOrNull { it.startMs }
+      seekPlayer(prev?.startMs ?: ch.startMs)
+    }
   }
 
   fun skipToNext() {
-    currentPlayer.seekToNext()
+    val next = currentPlaybackSession?.getNextChapterForTime(getCurrentTime())
+    if (next != null) {
+      seekPlayer(next.startMs)
+    } else if (currentPlaybackSession?.chapters.isNullOrEmpty()) {
+      currentPlayer.seekToNext()
+    }
+  }
+
+  private fun chapterAware(player: Player?): Player? {
+    return player?.let { ChapterAwarePlayer(it, this) }
+  }
+
+  // Android Auto extrapolates the progress bar from the last playback state, so when the
+  // chapter changes (or the user seeks into another chapter) the session state and metadata
+  // (duration, chapter title) must be refreshed.
+  private var lastChapterId: Int? = null
+  private val chapterWatchHandler = Handler(Looper.getMainLooper())
+  private val chapterWatchRunnable = object : Runnable {
+    override fun run() {
+      refreshChapterState()
+      if (!isClosed && currentPlayer.isPlaying) chapterWatchHandler.postDelayed(this, 1000)
+    }
+  }
+
+  fun refreshChapterState(force: Boolean = false) {
+    val id = getCurrentBookChapter()?.id
+    if (force || id != lastChapterId) {
+      lastChapterId = id
+      mediaSessionConnector.invalidateMediaSessionMetadata()
+      mediaSessionConnector.invalidateMediaSessionPlaybackState()
+    }
+  }
+
+  fun startChapterWatch() {
+    chapterWatchHandler.removeCallbacks(chapterWatchRunnable)
+    chapterWatchHandler.post(chapterWatchRunnable)
   }
 
   fun jumpForward() {

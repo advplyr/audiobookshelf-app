@@ -85,6 +85,12 @@ class MediaSessionCallback(var playerNotificationService:PlayerNotificationServi
   }
 
   override fun onSeekTo(pos: Long) {
+    // With chapters, Android Auto reports/sends positions relative to the current chapter
+    val chapter = playerNotificationService.getCurrentBookChapter()
+    if (chapter != null) {
+      playerNotificationService.seekPlayer(chapter.startMs + pos)
+      return
+    }
     val currentTrackStartOffset = playerNotificationService.getCurrentTrackStartOffsetMs()
     playerNotificationService.seekPlayer(currentTrackStartOffset + pos)
   }
