@@ -253,7 +253,10 @@ export default {
           if (data.error) {
             const errorMsg = data.error || 'Failed to play'
             this.$toast.error(errorMsg)
+            this.$store.commit('setPlayerDoneStartingPlayback')
           } else {
+            // When playing, AudioPlayer ends the starting state once the native player reports it is playing or ready
+            if (!startWhenReady) this.$store.commit('setPlayerDoneStartingPlayback')
             console.log('Library item play response', JSON.stringify(data))
             if (!libraryItemId.startsWith('local')) {
               this.serverLibraryItemId = libraryItemId
@@ -270,8 +273,6 @@ export default {
         .catch((error) => {
           console.error('Failed', error)
           this.$toast.error('Failed to play')
-        })
-        .finally(() => {
           this.$store.commit('setPlayerDoneStartingPlayback')
         })
     },
