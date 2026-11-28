@@ -820,6 +820,7 @@ export default {
       this.isEnded = false
       this.isLoading = false
       this.playbackSession = null
+      this.$store.commit('setPlayerDoneStartingPlayback')
     },
     async loadPlayerSettings() {
       const savedPlayerSettings = await this.$localStore.getPlayerSettings()
@@ -853,6 +854,7 @@ export default {
       this.isPlaying = !!data.value
       this.$store.commit('setPlayerPlaying', this.isPlaying)
       if (this.isPlaying) {
+        this.$store.commit('setPlayerDoneStartingPlayback')
         this.startPlayInterval()
       } else {
         this.stopPlayInterval()
@@ -866,6 +868,7 @@ export default {
       // Done loading
       if (data.playerState !== 'BUFFERING' && data.playerState !== 'IDLE') {
         this.isLoading = false
+        this.$store.commit('setPlayerDoneStartingPlayback')
       }
 
       if (data.playerState === 'ENDED') {
